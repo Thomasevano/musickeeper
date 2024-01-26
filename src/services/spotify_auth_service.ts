@@ -3,7 +3,7 @@ import axios from "axios";
 export const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const params = new URLSearchParams(window.location.search);
 export const code = params.get("code");
-const redirectUri = "http://localhost:5173/";
+const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
 const scope = `user-read-private user-read-email playlist-read-private playlist-read-collaborative 
 playlist-modify-private playlist-modify-public user-library-modify user-library-read`;
 
