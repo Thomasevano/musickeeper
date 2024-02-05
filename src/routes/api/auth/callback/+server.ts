@@ -38,5 +38,5 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
   cookies.set('spotify_refresh_token', responseJSON.refresh_token, { path: '/' });
   cookies.set('spotify_access_token', responseJSON.access_token, { path: '/' });
 
-  throw redirect(303, '/');
+  throw redirect(303, '/dashboard');
 };
