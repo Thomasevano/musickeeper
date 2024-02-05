@@ -28,9 +28,9 @@
 			platforms
 		</p>
 		<div class="flex justify-center space-x-2 md:space-x-4">
-			<Button size="lg" href="#">
+			<Button size="lg" href="/api/auth/login">
 				<i class="si si-spotify si--color mr-2 text-2xl"></i>
-				Connect your Spotify
+				Connect your Spotify Account
 			</Button>
 		</div>
 	</div>
