@@ -36,7 +36,7 @@
 			<nav class="hidden flex-grow flex-col md:flex md:flex-row md:pb-0 md:justify-center">
 				<div class="md:justify-between md:ml-auto"
 				>
-					<Button href="#" variant="link">Features</Button>
+					<Button href="/#features" variant="link">Features</Button>
 				</div>
 				<div class="md:ml-auto">
 					<ToggleTheme />

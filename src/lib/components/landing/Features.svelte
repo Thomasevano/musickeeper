@@ -83,7 +83,7 @@
 	</div>
 	<div class="mx-auto text-center md:max-w-[58rem]">
 		<p class="balance-text leading-normal text-muted-foreground sm:text-lg sm:leading-7">
-			Do not hesitate to request new features you would like to see.
+			Do not hesitate to request new features you would like to have.
 		</p>
 	</div>
 </section>
