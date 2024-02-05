@@ -45,6 +45,7 @@
 		"clsx": "^2.1.0",
 		"lucide-svelte": "^0.322.0",
 		"mode-watcher": "^0.2.0",
+		"simple-icons-font": "^11.3.0",
 		"tailwind-merge": "^2.2.1",
 		"tailwind-variants": "^0.1.20"
 	}
