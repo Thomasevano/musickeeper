@@ -11,8 +11,7 @@
 		<div class="border-t">
 			<div class="bg-background">
 				<div class="grid lg:grid-cols-5">
-					<Sidebar class="hidden lg:block" />
-					<h1>You are connected with your Spotify Account: {data.user.display_name}</h1>
+					<Sidebar class="hidden md:block" user={data.user} />
 					<slot />
 				</div>
 			</div>
