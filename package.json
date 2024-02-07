@@ -41,6 +41,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@types/spotify-api": "^0.0.25",
 		"bits-ui": "^0.17.0",
 		"clsx": "^2.1.0",
 		"lucide-svelte": "^0.322.0",
