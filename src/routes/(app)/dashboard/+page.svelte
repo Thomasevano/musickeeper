@@ -1,1 +1,3 @@
-<h1>Dashboard</h1>
+<svelte:head>
+  <title>Dashboard - MusicKeeper</title>
+</svelte:head>
