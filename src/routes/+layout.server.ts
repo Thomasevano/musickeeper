@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { VITE_SPOTIFY_BASE_URL } from '$env/static/private'
+import { VITE_SPOTIFY_BASE_URL } from '$env/static/private';
 
 export const load: LayoutServerLoad = async ({ cookies, fetch, url }) => {
 	const accessToken = cookies.get('spotify_access_token');
@@ -19,7 +19,7 @@ export const load: LayoutServerLoad = async ({ cookies, fetch, url }) => {
 	if (profileRes.ok) {
 		const profile = await profileRes.json();
 		return {
-			user: profile,
+			user: profile
 		};
 	}
 	if (profileRes.status === 401 && refreshToken) {
