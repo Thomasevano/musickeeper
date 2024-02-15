@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  svelte-app:
+    build:
+      context: .
+      dockerfile: ./prod.Dockerfile
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./env.local:/usr/src/app/.env
