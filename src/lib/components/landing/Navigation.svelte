@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
 	import ToggleTheme from '../ToggleTheme.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { enhance } from '$app/forms';
 </script>
 
 <section class="border-b">
@@ -33,13 +34,15 @@
 					</svg>
 				</button>
 			</div>
-			<nav class="hidden flex-grow flex-col md:flex md:flex-row md:pb-0 md:justify-center">
-				<div class="md:justify-between md:ml-auto"
-				>
+			<nav class="hidden flex-grow flex-col md:flex md:flex-row md:justify-center md:pb-0">
+				<div class="md:ml-auto md:justify-between">
 					<Button href="/#features" variant="link">Features</Button>
 				</div>
 				<div class="md:ml-auto">
 					<ToggleTheme />
+					<form method="post" use:enhance>
+						<Button>Sign Out</Button>
+					</form>
 				</div>
 			</nav>
 		</div>
