@@ -1,12 +1,5 @@
-FROM oven/bun as base
-WORKDIR /usr/src/app
-
-# COPY bun.lockb .
-# COPY package.json .
-
-# RUN bun install --frozen-lockfile
-
-# COPY . .
+FROM oven/bun:latest as base
+WORKDIR /app
 
 FROM base AS install
 RUN mkdir -p /temp/dev
