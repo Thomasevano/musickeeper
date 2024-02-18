@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ToggleTheme from '../ToggleTheme.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { enhance } from '$app/forms';
 </script>
 
 <section class="border-b">
@@ -40,9 +39,8 @@
 				</div>
 				<div class="md:ml-auto">
 					<ToggleTheme />
-					<form method="post" use:enhance>
-						<Button>Sign Out</Button>
-					</form>
+					<Button href="/login">Login</Button>
+					<Button>Sign up</Button>
 				</div>
 			</nav>
 		</div>

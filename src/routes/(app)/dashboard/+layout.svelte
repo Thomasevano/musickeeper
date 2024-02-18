@@ -3,6 +3,7 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 
 	export let data: LayoutData;
+	console.log(data);
 </script>
 
 {#if data}
@@ -11,7 +12,7 @@
 		<div class="border-t">
 			<div class="bg-background">
 				<div class="grid lg:grid-cols-5">
-					<Sidebar class="hidden md:block" user={data.user} />
+					<Sidebar class="hidden md:block" user={data} />
 					<slot />
 				</div>
 			</div>

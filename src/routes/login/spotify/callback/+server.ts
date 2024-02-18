@@ -1,14 +1,16 @@
 import { OAuth2RequestError } from 'arctic';
 import { generateId } from 'lucia';
-import { spotify, lucia } from '$lib/server/auth';
-import { eq } from 'drizzle-orm';
+import { lucia } from '$lib/server/auth';
+import type { RequestHandler } from './$types';
+import { eq, and } from 'drizzle-orm';
+import { VITE_SPOTIFY_CLIENT_ID, VITE_BASE_URL, VITE_BASIC_TOKEN } from '$env/static/private';
 
 import type { RequestEvent } from '@sveltejs/kit';
 import { VITE_SPOTIFY_BASE_URL } from '$env/static/private';
 import { db } from '../../../../db';
 import { OAuthAccountTable, userTable } from '../../../../db/schema';
 
-export async function GET(event: RequestEvent): Promise<Response> {
+export const GET: RequestHandler = async (event: RequestEvent): Promise<Response> => {
 	const code = event.url.searchParams.get('code');
 	const state = event.url.searchParams.get('state');
 	const storedState = event.cookies.get('spotify_oauth_state') ?? null;
@@ -20,10 +22,29 @@ export async function GET(event: RequestEvent): Promise<Response> {
 	}
 
 	try {
-		const tokens = await spotify.validateAuthorizationCode(code);
+		// const tokens = await spotify.validateAuthorizationCode(code);
+		const response = await fetch('https://accounts.spotify.com/api/token', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization: `Basic ${VITE_BASIC_TOKEN}`
+			},
+			body: new URLSearchParams({
+				code: code || '',
+				redirect_uri: `${VITE_BASE_URL}/login/spotify/callback`,
+				grant_type: 'authorization_code',
+				code_verifier: storedState || '',
+				client_id: VITE_SPOTIFY_CLIENT_ID
+			})
+		});
+		const tokens = await response.json();
+
+		if (tokens.error) {
+			console.log('error: 400, ', tokens.error_description);
+		}
 		const spotifyUserResponse = await fetch(`${VITE_SPOTIFY_BASE_URL}/me`, {
 			headers: {
-				Authorization: `Bearer ${tokens.accessToken}`
+				Authorization: `Bearer ${tokens.access_token}`
 			}
 		});
 		const spotifyUser: SpotifyApi.CurrentUsersProfileResponse = await spotifyUserResponse.json();
@@ -31,10 +52,17 @@ export async function GET(event: RequestEvent): Promise<Response> {
 		const existingAccount = await db
 			.select()
 			.from(OAuthAccountTable)
-			.where(eq(spotifyUser.id, 'spotify_id'));
+			.where(
+				and(
+					eq(OAuthAccountTable.providerId, 'spotify'),
+					eq(OAuthAccountTable.providerUserId, spotifyUser.id)
+				)
+			);
 
-		if (existingAccount) {
-			const session = await lucia.createSession(existingAccount.id, {});
+		console.log({ existingAccount });
+
+		if (existingAccount.length > 0) {
+			const session = await lucia.createSession(existingAccount[0].userId, {});
 			const sessionCookie = lucia.createSessionCookie(session.id);
 			event.cookies.set(sessionCookie.name, sessionCookie.value, {
 				path: '.',
@@ -43,17 +71,17 @@ export async function GET(event: RequestEvent): Promise<Response> {
 		} else {
 			const userId = generateId(15);
 
-			await db.transaction(async (tx) => {
-				await tx.insert(userTable).values({
+			await db.batch([
+				db.insert(userTable).values({
 					id: userId,
 					username: spotifyUser.display_name
-				});
-				await tx.insert(OAuthAccountTable).values({
+				}),
+				db.insert(OAuthAccountTable).values({
 					providerId: 'spotify',
 					providerUserId: spotifyUser.id,
 					userId: userId
-				});
-			});
+				})
+			]);
 
 			const session = await lucia.createSession(userId, {});
 			const sessionCookie = lucia.createSessionCookie(session.id);
@@ -75,12 +103,9 @@ export async function GET(event: RequestEvent): Promise<Response> {
 			return new Response(null, {
 				status: 400
 			});
-			console.log(e.message);
-			console.log(e.description);
 		}
 		return new Response(null, {
 			status: 500
 		});
-		console.log(e);
 	}
-}
+};
