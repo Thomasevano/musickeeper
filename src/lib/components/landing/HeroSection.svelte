@@ -22,15 +22,14 @@
 		</h1>
 
 		<p
-			class="max-w-[42rem] text-balance leading-normal text-muted-foreground sm:text-xl sm:leading-8"
+			class="text-muted-foreground max-w-[42rem] text-balance leading-normal sm:text-xl sm:leading-8"
 		>
-			A music manager app that help you manage, extract and transfer your music between different streaming
-			platforms
+			A music manager app that help you manage, extract and transfer your music between different
+			streaming platforms
 		</p>
 		<div class="flex justify-center space-x-2 md:space-x-4">
-			<Button size="lg" href="/api/auth/login">
-				<i class="si si-spotify si--color mr-2 text-2xl"></i>
-				Connect your Spotify Account
+			<Button size="lg" href="/login">
+				Get Started <span class="ml-1" aria-hidden="true">&rarr;</span>
 			</Button>
 		</div>
 	</div>

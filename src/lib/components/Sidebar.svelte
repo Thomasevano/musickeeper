@@ -2,28 +2,45 @@
 	import { cn } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { enhance } from '$app/forms';
 
 	let className: string | null | undefined = undefined;
 	export { className as class };
 
-	export let user: SpotifyApi.CurrentUsersProfileResponse;
+	export let user;
 </script>
 
 <div class={cn('pb-12', className)}>
 	<div class="space-y-4 py-4">
 		<div class="px-3 py-2">
-			<div class="mb-4 flex items-center space-x-4">
-				<Avatar.Root>
-					{#if user.images}
-						<Avatar.Image src={user.images[0].url} alt={user.display_name} />
-					{/if}
-					<Avatar.Fallback>{`${user.display_name.charAt(0)+user.display_name.charAt(1)}`}</Avatar.Fallback>
-				</Avatar.Root>
-				<div>
-					<p class="text-sm font-medium leading-none">{user.display_name}</p>
-					<p class="text-sm text-muted-foreground">{user.email}</p>
-				</div>
-			</div>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger class="mb-4 flex items-center space-x-4">
+					<Avatar.Root>
+						{#if user.images}
+							<Avatar.Image src={user.images[0].url} alt={user.username} />
+						{/if}
+						<Avatar.Fallback
+							>{`${user.username.charAt(0) + user.username.charAt(1)}`}</Avatar.Fallback
+						>
+					</Avatar.Root>
+					<div>
+						<p class="text-sm font-medium leading-none">{user.username}</p>
+					</div>
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content>
+					<DropdownMenu.Group>
+						<DropdownMenu.Label>My Account</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item>Profile</DropdownMenu.Item>
+						<DropdownMenu.Item>
+							<form method="post" use:enhance>
+								<button>Sign out</button>
+							</form>
+						</DropdownMenu.Item>
+					</DropdownMenu.Group>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 			<h2 class="mb-2 px-4 text-lg font-semibold tracking-tight">Library</h2>
 			<div class="space-y-1">
 				<Button variant="ghost" href="#" class="w-full justify-start">
