@@ -17,7 +17,7 @@ export const spotify = new Spotify(
 	`${VITE_BASE_URL}/login/spotify/callback`
 );
 
-const adapter = new DrizzleSQLiteAdapter(db, userTable, sessionTable);
+const adapter = new DrizzleSQLiteAdapter(db, sessionTable, userTable);
 
 export const lucia = new Lucia(adapter, {
 	sessionCookie: {
