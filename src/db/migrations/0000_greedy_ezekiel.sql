@@ -14,5 +14,6 @@ CREATE TABLE `session` (
 --> statement-breakpoint
 CREATE TABLE `user` (
 	`id` text PRIMARY KEY NOT NULL,
-	`username` text
+	`username` text NOT NULL,
+	`email` text NOT NULL
 );

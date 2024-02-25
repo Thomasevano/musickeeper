@@ -33,7 +33,6 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 				code: code || '',
 				redirect_uri: `${VITE_BASE_URL}/login/spotify/callback`,
 				grant_type: 'authorization_code',
-				code_verifier: storedState || '',
 				client_id: VITE_SPOTIFY_CLIENT_ID
 			})
 		});
@@ -74,7 +73,8 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 			await db.batch([
 				db.insert(userTable).values({
 					id: userId,
-					username: spotifyUser.display_name
+					username: spotifyUser.display_name,
+					email: spotifyUser.email
 				}),
 				db.insert(OAuthAccountTable).values({
 					providerId: 'spotify',

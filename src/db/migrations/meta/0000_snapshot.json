@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "cfb61f59-5f65-45fd-88ca-99b5a0200f5e",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "709fbf26-6251-4476-aa0e-a33be89a8a29",
+  "prevId": "cfb61f59-5f65-45fd-88ca-99b5a0200f5e",
   "tables": {
     "oauth_account": {
       "name": "oauth_account",
@@ -107,6 +107,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
