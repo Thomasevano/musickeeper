@@ -8,7 +8,8 @@ export const tableNames = {
 
 export const userTable = sqliteTable(tableNames.user, {
 	id: text('id').notNull().primaryKey(),
-	username: text('username')
+	username: text('username').notNull(),
+	email: text('email').notNull()
 });
 
 export const sessionTable = sqliteTable(tableNames.session, {
