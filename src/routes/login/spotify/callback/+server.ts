@@ -1,12 +1,11 @@
 import { OAuth2RequestError } from 'arctic';
 import { generateId } from 'lucia';
-import { lucia } from '$lib/server/auth';
+import { lucia, spotify } from '$lib/server/auth';
 import type { RequestHandler } from './$types';
 import { eq, and } from 'drizzle-orm';
-import { VITE_SPOTIFY_CLIENT_ID, VITE_BASE_URL, VITE_BASIC_TOKEN } from '$env/static/private';
+import { SPOTIFY_BASE_URL } from '$env/static/private';
 
 import type { RequestEvent } from '@sveltejs/kit';
-import { VITE_SPOTIFY_BASE_URL } from '$env/static/private';
 import { db } from '../../../../db';
 import { OAuthAccountTable, userTable } from '../../../../db/schema';
 
@@ -22,28 +21,11 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 	}
 
 	try {
-		// const tokens = await spotify.validateAuthorizationCode(code);
-		const response = await fetch('https://accounts.spotify.com/api/token', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				Authorization: `Basic ${VITE_BASIC_TOKEN}`
-			},
-			body: new URLSearchParams({
-				code: code || '',
-				redirect_uri: `${VITE_BASE_URL}/login/spotify/callback`,
-				grant_type: 'authorization_code',
-				client_id: VITE_SPOTIFY_CLIENT_ID
-			})
-		});
-		const tokens = await response.json();
+		const tokens = await spotify.validateAuthorizationCode(code);
 
-		if (tokens.error) {
-			console.log('error: 400, ', tokens.error_description);
-		}
-		const spotifyUserResponse = await fetch(`${VITE_SPOTIFY_BASE_URL}/me`, {
+		const spotifyUserResponse = await fetch(`${SPOTIFY_BASE_URL}/me`, {
 			headers: {
-				Authorization: `Bearer ${tokens.access_token}`
+				Authorization: `Bearer ${tokens.accessToken}`
 			}
 		});
 		const spotifyUser: SpotifyApi.CurrentUsersProfileResponse = await spotifyUserResponse.json();

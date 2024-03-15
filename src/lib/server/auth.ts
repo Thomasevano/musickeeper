@@ -3,8 +3,8 @@ import { dev } from '$app/environment';
 import { Spotify } from 'arctic';
 import { DrizzleSQLiteAdapter } from '@lucia-auth/adapter-drizzle';
 import {
-	VITE_SPOTIFY_CLIENT_ID,
-	VITE_SPOTIFY_CLIENT_SECRET,
+	SPOTIFY_CLIENT_ID,
+	SPOTIFY_CLIENT_SECRET,
 	VITE_BASE_URL
 } from '$env/static/private';
 
@@ -12,8 +12,8 @@ import { db } from '../../db';
 import { userTable, sessionTable } from '../../db/schema';
 
 export const spotify = new Spotify(
-	VITE_SPOTIFY_CLIENT_ID,
-	VITE_SPOTIFY_CLIENT_SECRET,
+	SPOTIFY_CLIENT_ID,
+	SPOTIFY_CLIENT_SECRET,
 	`${VITE_BASE_URL}/login/spotify/callback`
 );
 
