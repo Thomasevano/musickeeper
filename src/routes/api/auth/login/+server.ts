@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { VITE_SPOTIFY_CLIENT_ID, VITE_BASE_URL } from '$env/static/private';
+import { SPOTIFY_CLIENT_ID, VITE_BASE_URL } from '$env/static/private';
 
 function generateCodeVerifier(length: number) {
   let text = '';
@@ -33,7 +33,7 @@ export const GET: RequestHandler = ({ cookies }) => {
 	throw redirect(
 		307,
 		`https://accounts.spotify.com/authorize?${new URLSearchParams({
-			client_id: VITE_SPOTIFY_CLIENT_ID,
+			client_id: SPOTIFY_CLIENT_ID,
 			response_type: 'code',
 			redirect_uri: `${VITE_BASE_URL}/api/auth/callback`,
 			state: verifier,

@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { VITE_SPOTIFY_CLIENT_ID, VITE_BASE_URL, VITE_BASIC_TOKEN } from '$env/static/private';
+import { SPOTIFY_CLIENT_ID, VITE_BASE_URL, SPOTIFY_BASIC_TOKEN } from '$env/static/private';
 
 export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
   const code = url.searchParams.get('code') || null;
@@ -17,14 +17,14 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${VITE_BASIC_TOKEN}`
+      Authorization: `Basic ${SPOTIFY_BASIC_TOKEN}`
     },
     body: new URLSearchParams({
       code: code || '',
       redirect_uri: `${VITE_BASE_URL}/api/auth/callback`,
       grant_type: 'authorization_code',
       code_verifier: storedState || '',
-      client_id: VITE_SPOTIFY_CLIENT_ID
+      client_id: SPOTIFY_CLIENT_ID
     })
   });
   const responseJSON = await response.json();

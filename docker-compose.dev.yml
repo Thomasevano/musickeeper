@@ -1,14 +1,12 @@
 version: '3'
 
 services:
-  svelte-app:
+  sveltekit-app:
     build:
       context: .
       dockerfile: ./dev.Dockerfile
     ports:
       - '5173:5173'
-    volumes:
-      - ./:/usr/src/app
-      - /usr/src/app/node_modules
-      - ./env.local:/usr/src/app/.env
-    command: ['bun', 'run', 'dev']
+    env_file:
+      - .env.local
+    command: ['pnpm', 'dev']
