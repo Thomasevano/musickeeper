@@ -1,4 +1,4 @@
-// import type { LayoutServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 // import { redirect } from '@sveltejs/kit';
 // import { VITE_SPOTIFY_BASE_URL } from '$env/static/private';
 
@@ -37,4 +37,17 @@
 // 		};
 // 	}
 // };
-//
+
+export type OutputType = { user: object; isLoggedIn: boolean };
+export const load: LayoutServerLoad = async ({ locals }) => {
+	const user = locals.user;
+	if (user) {
+		// Return the output object
+		return { user, isLoggedIn: true };
+	}
+	// Return the output object
+	return {
+		user: undefined,
+		isLoggedIn: false
+	};
+};

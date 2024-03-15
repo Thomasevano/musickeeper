@@ -4,8 +4,9 @@
 	import Navigation from '$lib/components/Navigation.svelte';
 	import type { LayoutData } from './$types';
 	export let data: LayoutData;
+	$: ({ user, isLoggedIn } = data);
 </script>
 
-<Navigation user={data} />
-<HeroSection />
+<Navigation user={user} isLoggedIn={isLoggedIn} />
+<HeroSection isLoggedIn={isLoggedIn} />
 <Features />
