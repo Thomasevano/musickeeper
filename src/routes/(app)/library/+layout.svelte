@@ -3,9 +3,10 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Navigation from '$lib/components/Navigation.svelte';
 	export let data: LayoutData;
+	$: ({ user, isLoggedIn } = data);
 </script>
 
-<Navigation user={data} />
+<Navigation user={user} isLoggedIn={isLoggedIn} />
 {#if data}
 	<div class="hidden md:block">
 		<!-- <Menu /> -->

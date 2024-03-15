@@ -1,6 +1,8 @@
-<script>
+<script lang="ts">
 	import { cn } from '$lib/utils';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
+
+	export let isLoggedIn: Boolean;
 </script>
 
 <section class="space-y-6 pb-12 pt-16 lg:py-28">
@@ -22,15 +24,22 @@
 		</h1>
 
 		<p
-			class="text-muted-foreground max-w-[42rem] text-balance leading-normal sm:text-xl sm:leading-8"
+			class="max-w-[42rem] text-balance leading-normal text-muted-foreground sm:text-xl sm:leading-8"
 		>
 			A music manager app that help you manage, extract and transfer your music between different
 			streaming platforms
 		</p>
 		<div class="flex justify-center space-x-2 md:space-x-4">
-			<Button size="lg" href="/login">
-				Get Started <span class="ml-1" aria-hidden="true">&rarr;</span>
-			</Button>
-		</div>
+				{#if !isLoggedIn}
+				<Button size="lg" href="/login/spotify">
+					<i class="si si-spotify si--color mr-2 text-2xl"></i>
+					Sign in with Spotify <span class="ml-1" aria-hidden="true">&rarr;</span>
+				</Button>
+				{:else}
+				<Button size="lg" href="/library">
+					See your library <span class="ml-1" aria-hidden="true">&rarr;</span>
+				</Button>
+				{/if}
+			</div>
 	</div>
 </section>
