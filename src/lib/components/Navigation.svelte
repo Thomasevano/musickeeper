@@ -6,7 +6,7 @@
 	import { enhance } from '$app/forms';
 
 	export let user;
-	const userIsDefined = Object.keys(user).length !== 0 && user.constructor === Object;
+	export let isLoggedIn: Boolean;
 </script>
 
 <section class="border-b">
@@ -40,14 +40,14 @@
 				</button>
 			</div>
 			<nav class="hidden flex-grow flex-col md:flex md:flex-row md:justify-center md:pb-0">
-				{#if !userIsDefined}
+				{#if !isLoggedIn}
 					<div class="md:ml-auto md:justify-between">
 						<Button href="/#features" variant="link">Features</Button>
 					</div>
 				{/if}
 				<div class="flex md:ml-auto">
 					<ToggleTheme />
-					{#if userIsDefined}
+					{#if isLoggedIn}
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger class="mb-4 flex items-center space-x-4">
 								<Avatar.Root>
@@ -72,9 +72,11 @@
 								</DropdownMenu.Group>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
-					{:else}
+					<!-- {:else}
+					<div class="justify-between">
 						<Button href="/login">Login</Button>
 						<Button>Sign up</Button>
+					</div> -->
 					{/if}
 				</div>
 			</nav>
