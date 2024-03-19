@@ -11,9 +11,6 @@ dependencies:
   '@lucia-auth/adapter-drizzle':
     specifier: ^1.0.2
     version: 1.0.4(lucia@3.1.1)
-  '@types/spotify-api':
-    specifier: ^0.0.25
-    version: 0.0.25
   arctic:
     specifier: ^1.1.6
     version: 1.2.1
@@ -67,6 +64,9 @@ devDependencies:
   '@types/eslint':
     specifier: 8.56.0
     version: 8.56.0
+  '@types/spotify-api':
+    specifier: ^0.0.25
+    version: 0.0.25
   '@typescript-eslint/eslint-plugin':
     specifier: ^6.0.0
     version: 6.21.0(@typescript-eslint/parser@6.21.0)(eslint@8.57.0)(typescript@5.4.2)
@@ -1771,7 +1771,7 @@ packages:
 
   /@types/spotify-api@0.0.25:
     resolution: {integrity: sha512-okhoy0U9fPWtwqCfbDyW8VxamhqvXE0gXIVeMOh5HcvEFQvWW2X0VsvdiX/OyiGQpZbZiOJXIGrbnIPfK0AIpA==}
-    dev: false
+    dev: true
 
   /@types/ws@8.5.10:
     resolution: {integrity: sha512-vmQSUcfalpIq0R9q7uTo2lXs6eGIpt9wtnLdMv9LVpIjCA/+ufZRozlVoVelIYixx1ugCBKDhn89vnsEGOCx9A==}
