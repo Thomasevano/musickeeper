@@ -6,7 +6,7 @@
 	$: ({ user, isLoggedIn } = data);
 </script>
 
-<Navigation user={user} isLoggedIn={isLoggedIn} />
+<Navigation {user} {isLoggedIn} />
 {#if data}
 	<div class="hidden md:block">
 		<!-- <Menu /> -->
