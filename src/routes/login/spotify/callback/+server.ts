@@ -40,16 +40,15 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 				)
 			);
 
-		console.log({ existingAccount });
-
 		if (existingAccount.length > 0) {
-			const session = await lucia.createSession(existingAccount[0].userId, {});
+			const session = await lucia.createSession(existingAccount[0].userId!, {});
 			const sessionCookie = lucia.createSessionCookie(session.id);
 			event.cookies.set(sessionCookie.name, sessionCookie.value, {
 				path: '.',
 				...sessionCookie.attributes
 			});
 		} else {
+			console.log('Creating User...')
 			const userId = generateId(15);
 
 			await db.batch([
@@ -71,6 +70,7 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 				path: '.',
 				...sessionCookie.attributes
 			});
+			console.log('User created...')
 		}
 		return new Response(null, {
 			status: 302,
@@ -80,6 +80,7 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 		});
 	} catch (e) {
 		// the specific error message depends on the provider
+		console.error(e)
 		if (e instanceof OAuth2RequestError) {
 			// invalid code
 			return new Response(null, {
