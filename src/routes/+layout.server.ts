@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 // import { redirect } from '@sveltejs/kit';
-// import { SPOTIFY_BASE_URL } from '$env/static/private';
+// import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/private';
 
 // export const load: LayoutServerLoad = async ({ cookies, fetch, url }) => {
 // 	const accessToken = cookies.get('spotify_access_token');
@@ -11,7 +11,7 @@ import type { LayoutServerLoad } from './$types';
 // 		};
 // 	}
 
-// 	const profileRes = await fetch(`${SPOTIFY_BASE_URL}/me`, {
+// 	const profileRes = await fetch(`${PUBLIC_SPOTIFY_BASE_URL}/me`, {
 // 		headers: {
 // 			Authorization: `Bearer ${accessToken}`
 // 		}

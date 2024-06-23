@@ -3,7 +3,7 @@ import { generateId } from 'lucia';
 import { lucia, spotify } from '$lib/server/auth';
 import type { RequestHandler } from './$types';
 import { eq, and } from 'drizzle-orm';
-import { SPOTIFY_BASE_URL } from '$env/static/private';
+import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
 
 import type { RequestEvent } from '@sveltejs/kit';
 import { db } from '../../../../db';
@@ -23,7 +23,7 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 	try {
 		const tokens = await spotify.validateAuthorizationCode(code);
 
-		const spotifyUserResponse = await fetch(`${SPOTIFY_BASE_URL}/me`, {
+		const spotifyUserResponse = await fetch(`${PUBLIC_SPOTIFY_BASE_URL}/me`, {
 			headers: {
 				Authorization: `Bearer ${tokens.accessToken}`
 			}
@@ -72,6 +72,8 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 			});
 			console.log('User created...')
 		}
+		event.cookies.set('spotify_refresh_token', tokens.refreshToken, { path: '/' });
+		event.cookies.set('spotify_access_token', tokens.accessToken, { path: '/' });
 		return new Response(null, {
 			status: 302,
 			headers: {
