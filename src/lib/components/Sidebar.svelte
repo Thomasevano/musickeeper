@@ -11,7 +11,7 @@
 		<div class="px-3 py-2">
 			<h2 class="mb-2 px-4 text-lg font-semibold tracking-tight">Library</h2>
 			<div class="space-y-1">
-				<Button variant="ghost" href="#" class="w-full justify-start">
+				<Button variant="ghost" href="/library/playlists" class="w-full justify-start">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 24 24"
