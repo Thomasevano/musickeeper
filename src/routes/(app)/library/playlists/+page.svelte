@@ -7,6 +7,7 @@
 	import type { PageData } from './$types';
 	import { spotifyUserPlaylists } from '$lib/store';
 	import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
+	import { fetchRefresh } from '$helpers';
 
 	export let data: PageData;
 
@@ -19,7 +20,8 @@
 			isMorePlaylist = false;
 			return;
 		}
-		const res = await fetch(
+		const res = await fetchRefresh(
+			fetch,
 			$spotifyUserPlaylists.next.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
 		);
 		if (res.ok) {
