@@ -10,14 +10,15 @@
 
 	export let data: PageData;
 
-	let isMorePlaylist = true;
-	let isLoading: boolean;
+	let isMorePlaylist: Boolean = true;
 
 	spotifyUserPlaylists.set(data.userPlaylists);
 
 	async function loadMore() {
-		if (!$spotifyUserPlaylists.next) return;
-		isLoading = true;
+		if (!$spotifyUserPlaylists.next) {
+			isMorePlaylist = false;
+			return;
+		}
 		const res = await fetch(
 			$spotifyUserPlaylists.next.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
 		);
@@ -27,10 +28,7 @@
 				...resJSON,
 				items: [...$spotifyUserPlaylists.items, ...resJSON.items]
 			});
-		} else {
-			isMorePlaylist = false;
 		}
-		isLoading = false;
 	}
 
 	let loadingRef: HTMLElement | undefined;
