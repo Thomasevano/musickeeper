@@ -29,16 +29,21 @@
 			streaming platforms
 		</p>
 		<div class="flex justify-center space-x-2 md:space-x-4">
-				{#if !isLoggedIn}
-				<Button size="lg" href="/login/spotify">
+			{#if !isLoggedIn}
+				<!-- <Button size="lg" href="/login/spotify">
 					<i class="si si-spotify si--color mr-2 text-2xl"></i>
-					Sign in with Spotify <span class="ml-1" aria-hidden="true">&rarr;</span>
+					Create an account with Spotify <span class="ml-1" aria-hidden="true">&rarr;</span>
+				</Button> -->
+				<Button size="lg" href="/api/auth/login">
+					<i class="si si-spotify si--color mr-2 text-2xl"></i>
+					Connect your Spotify
+					<span class="ml-1" aria-hidden="true">&rarr;</span>
 				</Button>
-				{:else}
+			{:else}
 				<Button size="lg" href="/library">
 					See your library <span class="ml-1" aria-hidden="true">&rarr;</span>
 				</Button>
-				{/if}
-			</div>
+			{/if}
+		</div>
 	</div>
 </section>
