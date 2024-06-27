@@ -40,11 +40,9 @@
 				</button>
 			</div>
 			<nav class="hidden flex-grow flex-col md:flex md:flex-row md:justify-center md:pb-0">
-				{#if !isLoggedIn}
-					<div class="md:ml-auto md:justify-between">
-						<Button href="/#features" variant="link">Features</Button>
-					</div>
-				{/if}
+				<div class="md:ml-auto md:justify-between">
+					<Button href="/#features" variant="link">Features</Button>
+				</div>
 				<div class="flex md:ml-auto">
 					<ToggleTheme />
 					{#if isLoggedIn}
@@ -72,11 +70,11 @@
 								</DropdownMenu.Group>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
-					<!-- {:else}
-					<div class="justify-between">
-						<Button href="/login">Login</Button>
-						<Button>Sign up</Button>
-					</div> -->
+						<!-- {:else}
+						<div class="justify-between">
+							<Button href="/api/auth/login">Login</Button>
+							<Button>Sign up</Button>
+						</div> -->
 					{/if}
 				</div>
 			</nav>

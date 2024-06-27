@@ -77,7 +77,7 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 		return new Response(null, {
 			status: 302,
 			headers: {
-				Location: '/library'
+				Location: '/library/playlists'
 			}
 		});
 	} catch (e) {
