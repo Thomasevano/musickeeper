@@ -8,13 +8,12 @@
 <section class="space-y-6 pb-12 pt-16 lg:py-28">
 	<div class="container flex max-w-[64rem] flex-col items-center gap-5 text-center">
 		<a
-			href="https://twitter.com/thomas_evano"
+			href="https://github.com/Thomasevano/musickeeper"
 			class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
 			target="_blank"
 		>
-			For updates follow me on <span class="m-1 text-2xl">&Xopf;</span><span aria-hidden="true"
-				>&rarr;</span
-			>
+			source code and releases on Github <i class="si si-github si--color ml-2 mr-2 text-2xl"></i>
+			<span aria-hidden="true">&rarr;</span>
 		</a>
 
 		<h1
@@ -24,7 +23,7 @@
 		</h1>
 
 		<p
-			class="max-w-[42rem] text-balance leading-normal text-muted-foreground sm:text-xl sm:leading-8"
+			class="text-muted-foreground max-w-[42rem] text-balance leading-normal sm:text-xl sm:leading-8"
 		>
 			A music manager app that help you manage, extract and transfer your music between different
 			streaming platforms
