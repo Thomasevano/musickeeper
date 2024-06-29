@@ -38,5 +38,9 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
   cookies.set('spotify_refresh_token', responseJSON.refresh_token, { path: '/' });
   cookies.set('spotify_access_token', responseJSON.access_token, { path: '/' });
 
+  const now = Math.floor(Date.now() / 1000);
+  const spotifyAccessExpiresAt = now + responseJSON.expires_in;
+  cookies.set('spotify_access_token_expires-at', spotifyAccessExpiresAt.toString(), { path: '/' })
+
   throw redirect(303, '/library/playlists');
 };
