@@ -18,14 +18,16 @@ async function fetchUserSavedAlbums(token: string): Promise<any> {
   return await result.data;
 }
 
-const fetchUserPlaylists = async (fetch: (input: URL | RequestInfo, init?: RequestInit | undefined) => Promise<Response>): Promise<any> => {
-  const result = await fetchRefresh(fetch, `/api/spotify/me/playlists`);
+async function fetchUserPlaylists(token: string): Promise<any> {
+  const result = await fetch(`${import.meta.env.VITE_BASE_URL}/api/spotify/me/playlists`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
   return await result;
 }
 
 const fetchSongsFromPlaylist = async (fetch: (input: URL | RequestInfo, init?: RequestInit | undefined) => Promise<Response>, url: string): Promise<any> => {
-  const result = await fetchRefresh(fetch, `${url.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')}`);
+  const result = await fetch(`${url.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')}`);
 
   return await result;
 }

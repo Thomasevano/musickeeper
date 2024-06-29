@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { Download } from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
 	import AlbumCard from '$lib/components/AlbumCard.svelte';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { spotifyUserPlaylists } from '$lib/store';
 	import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
-	import { fetchRefresh } from '$helpers';
 
 	export let data: PageData;
 
@@ -20,8 +17,7 @@
 			isMorePlaylist = false;
 			return;
 		}
-		const res = await fetchRefresh(
-			fetch,
+		const res = await fetch(
 			$spotifyUserPlaylists.next.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
 		);
 		if (res.ok) {
@@ -55,16 +51,6 @@
 
 <div class="col-span-3 lg:col-span-4 lg:border-l">
 	<div class="h-full px-4 py-6 lg:px-8">
-		<div class="space-between flex items-center">
-			{#if $spotifyUserPlaylists.items.length > 0}
-				<div class="ml-auto mr-4">
-					<Button>
-						<Download class="mr-2 h-4 w-4" />
-						Download all playlists
-					</Button>
-				</div>
-			{/if}
-		</div>
 		<div class="flex items-center justify-between">
 			<div class="space-y-1">
 				<h2 class="text-2xl font-semibold tracking-tight">Your Playlists</h2>

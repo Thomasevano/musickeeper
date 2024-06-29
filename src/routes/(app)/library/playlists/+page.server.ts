@@ -1,10 +1,11 @@
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { fetchUserPlaylists } from '../../../../services/spotify_fetch_infos_service';
 
-export const load: PageLoad = async ({ fetch }) => {
+export const load: PageServerLoad = async ({ cookies }) => {
+	const spotifyAccessToken = cookies.get('spotify_access_token');
 
-	const playlistsRes = await fetchUserPlaylists(fetch)
+	const playlistsRes = await fetchUserPlaylists(spotifyAccessToken)
 
 	if (!playlistsRes.ok) {
 		throw error(playlistsRes.status, 'Failed to load playlists!');
