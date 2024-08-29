@@ -1,6 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { SPOTIFY_BASIC_TOKEN, SPOTIFY_CLIENT_ID } from '$env/static/private'
+// import { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET } from '$env/static/private'
+import { env } from '$env/dynamic/private'
 
 export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
   const code = url.searchParams.get('code') || null;
@@ -13,18 +14,20 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
     throw error(400, 'State Mismatch!');
   }
 
+  console.log('client id', env.SPOTIFY_CLIENT_ID)
+
   const response = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${SPOTIFY_BASIC_TOKEN}`
+      Authorization: 'Basic ' + (new Buffer.from(env.SPOTIFY_CLIENT_ID + ':' + env.SPOTIFY_CLIENT_SECRET).toString('base64'))
     },
     body: new URLSearchParams({
       code: code || '',
       redirect_uri: `${import.meta.env.VITE_BASE_URL}/api/auth/callback`,
       grant_type: 'authorization_code',
       code_verifier: storedState || '',
-      client_id: SPOTIFY_CLIENT_ID
+      client_id: env.SPOTIFY_CLIENT_ID
     })
   });
   const responseJSON = await response.json();

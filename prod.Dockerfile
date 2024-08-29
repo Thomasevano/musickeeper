@@ -1,36 +1,51 @@
-FROM oven/bun as base
-WORKDIR /usr/src/app
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+COPY . /app
+WORKDIR /app
 
-# install dependencies into temp directory
-# this will cache them and speed up future builds
-FROM base AS install
-RUN mkdir -p /temp/dev
-COPY package.json bun.lockb /temp/dev/
-RUN cd /temp/dev && bun install --frozen-lockfile
+FROM base AS prod-deps
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
-# install with --production (exclude devDependencies)
-RUN mkdir -p /temp/prod
-COPY package.json bun.lockb /temp/prod/
-RUN cd /temp/prod && bun install --frozen-lockfile --production
+FROM base AS build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm run build
+FROM base
+COPY --from=prod-deps /app/node_modules /app/node_modules
+COPY --from=build /app/build /app/build
+EXPOSE 3000
+CMD [ "node", "/app/build/index.js" ]
 
-# copy node_modules from temp directory
-# then copy all (non-ignored) project files into the image
-FROM base AS prerelease
-COPY --from=install /temp/dev/node_modules node_modules
-COPY . .
+# FROM node:lts-alpine as build
 
-# [optional] tests & build
-ENV NODE_ENV=production
-RUN bun test
-RUN bun run build
+# WORKDIR /app
 
-# copy production dependencies and source code into final image
-FROM base AS release
-COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/app/build/index.js .
-COPY --from=prerelease /usr/src/app/package.json .
+# COPY ./package*.json ./
+# COPY ./pnpm-lock.yaml ./
 
-# run the app
-USER bun
-EXPOSE 4173/tcp
-ENTRYPOINT [ "bun", "run", "./build/index.js" ]
+# RUN npm install -g pnpm
+
+# RUN pnpm install
+
+# COPY . .
+
+# RUN pnpm build
+
+# FROM node:lts-alpine AS production
+
+# WORKDIR /app
+
+# COPY --from=build /app/build .
+# COPY --from=build /app/package.json .
+# COPY --from=build /app/pnpm-lock.yaml .
+
+# RUN npm install -g pnpm
+# RUN pnpm install --frozen-lockfile
+
+# RUN mkdir -p /app/images
+# VOLUME /app/images
+
+# EXPOSE 3000
+
+# CMD ["node", "."]
