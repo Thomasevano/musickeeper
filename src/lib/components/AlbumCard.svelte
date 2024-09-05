@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import { generatePlaylistFile } from '../../services/generate_playlist_service';
 	import { Button } from '$lib/components/ui/button';
 	import { FileText } from 'lucide-svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { extractPlaylist } from '../../services/generate_playlist_service';
 
 	let className: string | undefined | null = undefined;
 	export let album;
@@ -35,7 +35,7 @@
 		<Tooltip.Trigger>
 			<Button
 				on:click={async () => {
-					await generatePlaylistFile(fetch, album.tracks.href, album.name);
+					extractPlaylist(fetch, album.tracks.href, album.name);
 				}}
 				class="relative"
 			>

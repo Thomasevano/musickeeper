@@ -19,10 +19,14 @@ export const GET: RequestHandler = async ({ fetch, cookies, request, params, url
 		});
 	}
 	const responseJSON = await response.json();
-	// console.log(responseJSON)
+
+	if (response.status !== 200) {
+		console.log({ response })
+		console.log({ responseJSON })
+	}
 
 	if (responseJSON.error) {
-		throw error(responseJSON.error.status, responseJSON.error.message);
+		throw error(responseJSON.error.status, responseJSON.error.statusText);
 	}
 	return json(responseJSON);
 };
