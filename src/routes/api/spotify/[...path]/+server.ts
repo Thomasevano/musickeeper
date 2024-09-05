@@ -4,7 +4,6 @@ import { PUBLIC_SPOTIFY_BASE_URL } from "$env/static/public";
 
 export const GET: RequestHandler = async ({ fetch, cookies, request, params, url }) => {
 	const spotifyAccessToken = cookies.get('spotify_access_token');
-	console.log({ spotifyAccessToken })
 
 	let response
 	if (spotifyAccessToken) {
