@@ -4,30 +4,15 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { spotifyUserPlaylists } from '$lib/store';
-	import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { loadMore } from '$helpers';
 
 	export let data: PageData;
 
 	let isMorePlaylist: Boolean = true;
 
 	spotifyUserPlaylists.set(data.userPlaylists);
-
-	async function loadMore() {
-		if (!$spotifyUserPlaylists.next) {
-			isMorePlaylist = false;
-			return;
-		}
-		const res = await fetch(
-			$spotifyUserPlaylists.next.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
-		);
-		if (res.ok) {
-			const resJSON = await res.json();
-			spotifyUserPlaylists.set({
-				...resJSON,
-				items: [...$spotifyUserPlaylists.items, ...resJSON.items]
-			});
-		}
-	}
 
 	let loadingRef: HTMLElement | undefined;
 	onMount(async () => {
@@ -40,7 +25,7 @@
 
 			if (element.isIntersecting) {
 				(async function () {
-					await loadMore();
+					await loadMore($spotifyUserPlaylists, isMorePlaylist);
 				})();
 			}
 		});
@@ -56,6 +41,16 @@
 				<h2 class="text-2xl font-semibold tracking-tight">Playlists</h2>
 				<p class="text-muted-foreground text-sm">Extract your Spotidy playlists as text files</p>
 			</div>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					<Button href={`/api/archive/playlists`} target="_blank" class="relative">
+						Extract all {$spotifyUserPlaylists.total} playlists
+					</Button>
+				</Tooltip.Trigger>
+				<Tooltip.Content>
+					<p>Extract all playlists</p>
+				</Tooltip.Content>
+			</Tooltip.Root>
 		</div>
 		<Separator class="my-4" />
 		<div class="flex flex-wrap space-x-4 pb-4">
