@@ -8,7 +8,7 @@ import 'dotenv/config'
 // 	authToken: process.env.TURSO_AUTH_TOKEN as string
 // });
 
-console.log('database url', import.meta.env.TURSO_DATABASE_URL)
+console.log('database url', import.meta.env.VITE_TURSO_DATABASE_URL)
 export function tursoClient(): LibSQLDatabase<typeof schema> {
 	const url = import.meta.env.VITE_TURSO_DATABASE_URL?.trim();
 	if (url === undefined) {

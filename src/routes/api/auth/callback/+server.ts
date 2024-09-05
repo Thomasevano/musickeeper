@@ -14,8 +14,6 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
     throw error(400, 'State Mismatch!');
   }
 
-  console.log('client id', env.SPOTIFY_CLIENT_ID)
-
   const response = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {

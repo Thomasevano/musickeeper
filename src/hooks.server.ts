@@ -9,8 +9,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const spotifyAccessExpiresAt = event.cookies.get('spotify_access_token_expires-at')
 
 	const now = Math.floor(Date.now() / 1000);
-	const difference = Math.floor((parseInt(spotifyAccessExpiresAt) - now) / 60);
-	console.log({ difference })
+	const difference = Math.floor((parseInt(spotifyAccessExpiresAt!) - now) / 60);
 
 	if (spotifyAccessToken && difference < 5) {
 		try {
@@ -26,7 +25,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 				})
 			});
 			const responseJSON = await response.json();
-			console.log('hooks', responseJSON)
 
 			event.cookies.set('spotify_refresh_token', responseJSON.refresh_token, { path: '/' });
 			event.cookies.set('spotify_access_token', responseJSON.access_token, { path: '/' });
