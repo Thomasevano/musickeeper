@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
-import { SPOTIFY_BASIC_TOKEN } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async ({ cookies, fetch }) => {
   const refreshToken = cookies.get('spotify_refresh_token');
@@ -9,7 +9,7 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${SPOTIFY_BASIC_TOKEN}`
+      Authorization: `Basic ${env.SPOTIFY_BASIC_TOKEN}`
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',

@@ -1,6 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-// import { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET } from '$env/static/private'
 import { env } from '$env/dynamic/private'
 
 export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
@@ -18,7 +17,7 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: 'Basic ' + (new Buffer.from(env.SPOTIFY_CLIENT_ID + ':' + env.SPOTIFY_CLIENT_SECRET).toString('base64'))
+      Authorization: 'Basic ' + env.SPOTIFY_BASIC_TOKEN
     },
     body: new URLSearchParams({
       code: code || '',

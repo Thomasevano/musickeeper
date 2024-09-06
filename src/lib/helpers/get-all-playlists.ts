@@ -1,4 +1,4 @@
-import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import type { Cookies } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { fetchUserPlaylists } from '../../services/spotify_fetch_infos_service';
@@ -13,7 +13,7 @@ export async function getAllPlaylists(fetch: (input: URL | RequestInfo, init?: R
 
   while (userPlaylists.items.length < userPlaylists.total && userPlaylists.next) {
     const res = await fetch(
-      userPlaylists.next.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
+      userPlaylists.next.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
     );
     if (res.ok) {
       const resJSON = await res.json();
