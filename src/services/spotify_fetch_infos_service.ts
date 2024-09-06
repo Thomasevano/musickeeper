@@ -1,9 +1,8 @@
 import axios from "axios";
-import { fetchRefresh } from "$helpers";
-import { PUBLIC_SPOTIFY_BASE_URL } from "$env/static/public";
+import { env } from "$env/dynamic/public";
 
 async function fetchProfile(token: string): Promise<any> {
-  const result = await axios.get(`${PUBLIC_SPOTIFY_BASE_URL}/me`, {
+  const result = await axios.get(`${env.PUBLIC_SPOTIFY_BASE_URL}/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
@@ -11,7 +10,7 @@ async function fetchProfile(token: string): Promise<any> {
 }
 
 async function fetchUserSavedAlbums(token: string): Promise<any> {
-  const result = await axios.get(`${PUBLIC_SPOTIFY_BASE_URL}/me/albums`, {
+  const result = await axios.get(`${env.PUBLIC_SPOTIFY_BASE_URL}/me/albums`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
@@ -27,7 +26,7 @@ async function fetchUserPlaylists(token: string): Promise<any> {
 }
 
 const fetchSongsFromPlaylist = async (fetch: (input: URL | RequestInfo, init?: RequestInit | undefined) => Promise<Response>, url: string): Promise<any> => {
-  const result = await fetch(`${url.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')}`);
+  const result = await fetch(`${url.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')}`);
 
   return await result;
 }

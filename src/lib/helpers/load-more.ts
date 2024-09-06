@@ -1,4 +1,4 @@
-import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import { spotifyUserPlaylists } from '$lib/store';
 
 export default async function loadMore($spotifyUserPlaylists: SpotifyApi.ListOfCurrentUsersPlaylistsResponse, isMorePlaylist: Boolean) {
@@ -9,7 +9,7 @@ export default async function loadMore($spotifyUserPlaylists: SpotifyApi.ListOfC
     return;
   }
   const res = await fetch(
-    $spotifyUserPlaylists.next.replace(`${PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
+    $spotifyUserPlaylists.next.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
   );
 
   if (res.ok) {

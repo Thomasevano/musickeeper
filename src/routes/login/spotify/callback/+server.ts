@@ -3,7 +3,7 @@ import { generateId } from 'lucia';
 import { lucia, spotify } from '$lib/server/auth';
 import type { RequestHandler } from './$types';
 import { eq, and } from 'drizzle-orm';
-import { PUBLIC_SPOTIFY_BASE_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 import type { RequestEvent } from '@sveltejs/kit';
 import { db } from '../../../../db';
@@ -23,7 +23,7 @@ export const GET: RequestHandler = async (event: RequestEvent): Promise<Response
 	try {
 		const tokens = await spotify.validateAuthorizationCode(code);
 
-		const spotifyUserResponse = await fetch(`${PUBLIC_SPOTIFY_BASE_URL}/me`, {
+		const spotifyUserResponse = await fetch(`${env.PUBLIC_SPOTIFY_BASE_URL}/me`, {
 			headers: {
 				Authorization: `Bearer ${tokens.accessToken}`
 			}

@@ -1,6 +1,6 @@
 import { lucia } from '$lib/server/auth';
 import type { Handle } from '@sveltejs/kit';
-import { SPOTIFY_BASIC_TOKEN } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get(lucia.sessionCookieName);
@@ -17,7 +17,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
-					Authorization: `Basic ${SPOTIFY_BASIC_TOKEN}`
+					Authorization: `Basic ${env.SPOTIFY_BASIC_TOKEN}`
 				},
 				body: new URLSearchParams({
 					grant_type: 'refresh_token',
