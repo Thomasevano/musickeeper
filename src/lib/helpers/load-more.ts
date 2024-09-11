@@ -1,15 +1,14 @@
 import { env } from '$env/dynamic/public';
-import { spotifyUserPlaylists } from '$lib/store';
+import type { Writable } from 'svelte/store';
 
-export default async function loadMore($spotifyUserPlaylists: SpotifyApi.ListOfCurrentUsersPlaylistsResponse, isMorePlaylist: Boolean) {
-  spotifyUserPlaylists.set($spotifyUserPlaylists)
+export default async function loadMore(data, $data, isMore: Writable<Boolean>) {
 
-  if ($spotifyUserPlaylists.next === null) {
-    isMorePlaylist = false;
+  if ($data.next === null) {
+    isMore.set(false);
     return;
   }
   const res = await fetch(
-    $spotifyUserPlaylists.next.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
+    $data.next.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
   );
 
   if (res.ok) {
@@ -17,9 +16,9 @@ export default async function loadMore($spotifyUserPlaylists: SpotifyApi.ListOfC
     if (resJSON.previous?.includes('offset=0')) {
       resJSON.items.shift()
     }
-    spotifyUserPlaylists.set({
+    data.set({
       ...resJSON,
-      items: [...$spotifyUserPlaylists.items, ...resJSON.items]
+      items: [...$data.items, ...resJSON.items]
     });
   }
 }

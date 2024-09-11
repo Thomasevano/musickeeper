@@ -3,16 +3,15 @@
 	import AlbumCard from '$lib/components/AlbumCard.svelte';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
-	import { spotifyUserPlaylists } from '$lib/store';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { loadMore } from '$helpers';
+	import { writable, type Writable } from 'svelte/store';
 
 	export let data: PageData;
 
-	let isMorePlaylist: Boolean = true;
-
-	spotifyUserPlaylists.set(data.userPlaylists);
+	const spotifyUserPlaylists: Writable<any> = writable(data.userPlaylists);
+	const isMorePlaylist: Writable<Boolean> = writable(true);
 
 	let loadingRef: HTMLElement | undefined;
 	onMount(async () => {
@@ -25,7 +24,7 @@
 
 			if (element.isIntersecting) {
 				(async function () {
-					await loadMore($spotifyUserPlaylists, isMorePlaylist);
+					await loadMore(spotifyUserPlaylists, $spotifyUserPlaylists, isMorePlaylist);
 				})();
 			}
 		});
@@ -34,10 +33,10 @@
 	});
 </script>
 
-<div class="">
+<div class="lg:col-span-7 lg:border-l">
 	<div class="h-full px-4 py-6 lg:px-8">
-		<div class="flex items-center justify-between">
-			<div class="space-y-1">
+		<div class="flex flex-col justify-between md:flex-row">
+			<div class="mb-6 space-y-2 md:mb-0">
 				<h2 class="text-2xl font-semibold tracking-tight">Playlists</h2>
 				<p class="text-muted-foreground text-sm">Extract your Spotidy playlists as text files</p>
 			</div>
@@ -53,7 +52,9 @@
 			</Tooltip.Root>
 		</div>
 		<Separator class="my-4" />
-		<div class="flex flex-wrap space-x-4 pb-4">
+		<div
+			class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+		>
 			{#if $spotifyUserPlaylists.items.length > 0}
 				{#each $spotifyUserPlaylists.items as album}
 					<AlbumCard {fetch} {album} class="w-[180px]" aspectRatio="square" />
@@ -62,7 +63,7 @@
 				<p>No Playlists Yet!</p>
 			{/if}
 		</div>
-		{#if isMorePlaylist}
+		{#if $isMorePlaylist}
 			<div class="loading-indicator" bind:this={loadingRef}>Loading...</div>
 		{/if}
 	</div>

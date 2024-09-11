@@ -11,13 +11,7 @@
 
 <Navigation {user} {isLoggedIn} />
 {#if data}
-	<div>
-		<div class="border-t">
-			<div class="bg-background">
-				<div class="grid">
-					<slot />
-				</div>
-			</div>
-		</div>
+	<div class="grid lg:grid-cols-8">
+		<slot />
 	</div>
 {/if}

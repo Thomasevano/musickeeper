@@ -28,7 +28,9 @@
 	<div class="space-y-1 text-sm">
 		<h3 class="font-medium leading-none">{album.name}</h3>
 		<p class="text-muted-foreground text-xs">
-			{album.type === 'playlist' ? '' : album.artists[0]}
+			{album.type === 'playlist'
+				? album.owner.display_name
+				: album.artists.map((artist) => artist.name)}
 		</p>
 	</div>
 	<Tooltip.Root>
