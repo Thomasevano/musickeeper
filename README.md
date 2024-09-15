@@ -1,38 +1,27 @@
-# create-svelte
+# MusicKeeper
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+**⚠️ THIS PROJECT IS IN ALPHA STAGE. THIS MEANS IT IS IN ACTIVE DEVELOPMENT ⚠️**
 
-## Creating a project
+## FAQ
 
-If you're seeing this, you've probably already done this step. Congrats!
+### What ?
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+MusicKeeper is a music manager app that help you manage, extract, transfer your music between different streaming platforms and why not legally and easily buy the music you loves to finally own back your music
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+### Why ?
 
-## Developing
+- You want to switch from a music provider to another (for example: Spotify to Apple Music )
+- You want to save your favorite music in the most compatible format it exist (text file, maybe more types would be available later)
+- You are subscribed to many music provider and it's tedious to keep them synchronized with your music
+- You want to take back control on your music, own the files and why not exit from music providers
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### Roadmap
 
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+- [ ] v0.0.1: Launch first version, no account just possibility to save your playlists as text files
+- [ ] v0.1.0: Be able to extract Albums,liked songs
+- Add Apple Music as music provider
+- Possibility to create an account with music provoder account
+- Transfer from one provider to another
+- Import your music library to to musickeeper
+- Sync between music provider and musickeeper
+- Add other music providers (Tidal, Youtube Music, Soundcloud, Amazon Music)
