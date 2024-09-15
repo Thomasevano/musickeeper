@@ -1,23 +1,22 @@
 # For more details, read this: https://coolify.io/docs/github-actions
 name: Build Static Image
 on:
-  push:
-    branches: ['main']
+  release:
+    types: [created]
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: 'thomasevano/musickeeper'
 
 jobs:
-  amd64:
-    environment: production
+  build-image-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.7
       - name: Login to ghcr.io
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
