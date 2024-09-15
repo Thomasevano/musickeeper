@@ -1,0 +1,31 @@
+name: Generate Changelog
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.7
+        with:
+          fetch-depth: 0
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG="No changelog available."
+          else
+            CHANGELOG=$(git log --oneline --no-merges $PREVIOUS_TAG..HEAD)
+          fi
+          echo "::set-output name=changelog::$CHANGELOG"
+      - name: Save Changelog
+        run: echo "${{ steps.changelog.outputs.changelog }}" > CHANGELOG.md
+      - name: Upload Changelog
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: CHANGELOG
+          path: CHANGELOG.md
