@@ -1,20 +1,18 @@
-import type { Song } from "./Song";
+import type { Song } from "../dtos/Song";
 
-export class MusicEntity {
-  private id: string;
-  private title: string;
-  private description: string;
-  private songs: Song[];
-  private author: string;
-  private link: string;
-  private imageUrl: string;
+export class MusicListEntity {
+  private readonly id: string;
+  private readonly title: string;
+  private readonly description: string;
+  private readonly songs: Song[];
+  private readonly link: string;
+  private readonly imageUrl: string;
 
   constructor(
     id: string,
     title: string,
     description: string,
     songs: Song[],
-    author: string,
     link: string,
     imageUrl: string
   ) {
@@ -22,7 +20,6 @@ export class MusicEntity {
     this.title = title;
     this.description = description;
     this.songs = songs;
-    this.author = author;
     this.link = link;
     this.imageUrl = imageUrl;
   }
@@ -37,10 +34,6 @@ export class MusicEntity {
 
   getTitle(): string {
     return this.title;
-  }
-
-  getAuthor(): string {
-    return this.author;
   }
 
   getLink(): string {

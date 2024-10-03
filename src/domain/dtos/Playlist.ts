@@ -2,7 +2,7 @@ import vine from '@vinejs/vine'
 import { type Infer } from '@vinejs/vine/types'
 import { SongSchema } from './Song'
 
-const SongsListSchema = vine.object({
+const PlaylistSchema = vine.object({
   id: vine.string().minLength(1),
   name: vine.string().minLength(1),
   description: vine.string().minLength(1),
@@ -12,4 +12,4 @@ const SongsListSchema = vine.object({
   imageUrl: vine.string().activeUrl(),
 })
 
-export type SongsList = Infer<typeof SongsListSchema>
+export type Playlist = Infer<typeof PlaylistSchema>

@@ -11,13 +11,3 @@ export const SongSchema = vine.object({
 })
 
 export type Song = Infer<typeof SongSchema>
-
-// export function createSong(data: Dictionary): Song {
-//   const result = SongSchema.parse(data);
-
-//   if (!result.success) {
-//     throw new Error(`Can not parse song from invalid data: ${result.error.message}`);
-//   }
-
-//   return result.data;
-// }
