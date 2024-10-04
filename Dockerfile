@@ -20,17 +20,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 #   SPOTIFY_CLIENT_SECRET=$(cat /run/secrets/spotify_client_secret) \
 #   RUN  --mount=type=secret,id=spotify_basic_token \
 #   SPOTIFY_BASIC_TOKEN=$(cat /run/secrets/spotify_basic_token) \
-#   RUN  --mount=type=secret,id=vite_base_url \
-#   VITE_BASE_URL=$(cat /run/secrets/vite_base_url) \
+
+RUN  --mount=type=secret,id=vite_base_url \
+  echo "VITE_BASE_URL=$(cat /run/secrets/vite_base_url)" >> .env.production
 
 RUN  --mount=type=secret,id=vite_turso_database_url \
   echo "VITE_TURSO_DATABASE_URL=$(cat /run/secrets/vite_turso_database_url)" >> .env.production
 
 RUN  --mount=type=secret,id=vite_turso_auth_token \
   echo "VITE_TURSO_AUTH_TOKEN=$(cat /run/secrets/vite_turso_auth_token)" >> .env.production
-
-# RUN --mount=type=secret,id=vite_turso_database_url \
-#   cat /run/secrets/vite_turso_database_url
 
 RUN pnpm run build
 
