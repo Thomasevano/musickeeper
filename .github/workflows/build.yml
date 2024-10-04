@@ -1,6 +1,7 @@
 # For more details, read this: https://coolify.io/docs/github-actions
 name: Build Static Image
 on:
+  workflow_dispatch:
   release:
     types: [created]
 env:
