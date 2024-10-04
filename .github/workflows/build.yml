@@ -28,6 +28,7 @@ jobs:
           context: .
           file: Dockerfile
           secrets: |
+            "vite_base_url=${{ secrets.VITE_BASE_URL }}"
             "vite_turso_auth_token=${{ secrets.VITE_TURSO_AUTH_TOKEN }}"
             "vite_turso_database_url=${{ secrets.VITE_TURSO_DATABASE_URL }}"
           platforms: linux/amd64
