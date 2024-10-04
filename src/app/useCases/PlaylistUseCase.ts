@@ -1,6 +1,6 @@
 import { type IMusicServiceProvider } from "../providers/MusicServiceProvider";
 import { type IPlaylistRepository } from "../repositories/PlaylistRepository";
-import { type Playlist } from "../../domain/dtos/Playlist";
+import { type PlaylistEntity } from "../../domain/dtos/Playlist";
 
 export class PlaylistUseCase {
   constructor(

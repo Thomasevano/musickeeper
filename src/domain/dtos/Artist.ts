@@ -6,4 +6,4 @@ export const ArtistSchema = vine.object({
   name: vine.string().minLength(1)
 })
 
-export type Artist = Infer<typeof ArtistSchema>
+export type ArtistDTO = Infer<typeof ArtistSchema>

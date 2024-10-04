@@ -12,4 +12,13 @@ const PlaylistSchema = vine.object({
   imageUrl: vine.string().activeUrl(),
 })
 
-export type Playlist = Infer<typeof PlaylistSchema>
+export type PlaylistDTO = Infer<typeof PlaylistSchema>
+
+export interface ICurrentUserPlaylistRequestDTO {
+  id: string
+  name: string
+  description: string
+  owner: string
+  href: string
+  imageUrl: string
+};

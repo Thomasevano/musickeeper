@@ -1,12 +1,14 @@
-import { MusicListEntity } from './MusicListEntity'
-import { type Song } from '../dtos/Song'
-
-class Playlist extends MusicListEntity {
+import { MusicListEntity } from './MusicList'
+import { type MusicListInterface } from './MusicList'
+export interface PlaylistInterface extends MusicListInterface {
+  owner: string
+}
+export class PlaylistEntity extends MusicListEntity {
   private readonly owner: string;
 
-  constructor(id: string, title: string, description: string, songs: Song[], link: string, imageUrl: string, owner: string) {
-    super(id, title, description, songs, link, imageUrl)
-    this.owner = owner
+  constructor(props: PlaylistInterface) {
+    super({ id: props.id, title: props.title, description: props.description, songs: props.songs, link: props.link, imageUrl: props.imageUrl })
+    this.owner = props.owner
   }
 
   getOwner(): string {
