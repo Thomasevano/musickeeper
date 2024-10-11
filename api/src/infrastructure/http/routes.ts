@@ -8,9 +8,26 @@
 */
 
 import router from '@adonisjs/core/services/router'
+const SpotifyController = () => import('./controllers/spotify_controller.js')
 
-router.get('/', async () => {
-  return {
-    hello: 'world',
-  }
-})
+router
+  .group(async () => {
+    router.get('/', async () => {
+      return {
+        hello: 'world',
+      }
+    })
+
+    router
+      .group(() => {
+        router
+          .group(() => {
+            router.get('login', [SpotifyController, 'login'])
+            router.get('callback', [SpotifyController, 'callback'])
+            router.get('refresh', [SpotifyController, 'refreshToken'])
+          })
+          .prefix('/auth')
+      })
+      .prefix('/spotify')
+  })
+  .prefix('/api')
