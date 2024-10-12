@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Separator } from '$lib/components/ui/separator';
-	import AlbumCard from '$lib/components/AlbumCard.svelte';
+	import AlbumCard from '$components/AlbumCard.svelte';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import * as Tooltip from '$lib/components/ui/tooltip';

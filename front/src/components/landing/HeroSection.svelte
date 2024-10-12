@@ -34,7 +34,7 @@
 					<i class="si si-spotify si--color mr-2 text-2xl"></i>
 					Create an account with Spotify <span class="ml-1" aria-hidden="true">&rarr;</span>
 				</Button> -->
-				<Button size="lg" href="/api/auth/login">
+				<Button size="lg" href="{import.meta.env.VITE_API_URL}/auth/spotify/login">
 					<i class="si si-spotify si--color mr-2 text-2xl"></i>
 					Connect your Spotify
 					<span class="ml-1" aria-hidden="true">&rarr;</span>
