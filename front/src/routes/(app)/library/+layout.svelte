@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { LayoutData } from './$types';
-	import Navigation from '$lib/components/Navigation.svelte';
+	import Navigation from '$components/Navigation.svelte';
 	export let data: LayoutData;
 	$: ({ user, isLoggedIn } = data);
 </script>
