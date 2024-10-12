@@ -1,12 +1,12 @@
 <script lang="ts">
-	import HeroSection from '$lib/components/landing/HeroSection.svelte';
-	import Features from '$lib/components/landing/Features.svelte';
-	import Navigation from '$lib/components/Navigation.svelte';
+	import HeroSection from '$components/landing/HeroSection.svelte';
+	import Features from '$components/landing/Features.svelte';
+	import Navigation from '$components/Navigation.svelte';
 	import type { LayoutData } from './$types';
 	export let data: LayoutData;
 	$: ({ user, isLoggedIn } = data);
 </script>
 
-<Navigation user={user} isLoggedIn={isLoggedIn} />
-<HeroSection isLoggedIn={isLoggedIn} />
+<Navigation {user} {isLoggedIn} />
+<HeroSection {isLoggedIn} />
 <Features />

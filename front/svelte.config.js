@@ -15,6 +15,7 @@ const config = {
 		alias: {
 			'~': './node_modules',
 			'$helpers': './src/lib/helpers',
+			'$components': './src/components',
 		}
 	}
 };
