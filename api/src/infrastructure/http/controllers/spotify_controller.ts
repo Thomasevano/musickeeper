@@ -67,25 +67,9 @@ export default class SpotifyController {
       const accessToken = responseTokenJSON.access_token
       const refreshToken = responseTokenJSON.refresh_token
 
-      let responseUserInfos
-      try {
-        responseUserInfos = await fetch('https://api.spotify.com/v1/me', {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + responseTokenJSON.access_token,
-          },
-        })
-      } catch (error) {
-        response
-          .redirect()
-          .toPath('/api/spotify' + querystring.stringify({ error: 'user_infos_fetch_error' }))
-        return
-      }
-
-      console.log({ accessToken })
-      console.log({ refreshToken })
-      const responseUserInfosJSON = await responseUserInfos.json()
-      console.log(responseUserInfosJSON)
+      response.cookie('spotify_access_token', accessToken)
+      response.cookie('spotify_refresh_token', refreshToken)
+      response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
     } else {
       console.log(responseToken?.status)
     }
