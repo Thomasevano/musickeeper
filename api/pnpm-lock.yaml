@@ -60,6 +60,9 @@ importers:
       '@types/node':
         specifier: ^22.5.1
         version: 22.7.4
+      '@types/spotify-api':
+        specifier: ^0.0.25
+        version: 0.0.25
       eslint:
         specifier: ^9.9.1
         version: 9.12.0
@@ -667,6 +670,9 @@ packages:
 
   '@types/qs@6.9.16':
     resolution: {integrity: sha512-7i+zxXdPD0T4cKDuxCUXJ4wHcsJLwENa6Z3dCu8cfCK743OGy5Nu1RmAGqDPsoTDINVEcdXKRvR/zre+P2Ku1A==}
+
+  '@types/spotify-api@0.0.25':
+    resolution: {integrity: sha512-okhoy0U9fPWtwqCfbDyW8VxamhqvXE0gXIVeMOh5HcvEFQvWW2X0VsvdiX/OyiGQpZbZiOJXIGrbnIPfK0AIpA==}
 
   '@types/superagent@8.1.9':
     resolution: {integrity: sha512-pTVjI73witn+9ILmoJdajHGW2jkSaOzhiFYF1Rd3EQ94kymLqB9PjD9ISg7WaALC7+dCHT0FGe9T2LktLq/3GQ==}
@@ -3542,6 +3548,8 @@ snapshots:
   '@types/pluralize@0.0.33': {}
 
   '@types/qs@6.9.16': {}
+
+  '@types/spotify-api@0.0.25': {}
 
   '@types/superagent@8.1.9':
     dependencies:

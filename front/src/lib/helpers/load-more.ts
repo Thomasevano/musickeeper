@@ -3,22 +3,22 @@ import type { Writable } from 'svelte/store';
 
 export default async function loadMore(data, $data, isMore: Writable<Boolean>) {
 
-  if ($data.next === null) {
+  if ($data.nextUrl === null) {
     isMore.set(false);
     return;
   }
   const res = await fetch(
-    $data.next.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')
+    $data.nextUrl.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, `${import.meta.env.VITE_API_URL}/spotify`)
   );
 
   if (res.ok) {
     const resJSON = await res.json();
-    if (resJSON.previous?.includes('offset=0')) {
-      resJSON.items.shift()
+    if (resJSON.previousUrl?.includes('offset=0')) {
+      resJSON.playlistsInfos.shift()
     }
     data.set({
       ...resJSON,
-      items: [...$data.items, ...resJSON.items]
+      playlistsInfos: [...$data.playlistsInfos, ...resJSON.playlistsInfos]
     });
   }
 }

@@ -3,10 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { FileText } from 'lucide-svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { extractPlaylist } from '../../services/generate_playlist_service';
+	// import { extractPlaylist } from '../../services/generate_playlist_service';
 
 	let className: string | undefined | null = undefined;
-	export let album;
+	export let tracksListInfos;
 	export let aspectRatio: 'portrait' | 'square' = 'square';
 	export { className as class };
 	export let fetch: (input: URL | RequestInfo, init?: RequestInit | undefined) => Promise<Response>;
@@ -20,24 +20,22 @@
 					'h-auto w-auto object-cover',
 					aspectRatio === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
 				)}
-				src={album.images[0].url}
-				alt={album.name}
+				src={tracksListInfos.imageUrl}
+				alt={tracksListInfos.title}
 			/>
 		</div>
 	</div>
 	<div class="space-y-1 text-sm">
-		<h3 class="font-medium leading-none">{album.name}</h3>
+		<h3 class="font-medium leading-none">{tracksListInfos.title}</h3>
 		<p class="text-muted-foreground text-xs">
-			{album.type === 'playlist'
-				? album.owner.display_name
-				: album.artists.map((artist) => artist.name)}
+			{tracksListInfos.owner}
 		</p>
 	</div>
 	<Tooltip.Root>
 		<Tooltip.Trigger>
 			<Button
 				on:click={async () => {
-					extractPlaylist(fetch, album.tracks.href, album.name);
+					// extractPlaylist(fetch, tracksListInfos.tracks.href, tracksListInfos.name);
 				}}
 				class="relative"
 			>
