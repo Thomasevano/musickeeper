@@ -10,7 +10,7 @@
 
 	export let data: PageData;
 
-	const spotifyUserPlaylists: Writable<any> = writable(data.userPlaylists);
+	const UserPlaylistsInfos: Writable<any> = writable(data.userPlaylists);
 	const isMorePlaylist: Writable<Boolean> = writable(true);
 
 	let loadingRef: HTMLElement | undefined;
@@ -24,7 +24,7 @@
 
 			if (element.isIntersecting) {
 				(async function () {
-					await loadMore(spotifyUserPlaylists, $spotifyUserPlaylists, isMorePlaylist);
+					await loadMore(UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
 				})();
 			}
 		});
@@ -43,7 +43,7 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					<Button href={`/api/archive/playlists`} target="_blank" class="relative">
-						Extract all {$spotifyUserPlaylists.total} playlists
+						Extract all {$UserPlaylistsInfos.total} playlists
 					</Button>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
@@ -55,9 +55,9 @@
 		<div
 			class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
-			{#if $spotifyUserPlaylists.items.length > 0}
-				{#each $spotifyUserPlaylists.items as album}
-					<AlbumCard {fetch} {album} class="w-[180px]" aspectRatio="square" />
+			{#if $UserPlaylistsInfos.playlistsInfos.length > 0}
+				{#each $UserPlaylistsInfos.playlistsInfos as tracksListInfos}
+					<AlbumCard {fetch} {tracksListInfos} class="w-[180px]" aspectRatio="square" />
 				{/each}
 			{:else}
 				<p>No Playlists Yet!</p>

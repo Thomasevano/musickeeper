@@ -1,5 +1,7 @@
+import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 import querystring from 'node:querystring'
+import { PlaylistRepository } from '../../../application/repositories/playlist.repository.js'
 
 function generateRandomString(length: number): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -10,7 +12,10 @@ function generateRandomString(length: number): string {
   return result
 }
 
+@inject()
 export default class SpotifyController {
+  constructor(private playlistRepository: PlaylistRepository) { }
+
   login({ response }: HttpContext): void {
     const state = generateRandomString(16)
     response.cookie('spotify_auth_state', state)
@@ -67,7 +72,9 @@ export default class SpotifyController {
       const accessToken = responseTokenJSON.access_token
       const refreshToken = responseTokenJSON.refresh_token
 
-      response.cookie('spotify_access_token', accessToken)
+      response.cookie('spotify_access_token', accessToken, {
+        httpOnly: false,
+      })
       response.cookie('spotify_refresh_token', refreshToken)
       response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
     } else {
@@ -108,7 +115,21 @@ export default class SpotifyController {
     }
   }
 
-  async logout({ response }: HttpContext): void {
+  async logout({ response }: HttpContext): Promise<void> {
     response.clearCookie('spotify_auth_state')
+  }
+
+  async getCurrentUserPlaylistsInfos({ request, response }: HttpContext): Promise<void> {
+    const token = request.cookie('spotify_access_token')
+    const playlists = await this.playlistRepository.getCurrentUserPlaylistsInfos(token)
+    return response.send(playlists)
+  }
+
+  async getUserPlaylistsInfos({ request, response, params }: HttpContext): Promise<void> {
+    const token = request.cookie('spotify_access_token')
+    console.log({ params })
+    const userId = params.userId
+    const playlists = await this.playlistRepository.getUserPlaylistsInfos(token, userId, params)
+    return response.send(playlists)
   }
 }
