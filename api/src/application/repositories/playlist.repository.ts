@@ -1,5 +1,5 @@
 import { Playlist } from '../../domain/playlist.js'
 
 export abstract class PlaylistRepository {
-  abstract getCurrentUserPlaylists(): Promise<Playlist[] | null>
+  abstract getCurrentUserPlaylistsInfos(token: string): Promise<Playlist[] | null>
 }

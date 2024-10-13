@@ -18,11 +18,14 @@ async function fetchUserSavedAlbums(token: string): Promise<any> {
 }
 
 async function fetchUserPlaylists(token: string): Promise<any> {
-  const result = await fetch(`${import.meta.env.VITE_BASE_URL}/api/spotify/me/playlists`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
-  return await result;
+  try {
+    const result = await fetch(`${import.meta.env.VITE_API_URL}/spotify/me/playlists`, {
+      headers: { Cookie: `spotify_access_token=${token}` }
+    });
+    return await result;
+  } catch (error) {
+    console.log({ error })
+  }
 }
 
 const fetchSongsFromPlaylist = async (fetch: (input: URL | RequestInfo, init?: RequestInit | undefined) => Promise<Response>, url: string): Promise<any> => {
