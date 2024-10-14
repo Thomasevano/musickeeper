@@ -115,7 +115,7 @@ export default class SpotifyController {
     }
   }
 
-  async logout({ response }: HttpContext): void {
+  async logout({ response }: HttpContext): Promise<void> {
     response.clearCookie('spotify_auth_state')
   }
 

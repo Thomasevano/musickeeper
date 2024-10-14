@@ -1,13 +1,13 @@
-import { Playlist } from '../../../domain/playlist.js'
+import { PlaylistInfos } from '../../../domain/playlist.js'
 
-export function SerializePlaylistFromSpotify(
+export function SerializePlaylistInfosFromSpotify(
   playlist: SpotifyApi.PlaylistObjectSimplified
-): Playlist {
-  return new Playlist({
+): PlaylistInfos {
+  return new PlaylistInfos({
     id: playlist.id,
     title: playlist.name,
     description: playlist.description,
-    tracks: [],
+    tracksUrl: playlist.tracks.href,
     link: playlist.external_urls.spotify,
     imageUrl: playlist.images[0].url,
     owner: playlist.owner.display_name ?? playlist.owner.id,

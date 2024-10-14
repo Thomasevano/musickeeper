@@ -1,5 +1,6 @@
-import { Playlist } from '../../domain/playlist.js'
+
+import { PaginatedPlaylistsInfos, Playlist } from '../../domain/playlist.js'
 
 export abstract class PlaylistRepository {
-  abstract getCurrentUserPlaylistsInfos(token: string): Promise<Playlist[] | null>
+  abstract getCurrentUserPlaylistsInfos(token: string): Promise<PaginatedPlaylistsInfos>
 }
