@@ -15,7 +15,8 @@
   },
   "imports": {
     "#tests/*": "./tests/*.js",
-    "#config/*": "./src/infrastructure/config/*.js"
+    "#config/*": "./src/infrastructure/config/*.js",
+    "#middleware/*": "./src/infrastructure/http/middleware/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.1",
@@ -42,6 +43,7 @@
     "@adonisjs/cors": "^2.2.1",
     "@adonisjs/lucid": "^21.2.0",
     "@vinejs/vine": "^2.1.0",
+    "ofetch": "^1.4.1",
     "reflect-metadata": "^0.2.2"
   },
   "hotHook": {

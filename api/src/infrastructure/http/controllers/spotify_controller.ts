@@ -2,6 +2,11 @@ import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 import querystring from 'node:querystring'
 import { PlaylistRepository } from '../../../application/repositories/playlist.repository.js'
+import {
+  SPOTIFY_ACCESS_TOKEN_COOKIE_NAME,
+  SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
+  SPOTIFY_REFRESH_TOKEN_COOKIE_NAME,
+} from '../../../constants.js'
 
 function generateRandomString(length: number): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -69,49 +74,66 @@ export default class SpotifyController {
 
     if (responseToken?.ok) {
       const responseTokenJSON = await responseToken.json()
+      console.log({ responseTokenJSON })
+
       const accessToken = responseTokenJSON.access_token
       const refreshToken = responseTokenJSON.refresh_token
+      const accessTokenExpiresIn = responseTokenJSON.expires_in
 
-      response.cookie('spotify_access_token', accessToken, {
-        httpOnly: false,
+      const currentDate = Math.floor(Date.now() / 1000)
+      const accessTokenExpiresAt = currentDate + accessTokenExpiresIn
+
+      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
+      response.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME, refreshToken)
+      response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
+        encode: false,
       })
-      response.cookie('spotify_refresh_token', refreshToken)
       response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
     } else {
       console.log(responseToken?.status)
     }
   }
 
-  async refreshToken({ request, response }: HttpContext): void {
-    const { refresh_token } = request.qs()
+  async refreshToken({ request, response }: HttpContext): Promise<void> {
+    const refreshToken = request.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME)
 
-    let responseRefreshToken
+    let body
     try {
-      responseRefreshToken = await fetch('https://accounts.spotify.com/api/token', {
+      body = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': 'Basic ' + process.env.SPOTIFY_BASIC_TOKEN,
         },
         body: querystring.stringify({
-          refresh_token,
           grant_type: 'refresh_token',
+          refresh_token: refreshToken,
         }),
       })
     } catch (error) {
-      response
-        .redirect()
-        .toPath('/api/spotify' + querystring.stringify({ error: 'refresh_token_fetch_error' }))
+      // response
+      //   .redirect()
+      //   .toPath('/api/spotify' + querystring.stringify({ error: 'refresh_token_fetch_error' }))
+      console.log({ error })
       return
     }
 
-    if (responseRefreshToken?.ok) {
-      const responseRefreshTokenJSON = await responseRefreshToken.json()
-      const accessToken = responseRefreshTokenJSON.access_token
+    if (body?.ok) {
+      const result = await body.json()
+      console.log({ result })
 
-      console.log({ accessToken })
+      let accessToken = result.access_token
+      const accessTokenExpiresIn = result.expires_in
+
+      const currentDate = Math.floor(Date.now() / 1000)
+      let accessTokenExpiresAt = currentDate + accessTokenExpiresIn
+
+      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
+      response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
+        encode: false,
+      })
     } else {
-      console.log(responseRefreshToken?.status)
+      console.log('error refreshing tokens:', body?.status, body?.statusText)
     }
   }
 
@@ -120,16 +142,22 @@ export default class SpotifyController {
   }
 
   async getCurrentUserPlaylistsInfos({ request, response }: HttpContext): Promise<void> {
-    const token = request.cookie('spotify_access_token')
+    const token = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
     const playlists = await this.playlistRepository.getCurrentUserPlaylistsInfos(token)
     return response.send(playlists)
   }
 
   async getUserPlaylistsInfos({ request, response, params }: HttpContext): Promise<void> {
-    const token = request.cookie('spotify_access_token')
-    console.log({ params })
-    const userId = params.userId
-    const playlists = await this.playlistRepository.getUserPlaylistsInfos(token, userId, params)
+    const token = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
+    const userId = params.id
+    const offset = request.qs().offset
+    const limit = request.qs().limit
+    const playlists = await this.playlistRepository.getUserPlaylistsInfos(
+      token,
+      userId,
+      offset,
+      limit
+    )
     return response.send(playlists)
   }
 }
