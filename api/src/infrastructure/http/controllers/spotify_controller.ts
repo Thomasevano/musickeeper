@@ -69,32 +69,44 @@ export default class SpotifyController {
 
     if (responseToken?.ok) {
       const responseTokenJSON = await responseToken.json()
+      console.log({ responseTokenJSON })
+
       const accessToken = responseTokenJSON.access_token
       const refreshToken = responseTokenJSON.refresh_token
+      const accessTokenExpiresIn = responseTokenJSON.expires_in
+
+      const currentDate = Math.floor(Date.now() / 1000)
+      const accessTokenExpiresAt = currentDate + accessTokenExpiresIn
 
       response.cookie('spotify_access_token', accessToken, {
         httpOnly: false,
       })
-      response.cookie('spotify_refresh_token', refreshToken)
+      response.cookie('spotify_access_token_expires-at', accessTokenExpiresAt, {
+        httpOnly: false,
+      })
+      response.cookie('spotify_refresh_token', refreshToken, {
+        httpOnly: false,
+      })
       response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
     } else {
       console.log(responseToken?.status)
     }
   }
 
-  async refreshToken({ request, response }: HttpContext): void {
-    const { refresh_token } = request.qs()
+  async refreshToken({ request, response }: HttpContext): Promise<void> {
+    const refreshToken = request.cookie('spotify_refresh_token')
+    console.log({ refreshToken })
 
-    let responseRefreshToken
+    let body
     try {
-      responseRefreshToken = await fetch('https://accounts.spotify.com/api/token', {
+      body = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': 'Basic ' + process.env.SPOTIFY_BASIC_TOKEN,
         },
         body: querystring.stringify({
-          refresh_token,
+          refreshToken,
           grant_type: 'refresh_token',
         }),
       })
@@ -104,14 +116,30 @@ export default class SpotifyController {
         .toPath('/api/spotify' + querystring.stringify({ error: 'refresh_token_fetch_error' }))
       return
     }
+    console.log({ body })
 
-    if (responseRefreshToken?.ok) {
-      const responseRefreshTokenJSON = await responseRefreshToken.json()
-      const accessToken = responseRefreshTokenJSON.access_token
+    if (body?.ok) {
+      const result = await body.json()
+      const accessToken = result.access_token
+      const accessTokenExpiresIn = result.expires_in
+      const refreshedToken = result.refresh_token
 
-      console.log({ accessToken })
+      const currentDate = Math.floor(Date.now() / 1000)
+      const accessTokenExpiresAt = currentDate + accessTokenExpiresIn
+
+      response.cookie('spotify_access_token', accessToken, {
+        httpOnly: false,
+      })
+      response.cookie('spotify_access_token_expires-at', accessTokenExpiresAt, {
+        httpOnly: false,
+      })
+      response.cookie('spotify_refresh_token', refreshedToken, {
+        httpOnly: false,
+      })
+
+      console.log({ result })
     } else {
-      console.log(responseRefreshToken?.status)
+      console.log(body?.status)
     }
   }
 
