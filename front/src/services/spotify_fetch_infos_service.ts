@@ -1,5 +1,6 @@
 import axios from "axios";
 import { env } from "$env/dynamic/public";
+import type { spotifyTokens } from "../types";
 
 async function fetchProfile(token: string): Promise<any> {
   const result = await axios.get(`${env.PUBLIC_SPOTIFY_BASE_URL}/me`, {
@@ -17,10 +18,12 @@ async function fetchUserSavedAlbums(token: string): Promise<any> {
   return await result.data;
 }
 
-async function fetchUserPlaylists(token: string): Promise<any> {
+async function fetchUserPlaylists(tokens: spotifyTokens): Promise<any> {
   try {
     const result = await fetch(`${import.meta.env.VITE_API_URL}/spotify/me/playlists`, {
-      headers: { Cookie: `spotify_access_token=${token}` }
+      headers: {
+        Cookie: `spotify_access_token=${tokens.accessToken}; spotify_refresh_token=${tokens.refreshToken}; spotify_access_token_expires_at=${tokens.expiresAt}`
+      }
     });
     return await result;
   } catch (error) {
