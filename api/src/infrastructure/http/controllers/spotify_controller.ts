@@ -147,9 +147,17 @@ export default class SpotifyController {
     response.clearCookie('spotify_auth_state')
   }
 
-  async currentUserPlaylistInfos({ request, response }: HttpContext): Promise<void> {
+  async getCurrentUserPlaylistsInfos({ request, response }: HttpContext): Promise<void> {
     const token = request.cookie('spotify_access_token')
     const playlists = await this.playlistRepository.getCurrentUserPlaylistsInfos(token)
+    return response.send(playlists)
+  }
+
+  async getUserPlaylistsInfos({ request, response, params }: HttpContext): Promise<void> {
+    const token = request.cookie('spotify_access_token')
+    console.log({ params })
+    const userId = params.userId
+    const playlists = await this.playlistRepository.getUserPlaylistsInfos(token, userId, params)
     return response.send(playlists)
   }
 }

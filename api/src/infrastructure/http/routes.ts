@@ -33,7 +33,8 @@ router
       .prefix('/auth')
     router
       .group(() => {
-        router.get('me/playlists', [SpotifyController, 'currentUserPlaylistInfos'])
+        router.get('me/playlists', [SpotifyController, 'getCurrentUserPlaylistsInfos'])
+        router.get('users/:userId/playlists?', [SpotifyController, 'getUserPlaylistsInfos'])
       })
       .prefix('/spotify')
       .use(middleware.spotify())

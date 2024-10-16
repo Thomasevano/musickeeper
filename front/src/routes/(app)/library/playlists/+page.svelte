@@ -43,7 +43,7 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					<Button href={`/api/archive/playlists`} target="_blank" class="relative">
-						<!-- Extract all {$spotifyUserPlaylists.total} playlists -->
+						Extract all {$UserPlaylistsInfos.total} playlists
 					</Button>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
@@ -55,8 +55,8 @@
 		<div
 			class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
-			{#if $UserPlaylistsInfos.length > 0}
-				{#each $UserPlaylistsInfos as tracksListInfos}
+			{#if $UserPlaylistsInfos.playlistsInfos.length > 0}
+				{#each $UserPlaylistsInfos.playlistsInfos as tracksListInfos}
 					<AlbumCard {fetch} {tracksListInfos} class="w-[180px]" aspectRatio="square" />
 				{/each}
 			{:else}

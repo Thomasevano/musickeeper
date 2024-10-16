@@ -30,10 +30,63 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
         SerializePlaylistInfosFromSpotify(playlist)
       )
 
+    const previousUrl = currenteUserplaylistsInfos.previous
+      ?.toString()
+      .replace(`${process.env.SPOTIFY_BASE_URL}`, `${process.env.BASE_URL}/api/spotify`)
+
+    const nextUrl = currenteUserplaylistsInfos.next
+      ?.toString()
+      .replace(`${process.env.SPOTIFY_BASE_URL}`, `${process.env.BASE_URL}/api/spotify`)
+
     return new PaginatedPlaylistsInfos({
       limit: currenteUserplaylistsInfos.limit,
       offset: currenteUserplaylistsInfos.offset,
-      nextUrl: currenteUserplaylistsInfos.next,
+      previousUrl,
+      nextUrl,
+      total: currenteUserplaylistsInfos.total,
+      playlistsInfos: serializedCurrenteUserplaylistsInfos,
+    })
+  }
+
+  async getUserPlaylistsInfos(
+    bearerToken: string,
+    userId: string,
+    params: any
+  ): Promise<PaginatedPlaylistsInfos> {
+    let resultJSON
+    try {
+      const result = await fetch(
+        `${process.env.SPOTIFY_BASE_URL}/users/${userId}/playlists?${params}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${bearerToken}`,
+          },
+        }
+      )
+      resultJSON = await result.json()
+    } catch (error) {
+      throw new Error()
+    }
+    const currenteUserplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = resultJSON
+    const serializedCurrenteUserplaylistsInfos: PlaylistInfos[] =
+      currenteUserplaylistsInfos.items.map((playlist: SpotifyApi.PlaylistObjectSimplified) =>
+        SerializePlaylistInfosFromSpotify(playlist)
+      )
+
+    const previousUrl = currenteUserplaylistsInfos.previous.replace(
+      `${process.env.SPOTIFY_BASE_URL}`,
+      `${process.env.BASE_URL}/api/spotify`
+    )
+    const nextUrl = currenteUserplaylistsInfos.next.replace(
+      `${process.env.SPOTIFY_BASE_URL}`,
+      `${process.env.BASE_URL}/api/spotify`
+    )
+    return new PaginatedPlaylistsInfos({
+      limit: currenteUserplaylistsInfos.limit,
+      offset: currenteUserplaylistsInfos.offset,
+      previousUrl,
+      nextUrl,
       total: currenteUserplaylistsInfos.total,
       playlistsInfos: serializedCurrenteUserplaylistsInfos,
     })

@@ -56,6 +56,7 @@ export class PlaylistInfos extends TracksListInfos {
 interface PaginatedPlaylistsInfosPropreties {
   limit: number
   offset: number
+  previousUrl: string
   nextUrl: string
   total: number
   playlistsInfos: PlaylistInfos[]
@@ -63,6 +64,7 @@ interface PaginatedPlaylistsInfosPropreties {
 export class PaginatedPlaylistsInfos {
   private limit: number
   private offset: number
+  private previousUrl: string
   private nextUrl: string
   private total: number
   private playlistsInfos: PlaylistInfos[]
@@ -70,6 +72,7 @@ export class PaginatedPlaylistsInfos {
   constructor(props: PaginatedPlaylistsInfosPropreties) {
     this.limit = props.limit
     this.offset = props.offset
+    this.previousUrl = props.previousUrl
     this.nextUrl = props.nextUrl
     this.total = props.total
     this.playlistsInfos = props.playlistsInfos
