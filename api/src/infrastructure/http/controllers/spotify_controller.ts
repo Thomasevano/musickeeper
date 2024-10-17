@@ -94,8 +94,8 @@ export default class SpotifyController {
   }
 
   async refreshToken({ request, response }: HttpContext): Promise<void> {
-    const refreshToken = request.cookie('spotify_refresh_token')
-    console.log({ refreshToken })
+    const refreshToken = request.header('Cookie')?.split('spotify_refresh_token=')[1]
+    console.log('refreshtoken route headers', request.headers())
 
     let body
     try {
@@ -106,8 +106,8 @@ export default class SpotifyController {
           'Authorization': 'Basic ' + process.env.SPOTIFY_BASIC_TOKEN,
         },
         body: querystring.stringify({
-          refreshToken,
           grant_type: 'refresh_token',
+          refresh_token: refreshToken,
         }),
       })
     } catch (error) {
@@ -116,26 +116,26 @@ export default class SpotifyController {
         .toPath('/api/spotify' + querystring.stringify({ error: 'refresh_token_fetch_error' }))
       return
     }
-    console.log({ body })
 
     if (body?.ok) {
       const result = await body.json()
       const accessToken = result.access_token
       const accessTokenExpiresIn = result.expires_in
-      const refreshedToken = result.refresh_token
 
       const currentDate = Math.floor(Date.now() / 1000)
       const accessTokenExpiresAt = currentDate + accessTokenExpiresIn
 
-      response.cookie('spotify_access_token', accessToken, {
-        httpOnly: false,
-      })
-      response.cookie('spotify_access_token_expires-at', accessTokenExpiresAt, {
-        httpOnly: false,
-      })
-      response.cookie('spotify_refresh_token', refreshedToken, {
-        httpOnly: false,
-      })
+      response.clearCookie('spotify_access_token')
+      response.clearCookie('spotify_access_token_expires-at')
+
+      console.log({ request })
+
+      // response.cookie('spotify_access_token', accessToken, {
+      //   httpOnly: false,
+      // })
+      // response.cookie('spotify_access_token_expires-at', accessTokenExpiresAt, {
+      //   httpOnly: false,
+      // })
 
       console.log({ result })
     } else {

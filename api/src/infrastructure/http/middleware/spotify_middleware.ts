@@ -8,12 +8,14 @@ export default class SpotifyMiddleware {
 
     const currentDate = Math.floor(Date.now() / 1000)
     const difference = Math.floor((Number.parseInt(spotifyAccessTokenExpiresAt) - currentDate) / 60)
-    console.log({ difference, currentDate, spotifyAccessTokenExpiresAt })
+    console.log({ difference, currentDate, spotifyAccessTokenExpiresAt, spotifyRefreshToken })
     if (difference > 1) {
+      console.log('access token valid')
       return next()
     } else {
+      console.log('access token invalid')
       await fetch(`${process.env.BASE_URL}/api/auth/spotify/refresh`, {
-        headers: { Cookie: `spotify_refresh_token=${spotifyRefreshToken}` },
+        headers: { cookie: `spotify_refresh_token=${spotifyRefreshToken}` },
       })
       return next()
     }
