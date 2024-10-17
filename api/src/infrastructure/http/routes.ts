@@ -37,6 +37,6 @@ router
         router.get('users/:userId/playlists?', [SpotifyController, 'getUserPlaylistsInfos'])
       })
       .prefix('/spotify')
-      .use(middleware.spotify())
+    // .use(middleware.spotify())
   })
   .prefix('/api')
