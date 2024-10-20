@@ -24,7 +24,7 @@
 
 			if (element.isIntersecting) {
 				(async function () {
-					await loadMore(UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
+					await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
 				})();
 			}
 		});

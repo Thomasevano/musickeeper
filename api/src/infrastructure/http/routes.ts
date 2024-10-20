@@ -32,8 +32,16 @@ router
       .prefix('/auth')
     router
       .group(() => {
-        router.get('me/playlists', [SpotifyController, 'getCurrentUserPlaylistsInfos'])
-        router.get('users/:userId/playlists?', [SpotifyController, 'getUserPlaylistsInfos'])
+        router
+          .group(() => {
+            router.get(':id/playlists', [SpotifyController, 'getUserPlaylistsInfos'])
+          })
+          .prefix('/users')
+        router
+          .group(() => {
+            router.get('playlists', [SpotifyController, 'getCurrentUserPlaylistsInfos'])
+          })
+          .prefix('/me')
       })
       .prefix('/spotify')
   })

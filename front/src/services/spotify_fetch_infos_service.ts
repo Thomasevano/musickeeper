@@ -31,10 +31,23 @@ async function fetchUserPlaylists(tokens: spotifyTokens): Promise<any> {
   }
 }
 
+async function fetchUserNextPlaylists(tokens: spotifyTokens, url: string): Promise<any> {
+  try {
+    const result = await fetch(url, {
+      headers: {
+        Cookie: `spotify_access_token=${tokens.accessToken}`
+      }
+    });
+    return await result;
+  } catch (error) {
+    console.log({ error })
+  }
+}
+
 const fetchSongsFromPlaylist = async (fetch: (input: URL | RequestInfo, init?: RequestInit | undefined) => Promise<Response>, url: string): Promise<any> => {
   const result = await fetch(`${url.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, '/api/spotify')}`);
 
   return await result;
 }
 
-export { fetchProfile, fetchUserSavedAlbums, fetchUserPlaylists, fetchSongsFromPlaylist }
+export { fetchProfile, fetchUserSavedAlbums, fetchUserPlaylists, fetchSongsFromPlaylist, fetchUserNextPlaylists }
