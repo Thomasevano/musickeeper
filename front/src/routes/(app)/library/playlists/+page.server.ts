@@ -17,7 +17,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		refreshToken: spotifyRefreshToken,
 		expiresAt: spotifyAccessTokenExpiresAt
 	}
-	console.log({ tokens })
 
 	const playlistsRes = await fetchUserPlaylists(tokens)
 
@@ -27,6 +26,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	const playlistsJSON = await playlistsRes.json();
 	return {
+		tokens: tokens,
 		userPlaylists: playlistsJSON
 	};
 };
