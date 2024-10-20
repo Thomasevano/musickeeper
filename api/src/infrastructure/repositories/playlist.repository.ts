@@ -51,12 +51,13 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
   async getUserPlaylistsInfos(
     bearerToken: string,
     userId: string,
-    params: any
+    offset: number | null,
+    limit: number | null
   ): Promise<PaginatedPlaylistsInfos> {
     let resultJSON
     try {
       const result = await fetch(
-        `${process.env.SPOTIFY_BASE_URL}/users/${userId}/playlists?${params}`,
+        `${process.env.SPOTIFY_BASE_URL}/users/${userId}/playlists?$offset=${offset}&limit=${limit}`,
         {
           headers: {
             'Content-Type': 'application/json',

@@ -1,19 +1,21 @@
 import { env } from '$env/dynamic/public';
 import type { Writable } from 'svelte/store';
+import { fetchUserNextPlaylists } from '../../services/spotify_fetch_infos_service';
+import type { spotifyTokens } from '../../types';
 
-export default async function loadMore(data, $data, isMore: Writable<Boolean>) {
-
+export default async function loadMore(tokens: spotifyTokens, data, $data, isMore: Writable<Boolean>) {
   if ($data.nextUrl === null) {
     isMore.set(false);
     return;
   }
-  const res = await fetch(
-    $data.nextUrl.replace(`${env.PUBLIC_SPOTIFY_BASE_URL}`, `${import.meta.env.VITE_API_URL}/spotify`)
-  );
+
+  const res = await fetchUserNextPlaylists(tokens, $data.nextUrl)
+  console.log({ res })
 
   if (res.ok) {
     const resJSON = await res.json();
-    if (resJSON.previousUrl?.includes('offset=0')) {
+    console.log({ resJSON })
+    if (!resJSON.previousUrl) {
       resJSON.playlistsInfos.shift()
     }
     data.set({
