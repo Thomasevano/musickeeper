@@ -5,6 +5,7 @@ export abstract class PlaylistRepository {
   abstract getUserPlaylistsInfos(
     token: string,
     userId: string,
-    params: string
+    offset: number | null,
+    limit: number | null
   ): Promise<PaginatedPlaylistsInfos>
 }

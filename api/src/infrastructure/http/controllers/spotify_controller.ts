@@ -146,9 +146,15 @@ export default class SpotifyController {
 
   async getUserPlaylistsInfos({ request, response, params }: HttpContext): Promise<void> {
     const token = request.encryptedCookie('spotify_access_token')
-    console.log({ params })
-    const userId = params.userId
-    const playlists = await this.playlistRepository.getUserPlaylistsInfos(token, userId, params)
+    const userId = params.id
+    const offset = request.qs().offset
+    const limit = request.qs().limit
+    const playlists = await this.playlistRepository.getUserPlaylistsInfos(
+      token,
+      userId,
+      offset,
+      limit
+    )
     return response.send(playlists)
   }
 }
