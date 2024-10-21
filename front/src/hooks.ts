@@ -19,7 +19,6 @@ export const handle: Handle = async ({ event, resolve }) => {
         },
       });
       const cookies = response.headers.getSetCookie();
-      console.log({ cookies })
 
       cookies.map((cookie) => {
         if (cookie.includes('spotify_access_token=')) {
