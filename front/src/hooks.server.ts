@@ -4,7 +4,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const spotifyRefreshToken = event.cookies.get('spotify_refresh_token');
   const spotifyAccessToken = event.cookies.get('spotify_access_token');
-  const spotifyAccessTokenExpiresAt = event.cookies.get('spotify_access_token_expires-at')
+  const spotifyAccessTokenExpiresAt = event.cookies.get('spotify_access_token_expires_at')
   const now = Math.floor(Date.now() / 1000);
   const spotifyAccessTokenExpiresIn = Math.floor((Number.parseInt(spotifyAccessTokenExpiresAt) - now) / 60);
 
@@ -25,8 +25,8 @@ export const handle: Handle = async ({ event, resolve }) => {
         if (cookie.includes('spotify_access_token=')) {
           event.cookies.set('spotify_access_token', cookie.split('=')[1].split(';')[0], { path: '/' });
         }
-        if (cookie.includes('spotify_access_token_expires-at=')) {
-          event.cookies.set('spotify_access_token_expires-at', cookie.split('=')[1].split(';')[0], { path: '/' });
+        if (cookie.includes('spotify_access_token_expires_at=')) {
+          event.cookies.set('spotify_access_token_expires_at', cookie.split('=')[1].split(';')[0], { path: '/' });
         }
       });
     } catch (error) {

@@ -6,7 +6,7 @@ import type { spotifyTokens } from '../../../../types';
 export const load: PageServerLoad = async ({ cookies }) => {
 	const spotifyAccessToken = cookies.get('spotify_access_token');
 	const spotifyRefreshToken = cookies.get('spotify_refresh_token');
-	const spotifyAccessTokenExpiresAt = cookies.get('spotify_access_token_expires-at');
+	const spotifyAccessTokenExpiresAt = cookies.get('spotify_access_token_expires_at');
 
 	if (!spotifyAccessToken) {
 		console.error('No access token found!');

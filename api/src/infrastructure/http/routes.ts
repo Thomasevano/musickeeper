@@ -8,7 +8,6 @@
 */
 
 import router from '@adonisjs/core/services/router'
-import { middleware } from './kernel.js'
 const SpotifyController = () => import('./controllers/spotify_controller.js')
 
 router
@@ -45,6 +44,5 @@ router
           .prefix('/me')
       })
       .prefix('/spotify')
-    // .use(middleware.spotify())
   })
   .prefix('/api')

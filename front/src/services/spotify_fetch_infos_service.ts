@@ -19,11 +19,10 @@ async function fetchUserSavedAlbums(token: string): Promise<any> {
 }
 
 async function fetchUserPlaylists(tokens: spotifyTokens): Promise<any> {
-
   try {
     const result = await fetch(`${import.meta.env.VITE_API_URL}/spotify/me/playlists`, {
       headers: {
-        Cookie: `spotify_access_token=${tokens.accessToken}; spotify_refresh_token=${tokens.refreshToken}; spotify_access_token_expires-at=${tokens.expiresAt}`
+        Cookie: `spotify_access_token=${tokens.accessToken}; spotify_refresh_token=${tokens.refreshToken}; spotify_access_token_expires_at=${tokens.expiresAt}`
       }
     });
     return await result;

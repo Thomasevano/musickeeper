@@ -2,6 +2,11 @@ import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 import querystring from 'node:querystring'
 import { PlaylistRepository } from '../../../application/repositories/playlist.repository.js'
+import {
+  SPOTIFY_ACCESS_TOKEN_COOKIE_NAME,
+  SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
+  SPOTIFY_REFRESH_TOKEN_COOKIE_NAME,
+} from '../../../constants.js'
 
 function generateRandomString(length: number): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -78,9 +83,9 @@ export default class SpotifyController {
       const currentDate = Math.floor(Date.now() / 1000)
       const accessTokenExpiresAt = currentDate + accessTokenExpiresIn
 
-      response.encryptedCookie('spotify_access_token', accessToken)
-      response.encryptedCookie('spotify_refresh_token', refreshToken)
-      response.plainCookie('spotify_access_token_expires-at', accessTokenExpiresAt, {
+      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
+      response.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME, refreshToken)
+      response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
         encode: false,
       })
       response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
@@ -90,7 +95,7 @@ export default class SpotifyController {
   }
 
   async refreshToken({ request, response }: HttpContext): Promise<void> {
-    const refreshToken = request.encryptedCookie('spotify_refresh_token')
+    const refreshToken = request.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME)
 
     let body
     try {
@@ -123,14 +128,12 @@ export default class SpotifyController {
       const currentDate = Math.floor(Date.now() / 1000)
       let accessTokenExpiresAt = currentDate + accessTokenExpiresIn
 
-      response.encryptedCookie('spotify_access_token', accessToken)
-      response.plainCookie('spotify_access_token_expires-at', accessTokenExpiresAt, {
+      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
+      response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
         encode: false,
       })
-      // response.send({ accessToken, accessTokenExpiresAt })
-      // response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
     } else {
-      console.log(body?.status, body?.statusText)
+      console.log('error refreshing tokens:', body?.status, body?.statusText)
     }
   }
 
@@ -139,13 +142,13 @@ export default class SpotifyController {
   }
 
   async getCurrentUserPlaylistsInfos({ request, response }: HttpContext): Promise<void> {
-    const token = request.encryptedCookie('spotify_access_token')
+    const token = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
     const playlists = await this.playlistRepository.getCurrentUserPlaylistsInfos(token)
     return response.send(playlists)
   }
 
   async getUserPlaylistsInfos({ request, response, params }: HttpContext): Promise<void> {
-    const token = request.encryptedCookie('spotify_access_token')
+    const token = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
     const userId = params.id
     const offset = request.qs().offset
     const limit = request.qs().limit
