@@ -1,4 +1,4 @@
-export type spotifyTokens = {
+export type providerAuthTokens = {
   accessToken: string
   refreshToken: string
   expiresAt: string

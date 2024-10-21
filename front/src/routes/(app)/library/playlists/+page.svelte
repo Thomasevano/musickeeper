@@ -7,29 +7,35 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { loadMore } from '$helpers';
 	import { writable, type Writable } from 'svelte/store';
+	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+	import { api } from '$lib/api';
 
-	export let data: PageData;
+	const client = useQueryClient();
 
-	const UserPlaylistsInfos: Writable<any> = writable(data.userPlaylists);
+	const playlists = createQuery<PlaylistInfos, Error>({
+		queryKey: ['playlists'],
+		queryFn: () => api().getUserPlaylists(tokens.spotifyTokens)
+	});
+
 	const isMorePlaylist: Writable<Boolean> = writable(true);
 
-	let loadingRef: HTMLElement | undefined;
-	onMount(async () => {
-		if (!loadingRef) {
-			return;
-		}
+	// let loadingRef: HTMLElement | undefined;
+	// onMount(async () => {
+	// 	if (!loadingRef) {
+	// 		return;
+	// 	}
 
-		const loadingObserver = new IntersectionObserver((entries) => {
-			const element = entries[0];
+	// 	const loadingObserver = new IntersectionObserver((entries) => {
+	// 		const element = entries[0];
 
-			if (element.isIntersecting) {
-				(async function () {
-					await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
-				})();
-			}
-		});
+	// 		if (element.isIntersecting) {
+	// 			(async function () {
+	// 				await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
+	// 			})();
+	// 		}
+	// 	});
 
-		loadingObserver.observe(loadingRef);
+	// 	loadingObserver.observe(loadingRef);
 	});
 </script>
 

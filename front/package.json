@@ -44,7 +44,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"axios": "^1.7.7",
+		"@tanstack/svelte-query": "^5.59.13",
 		"bits-ui": "^0.21.13",
 		"clsx": "^2.1.1",
 		"jszip": "^3.10.1",
