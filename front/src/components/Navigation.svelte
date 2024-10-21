@@ -1,12 +1,6 @@
 <script lang="ts">
 	import ToggleTheme from './ToggleTheme.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { enhance } from '$app/forms';
-
-	export let user;
-	export let isLoggedIn: Boolean;
 </script>
 
 <section class="border-b">
@@ -45,37 +39,6 @@
 				</div>
 				<div class="flex md:ml-auto">
 					<ToggleTheme />
-					{#if isLoggedIn}
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger class="mb-4 flex items-center space-x-4">
-								<Avatar.Root>
-									{#if user.images}
-										<Avatar.Image src={user.images[0].url} alt={user.username} />
-									{/if}
-									<Avatar.Fallback
-										>{`${user.username.charAt(0) + user.username.charAt(1)}`}</Avatar.Fallback
-									>
-								</Avatar.Root>
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Content>
-								<DropdownMenu.Group>
-									<DropdownMenu.Label>{user.username}</DropdownMenu.Label>
-									<DropdownMenu.Label>{user.email}</DropdownMenu.Label>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item>
-										<form method="post" use:enhance>
-											<button>Sign out</button>
-										</form>
-									</DropdownMenu.Item>
-								</DropdownMenu.Group>
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-						<!-- {:else}
-						<div class="justify-between">
-							<Button href="/api/auth/login">Login</Button>
-							<Button>Sign up</Button>
-						</div> -->
-					{/if}
 				</div>
 			</nav>
 		</div>
