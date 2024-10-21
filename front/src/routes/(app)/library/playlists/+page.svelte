@@ -1,36 +1,44 @@
 <script lang="ts">
 	import { Separator } from '$lib/components/ui/separator';
 	import AlbumCard from '$components/AlbumCard.svelte';
-	import { onMount } from 'svelte';
+	// import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { loadMore } from '$helpers';
-	import { writable, type Writable } from 'svelte/store';
+	// import { writable, type Writable } from 'svelte/store';
+	import { createQuery } from '@tanstack/svelte-query';
+	import { api } from '$lib/api';
+	import type { PaginatedPlaylistsInfos } from '../../../../types';
 
 	export let data: PageData;
 
-	const UserPlaylistsInfos: Writable<any> = writable(data.userPlaylists);
-	const isMorePlaylist: Writable<Boolean> = writable(true);
+	const { tokens } = data;
 
-	let loadingRef: HTMLElement | undefined;
-	onMount(async () => {
-		if (!loadingRef) {
-			return;
-		}
-
-		const loadingObserver = new IntersectionObserver((entries) => {
-			const element = entries[0];
-
-			if (element.isIntersecting) {
-				(async function () {
-					await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
-				})();
-			}
-		});
-
-		loadingObserver.observe(loadingRef);
+	const playlists = createQuery<PaginatedPlaylistsInfos, Error>({
+		queryKey: ['paginatedPlaylistsInfos'],
+		queryFn: () => api().getUserPlaylists(tokens.spotifyTokens)
 	});
+
+	// const isMorePlaylist: Writable<Boolean> = writable(true);
+
+	// let loadingRef: HTMLElement | undefined;
+	// onMount(async () => {
+	// 	if (!loadingRef) {
+	// 		return;
+	// 	}
+
+	// 	const loadingObserver = new IntersectionObserver((entries) => {
+	// 		const element = entries[0];
+
+	// 		if (element.isIntersecting) {
+	// 			(async function () {
+	// 				await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
+	// 			})();
+	// 		}
+	// 	});
+
+	// 	loadingObserver.observe(loadingRef);
+	// });
 </script>
 
 <div class="lg:col-span-7 lg:border-l">
@@ -43,7 +51,7 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					<Button href={`/api/archive/playlists`} target="_blank" class="relative">
-						Extract all {$UserPlaylistsInfos.total} playlists
+						Extract all {$playlists.data?.total} playlists
 					</Button>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
@@ -55,16 +63,27 @@
 		<div
 			class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
-			{#if $UserPlaylistsInfos.playlistsInfos.length > 0}
-				{#each $UserPlaylistsInfos.playlistsInfos as tracksListInfos}
-					<AlbumCard {fetch} {tracksListInfos} class="w-[180px]" aspectRatio="square" />
-				{/each}
+			{#if $playlists.status === 'pending'}
+				<span class="loading-indicator">Loading...</span>
+			{:else if $playlists.status === 'error'}
+				<span>Error: {$playlists.error.message}</span>
 			{:else}
-				<p>No Playlists Yet!</p>
+				{#if $playlists.data.playlistsInfos.length > 0}
+					{#each $playlists.data.playlistsInfos as playlistInfos}
+						<AlbumCard
+							{fetch}
+							tracksListInfos={playlistInfos}
+							class="w-[180px]"
+							aspectRatio="square"
+						/>
+					{/each}
+				{:else}
+					<p>No Playlists Yet!</p>
+				{/if}
+				{#if $playlists.isFetching}
+					<span class="loading-indicator">fetching...</span>
+				{/if}
 			{/if}
 		</div>
-		{#if $isMorePlaylist}
-			<div class="loading-indicator" bind:this={loadingRef}>Loading...</div>
-		{/if}
 	</div>
 </div>
