@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
-
-	export let isLoggedIn: Boolean;
 </script>
 
 <section class="space-y-6 pb-12 pt-16 lg:py-28">
@@ -29,21 +27,11 @@
 			streaming platforms
 		</p>
 		<div class="flex justify-center space-x-2 md:space-x-4">
-			{#if !isLoggedIn}
-				<!-- <Button size="lg" href="/login/spotify">
-					<i class="si si-spotify si--color mr-2 text-2xl"></i>
-					Create an account with Spotify <span class="ml-1" aria-hidden="true">&rarr;</span>
-				</Button> -->
-				<Button size="lg" href="{import.meta.env.VITE_API_URL}/auth/spotify/login">
-					<i class="si si-spotify si--color mr-2 text-2xl"></i>
-					Connect your Spotify
-					<span class="ml-1" aria-hidden="true">&rarr;</span>
-				</Button>
-			{:else}
-				<Button size="lg" href="/library">
-					See your library <span class="ml-1" aria-hidden="true">&rarr;</span>
-				</Button>
-			{/if}
+			<Button size="lg" href="{import.meta.env.VITE_API_URL}/auth/spotify/login">
+				<i class="si si-spotify si--color mr-2 text-2xl"></i>
+				Connect your Spotify
+				<span class="ml-1" aria-hidden="true">&rarr;</span>
+			</Button>
 		</div>
 	</div>
 </section>
