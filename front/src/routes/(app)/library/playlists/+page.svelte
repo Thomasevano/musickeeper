@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { Separator } from '$lib/components/ui/separator';
 	import AlbumCard from '$components/AlbumCard.svelte';
-	// import { onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Button from '$lib/components/ui/button/button.svelte';
 	// import { writable, type Writable } from 'svelte/store';
-	import { createQuery } from '@tanstack/svelte-query';
+	import { createQuery, createInfiniteQuery } from '@tanstack/svelte-query';
 	import { api } from '$lib/api';
 	import type { PaginatedPlaylistsInfos } from '../../../../types';
 
@@ -14,31 +14,48 @@
 
 	const { tokens } = data;
 
-	const playlists = createQuery<PaginatedPlaylistsInfos, Error>({
+	const paginatedPlaylistsInfos = createQuery<PaginatedPlaylistsInfos, Error>({
 		queryKey: ['paginatedPlaylistsInfos'],
-		queryFn: () => api().getUserPlaylists(tokens.spotifyTokens)
+		queryFn: async () => await api().getUserPlaylists(tokens.spotifyTokens)
 	});
+
+	console.log('nextUrl', $paginatedPlaylistsInfos.data?.nextUrl);
+
+	const nextPaginatedPlaylistsInfos = createInfiniteQuery<PaginatedPlaylistsInfos, Error>({
+		queryKey: ['nextPaginatedPlaylistsInfos'],
+		initialPageParam: 50,
+		queryFn: async ({ pageParam }) =>
+			await api().getUserNextPlaylists(
+				tokens.spotifyTokens,
+				$paginatedPlaylistsInfos.data?.nextUrl!,
+				pageParam
+			),
+		getNextPageParam: (lastPage) => lastPage?.meta
+	});
+
+	console.log({ $nextPaginatedPlaylistsInfos });
 
 	// const isMorePlaylist: Writable<Boolean> = writable(true);
 
-	// let loadingRef: HTMLElement | undefined;
-	// onMount(async () => {
-	// 	if (!loadingRef) {
-	// 		return;
-	// 	}
+	let loadingRef: HTMLElement | undefined;
+	onMount(async () => {
+		if (!loadingRef) {
+			return;
+		}
 
-	// 	const loadingObserver = new IntersectionObserver((entries) => {
-	// 		const element = entries[0];
+		const loadingObserver = new IntersectionObserver((entries) => {
+			const element = entries[0];
 
-	// 		if (element.isIntersecting) {
-	// 			(async function () {
-	// 				await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
-	// 			})();
-	// 		}
-	// 	});
+			if (element.isIntersecting) {
+				(function () {
+					// await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
+					$nextPaginatedPlaylistsInfos.fetchNextPage();
+				})();
+			}
+		});
 
-	// 	loadingObserver.observe(loadingRef);
-	// });
+		loadingObserver.observe(loadingRef);
+	});
 </script>
 
 <div class="lg:col-span-7 lg:border-l">
@@ -51,7 +68,7 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					<Button href={`/api/archive/playlists`} target="_blank" class="relative">
-						Extract all {$playlists.data?.total} playlists
+						Extract all {$paginatedPlaylistsInfos.data?.total} playlists
 					</Button>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
@@ -63,13 +80,13 @@
 		<div
 			class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
-			{#if $playlists.status === 'pending'}
+			{#if $paginatedPlaylistsInfos.status === 'pending'}
 				<span class="loading-indicator">Loading...</span>
-			{:else if $playlists.status === 'error'}
-				<span>Error: {$playlists.error.message}</span>
+			{:else if $paginatedPlaylistsInfos.status === 'error'}
+				<span>Error: {$paginatedPlaylistsInfos.error.message}</span>
 			{:else}
-				{#if $playlists.data.playlistsInfos.length > 0}
-					{#each $playlists.data.playlistsInfos as playlistInfos}
+				{#if $paginatedPlaylistsInfos.data.playlistsInfos.length > 0}
+					{#each $paginatedPlaylistsInfos.data.playlistsInfos as playlistInfos}
 						<AlbumCard
 							{fetch}
 							tracksListInfos={playlistInfos}
@@ -80,8 +97,12 @@
 				{:else}
 					<p>No Playlists Yet!</p>
 				{/if}
-				{#if $playlists.isFetching}
+				{#if $paginatedPlaylistsInfos.isFetching}
 					<span class="loading-indicator">fetching...</span>
+				{:else if $nextPaginatedPlaylistsInfos.hasNextPage}
+					Load More
+				{:else}
+					Nothing more to load
 				{/if}
 			{/if}
 		</div>
