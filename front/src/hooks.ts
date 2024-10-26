@@ -1,16 +1,13 @@
 import type { Handle } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
-
   const spotifyRefreshToken = event.cookies.get('spotify_refresh_token');
   const spotifyAccessToken = event.cookies.get('spotify_access_token');
   const spotifyAccessTokenExpiresAt = event.cookies.get('spotify_access_token_expires_at')
   const now = Math.floor(Date.now() / 1000);
-  const spotifyAccessTokenExpiresIn = Math.floor((Number.parseInt(spotifyAccessTokenExpiresAt) - now) / 60);
+  const spotifyAccessTokenExpiresIn = Math.floor((Number.parseInt(spotifyAccessTokenExpiresAt!) - now) / 60);
 
-  console.log({ spotifyAccessToken, spotifyAccessTokenExpiresAt, now, spotifyRefreshToken, spotifyAccessTokenExpiresIn });
-
-  if (spotifyAccessToken && spotifyAccessTokenExpiresIn < 3) {
+  if (spotifyAccessToken && spotifyAccessTokenExpiresIn < 1) {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/spotify/refresh`, {
         headers: {
