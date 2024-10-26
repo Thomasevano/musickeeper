@@ -5,13 +5,16 @@
 	import type { PageData } from './$types';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { loadMore } from '$helpers';
 	import { writable, type Writable } from 'svelte/store';
+	import type { PaginatedPlaylistsInfos } from '../../../../types';
+	import { loadMorePlaylistsInfos } from '$helpers';
 
 	export let data: PageData;
 
-	const UserPlaylistsInfos: Writable<any> = writable(data.userPlaylists);
-	const isMorePlaylist: Writable<Boolean> = writable(true);
+	const { tokens, spotifyUserPlaylistsInfos } = data;
+
+	const paginatedUserPlaylistsInfos: Writable<PaginatedPlaylistsInfos> =
+		writable(spotifyUserPlaylistsInfos);
 
 	let loadingRef: HTMLElement | undefined;
 	onMount(async () => {
@@ -24,7 +27,7 @@
 
 			if (element.isIntersecting) {
 				(async function () {
-					await loadMore(data.tokens, UserPlaylistsInfos, $UserPlaylistsInfos, isMorePlaylist);
+					loadMorePlaylistsInfos(tokens, paginatedUserPlaylistsInfos, $paginatedUserPlaylistsInfos);
 				})();
 			}
 		});
@@ -43,7 +46,7 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					<Button href={`/api/archive/playlists`} target="_blank" class="relative">
-						Extract all {$UserPlaylistsInfos.total} playlists
+						Extract all {$paginatedUserPlaylistsInfos.total} playlists
 					</Button>
 				</Tooltip.Trigger>
 				<Tooltip.Content>
@@ -55,16 +58,21 @@
 		<div
 			class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
-			{#if $UserPlaylistsInfos.playlistsInfos.length > 0}
-				{#each $UserPlaylistsInfos.playlistsInfos as tracksListInfos}
-					<AlbumCard {fetch} {tracksListInfos} class="w-[180px]" aspectRatio="square" />
+			{#if $paginatedUserPlaylistsInfos.playlistsInfos.length > 0}
+				{#each $paginatedUserPlaylistsInfos.playlistsInfos as playlistInfos}
+					<AlbumCard
+						{fetch}
+						tracksListInfos={playlistInfos}
+						class="w-[180px]"
+						aspectRatio="square"
+					/>
 				{/each}
 			{:else}
 				<p>No Playlists Yet!</p>
 			{/if}
+			{#if $paginatedUserPlaylistsInfos.nextUrl}
+				<div class="loading-indicator" bind:this={loadingRef}>Loading...</div>
+			{/if}
 		</div>
-		{#if $isMorePlaylist}
-			<div class="loading-indicator" bind:this={loadingRef}>Loading...</div>
-		{/if}
 	</div>
 </div>

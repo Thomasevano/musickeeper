@@ -1,32 +1,26 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
-import { fetchUserPlaylists } from '../../../../services/spotify_fetch_infos_service';
-import type { spotifyTokens } from '../../../../types';
+import { api } from '$lib/api';
+import type { providerTokens } from '../../../../types';
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, fetch }) => {
 	const spotifyAccessToken = cookies.get('spotify_access_token');
 	const spotifyRefreshToken = cookies.get('spotify_refresh_token');
 	const spotifyAccessTokenExpiresAt = cookies.get('spotify_access_token_expires_at');
+	const spotifyUserId = cookies.get('spotify_user_id');
 
 	if (!spotifyAccessToken) {
 		console.error('No access token found!');
 	}
-
-	const tokens: spotifyTokens = {
+	const tokens: providerTokens = {
 		accessToken: spotifyAccessToken,
 		refreshToken: spotifyRefreshToken,
-		expiresAt: spotifyAccessTokenExpiresAt
+		expiresAt: spotifyAccessTokenExpiresAt,
+		userId: spotifyUserId
 	}
 
-	const playlistsRes = await fetchUserPlaylists(tokens)
+	const spotifyUserPlaylistsInfos = await api(fetch).getCurrentUserPlaylists(tokens)
 
-	if (!playlistsRes.ok) {
-		throw error(playlistsRes.status, 'Failed to load playlists!');
-	}
-
-	const playlistsJSON = await playlistsRes.json();
 	return {
-		tokens: tokens,
-		userPlaylists: playlistsJSON
+		tokens, spotifyUserPlaylistsInfos
 	};
 };
