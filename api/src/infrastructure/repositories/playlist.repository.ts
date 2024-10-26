@@ -24,27 +24,27 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
       }
       throw new Error()
     }
-    const currenteUserplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = resultJSON
-    const serializedCurrenteUserplaylistsInfos: PlaylistInfos[] =
-      currenteUserplaylistsInfos.items.map((playlist: SpotifyApi.PlaylistObjectSimplified) =>
+    const currentUserplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = resultJSON
+    const serializedCurrentUserplaylistsInfos: PlaylistInfos[] =
+      currentUserplaylistsInfos.items.map((playlist: SpotifyApi.PlaylistObjectSimplified) =>
         SerializePlaylistInfosFromSpotify(playlist)
       )
 
-    const previousUrl = currenteUserplaylistsInfos.previous
+    const previousUrl = currentUserplaylistsInfos.previous
       ?.toString()
       .replace(`${process.env.SPOTIFY_BASE_URL}`, `${process.env.BASE_URL}/api/spotify`)
 
-    const nextUrl = currenteUserplaylistsInfos.next
+    const nextUrl = currentUserplaylistsInfos.next
       ?.toString()
       .replace(`${process.env.SPOTIFY_BASE_URL}`, `${process.env.BASE_URL}/api/spotify`)
 
     return new PaginatedPlaylistsInfos({
-      limit: currenteUserplaylistsInfos.limit,
-      offset: currenteUserplaylistsInfos.offset,
+      limit: currentUserplaylistsInfos.limit,
+      offset: currentUserplaylistsInfos.offset,
       previousUrl,
       nextUrl,
-      total: currenteUserplaylistsInfos.total,
-      playlistsInfos: serializedCurrenteUserplaylistsInfos,
+      total: currentUserplaylistsInfos.total,
+      playlistsInfos: serializedCurrentUserplaylistsInfos,
     })
   }
 
@@ -54,42 +54,32 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
     offset: number | null,
     limit: number | null
   ): Promise<PaginatedPlaylistsInfos> {
-    let resultJSON
-    try {
-      const result = await fetch(
-        `${process.env.SPOTIFY_BASE_URL}/users/${userId}/playlists?$offset=${offset}&limit=${limit}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${bearerToken}`,
-          },
-        }
-      )
-      resultJSON = await result.json()
-    } catch (error) {
-      throw new Error()
-    }
-    const currenteUserplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = resultJSON
-    const serializedCurrenteUserplaylistsInfos: PlaylistInfos[] =
-      currenteUserplaylistsInfos.items.map((playlist: SpotifyApi.PlaylistObjectSimplified) =>
-        SerializePlaylistInfosFromSpotify(playlist)
-      )
+    const url = `${process.env.SPOTIFY_BASE_URL}/users/${userId}/playlists?offset=${offset}&limit=${limit}&locale=*`
+    const userplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${bearerToken}`,
+      },
+    }).then((response) => response.json())
+    const serializedUserplaylistsInfos: PlaylistInfos[] = userplaylistsInfos.items.map(
+      (playlist: SpotifyApi.PlaylistObjectSimplified) => SerializePlaylistInfosFromSpotify(playlist)
+    )
 
-    const previousUrl = currenteUserplaylistsInfos.previous.replace(
+    const previousUrl = userplaylistsInfos.previous?.replace(
       `${process.env.SPOTIFY_BASE_URL}`,
       `${process.env.BASE_URL}/api/spotify`
     )
-    const nextUrl = currenteUserplaylistsInfos.next.replace(
+    const nextUrl = userplaylistsInfos.next?.replace(
       `${process.env.SPOTIFY_BASE_URL}`,
       `${process.env.BASE_URL}/api/spotify`
     )
     return new PaginatedPlaylistsInfos({
-      limit: currenteUserplaylistsInfos.limit,
-      offset: currenteUserplaylistsInfos.offset,
+      limit: userplaylistsInfos.limit,
+      offset: userplaylistsInfos.offset,
       previousUrl,
       nextUrl,
-      total: currenteUserplaylistsInfos.total,
-      playlistsInfos: serializedCurrenteUserplaylistsInfos,
+      total: userplaylistsInfos.total,
+      playlistsInfos: serializedUserplaylistsInfos,
     })
   }
 }
