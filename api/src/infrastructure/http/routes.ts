@@ -10,13 +10,9 @@
 import router from '@adonisjs/core/services/router'
 const SpotifyController = () => import('./controllers/spotify_controller.js')
 
+router.on('/').renderInertia('home',)
 router
   .group(async () => {
-    router.get('/', async () => {
-      return {
-        hello: 'world',
-      }
-    })
 
     router
       .group(() => {
