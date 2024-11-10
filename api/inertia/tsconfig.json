@@ -1,0 +1,13 @@
+{
+  "extends": "@adonisjs/tsconfig/tsconfig.client.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "module": "ESNext",
+    "paths": {
+      "~/*": ["./*"],
+      "$lib": ["./inertia/lib"],
+      "$lib/*": ["./inertia/lib/*"]
+    }
+  },
+  "include": ["./**/*.ts", "./**/*.svelte"],
+}
