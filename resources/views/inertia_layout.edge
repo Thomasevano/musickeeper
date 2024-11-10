@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../../inertia/static/favicon.png" />
+	<script defer data-domain="musickeeper.app" src="https://analytics.thomasevano.fr/js/script.js"></script>
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}" />
+
+  @vite(['inertia/app/app.ts', `inertia/pages/${page.component}.svelte`])
+  @inertiaHead()
+</head>
+
+<body class="min-h-screen w-screen font-sans">
+  @inertia()
+</body>
+
+</html>
