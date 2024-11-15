@@ -88,6 +88,9 @@ export default class SpotifyController {
       response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
         encode: false,
       })
+
+      const spotifyUser = await this.user
+
       response.redirect().toPath(`${process.env.FRONTEND_URL}/library/playlists`)
     } else {
       console.log(responseToken?.status)
