@@ -26,6 +26,8 @@ server.use([
   () => import('./middleware/container_bindings_middleware.js'),
   () => import('./middleware/force_json_response_middleware.js'),
   () => import('@adonisjs/cors/cors_middleware'),
+  () => import('@adonisjs/vite/vite_middleware'),
+  () => import('@adonisjs/inertia/inertia_middleware'),
 ])
 
 /**

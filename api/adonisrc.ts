@@ -32,7 +32,10 @@ export default defineConfig({
       environment: ['repl', 'test'],
     },
     () => import('@adonisjs/core/providers/vinejs_provider'),
+    () => import('@adonisjs/core/providers/edge_provider'),
     () => import('@adonisjs/cors/cors_provider'),
+    () => import('@adonisjs/inertia/inertia_provider'),
+    () => import('@adonisjs/vite/vite_provider'),
     () => import('./src/spotify_provider.js'),
   ],
 
@@ -72,5 +75,30 @@ export default defineConfig({
       },
     ],
     forceExit: false,
+  },
+
+  /*
+  |--------------------------------------------------------------------------
+  | Metafiles
+  |--------------------------------------------------------------------------
+  |
+  | A collection of files you want to copy to the build folder when creating
+  | the production build.
+  |
+  */
+  metaFiles: [
+    {
+      pattern: 'resources/views/**/*.edge',
+      reloadServer: false,
+    },
+    {
+      pattern: 'public/**',
+      reloadServer: false,
+    },
+  ],
+
+  assetsBundler: false,
+  hooks: {
+    onBuildStarting: [() => import('@adonisjs/vite/build_hook')],
   },
 })
