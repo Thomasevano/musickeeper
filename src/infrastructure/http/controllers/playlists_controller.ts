@@ -1,20 +1,22 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { PlaylistRepository } from '../../../application/repositories/playlist.repository.js'
 import { inject } from '@adonisjs/core'
-import JSZip from 'jszip'
 import {
   SPOTIFY_ACCESS_TOKEN_COOKIE_NAME,
   SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
   SPOTIFY_REFRESH_TOKEN_COOKIE_NAME,
   SPOTIFY_USER_ID_COOKIE_NAME,
 } from '../../../constants.js'
-import { ExtractService } from '../../../application/services/extract.service.js'
-
+import { ExtractTracksFromPlaylistUseCase } from '../../../application/usecases/extract_tracks_from_playlist.usecase.js'
+import { SpotifyPlaylistRepository } from '../../repositories/spotify_playlist.repository.js'
+import { ArchiveAllPlaylistsUseCase } from '../../../application/usecases/archive_all_playlists.usecase.js'
 @inject()
 export default class PlaylistsController {
   constructor(
     private playlistRepository: PlaylistRepository,
-    private extractService: ExtractService
+    private extractTracksFromPlaylistUseCase: ExtractTracksFromPlaylistUseCase,
+    private spotifyPlaylistRepository: SpotifyPlaylistRepository,
+    private archiveAllPlaylistsUseCase: ArchiveAllPlaylistsUseCase
   ) { }
   async index({ inertia, request, response }: HttpContext) {
     const spotifyAccessToken = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
@@ -60,17 +62,13 @@ export default class PlaylistsController {
   async extractCurrentUserPlaylistsInfos({ request, response }: HttpContext) {
     const token = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
 
-    const downloads = await this.extractService.generateAllPlaylists(token)
-    var zip = new JSZip()
+    const archive = await this.archiveAllPlaylistsUseCase.execute(token)
 
-    downloads.forEach((download) => {
-      zip.file(download.fileName, download.playlistTracks.join('\n'))
-    })
-    const archive = await zip.generateAsync({ type: 'nodebuffer' })
-
-    response.header('Content-Type', 'application/zip')
-    response.header('Content-Disposition', 'attachment; filename="extracted-playlists.zip"')
-    response.send(archive)
+    response
+      .safeStatus(200)
+      .header('Content-Type', 'application/zip')
+      .header('Content-Disposition', 'attachment; filename="extracted-playlists.zip"')
+      .send(archive)
   }
 
   async extractPlaylist({ request, response }: HttpContext) {
@@ -78,9 +76,19 @@ export default class PlaylistsController {
     const requestQueryStrings = request.qs()
 
     const playlistTracksUrl = requestQueryStrings.playlistTracksUrl
+    const playlistName = requestQueryStrings.playlistName
 
-    const download = await this.extractService.extractPlaylist(playlistTracksUrl, token)
+    this.extractTracksFromPlaylistUseCase = new ExtractTracksFromPlaylistUseCase(
+      this.spotifyPlaylistRepository
+    )
 
-    response.status(200).header('Content-Type', 'application/json').send(download)
+    const trackList = await this.extractTracksFromPlaylistUseCase.execute(playlistTracksUrl, token)
+
+    const txtFile = Buffer.from(trackList)
+
+    response
+      .safeStatus(200)
+      .header('Content-Disposition', `attachment; filename="${playlistName}.txt"`)
+      .send(txtFile)
   }
 }

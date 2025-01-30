@@ -1,7 +1,9 @@
 import { ExpiredAccesTokenException } from '../../application/exceptions/expired_access_token.exception.js'
 import { PlaylistRepository } from '../../application/repositories/playlist.repository.js'
 import { PaginatedPlaylistsInfos, PlaylistInfos } from '../../domain/playlist.js'
+import { Track } from '../../domain/track.js'
 import { SerializePlaylistInfosFromSpotify } from '../serializers/spotify/playlist.serializer.js'
+import { serializeTrackInfosFromSpotify } from '../serializers/spotify/track.serializer.js'
 
 export class SpotifyPlaylistRepository implements PlaylistRepository {
   async getCurrentUserPlaylistsInfos(bearerToken: string): Promise<PaginatedPlaylistsInfos> {
@@ -60,14 +62,37 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
     })
   }
 
-  async getSongsFromPlaylist(playlistUrl: string, token: string): Promise<Array<string>> {
-    let url = playlistUrl
-    let result = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    })
-    return await result.json()
+  async getSongsFromPlaylist(playlistTracksUrl: string, token: string): Promise<Track[]> {
+    let paginatedSpotifyPlaylistTracks: SpotifyApi.PagingObject<SpotifyApi.PlaylistTrackObject> =
+      await fetch(playlistTracksUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }).then((response) => response.json())
+
+    let nextUrl = paginatedSpotifyPlaylistTracks.next
+    const totalItems = paginatedSpotifyPlaylistTracks.total
+    const tracks: Track[] = []
+    let url = playlistTracksUrl
+    while (tracks.length < totalItems - 1) {
+      if (url !== playlistTracksUrl) {
+        paginatedSpotifyPlaylistTracks = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }).then((response) => response.json())
+        nextUrl = paginatedSpotifyPlaylistTracks.next
+      }
+      tracks.push(
+        ...paginatedSpotifyPlaylistTracks.items.map((item: SpotifyApi.PlaylistTrackObject) =>
+          serializeTrackInfosFromSpotify(item.track!)
+        )
+      )
+      url = nextUrl!
+    }
+
+    return tracks
   }
 }
