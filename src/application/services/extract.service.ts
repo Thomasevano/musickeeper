@@ -2,6 +2,7 @@ import { PlaylistRepository } from '../repositories/playlist.repository.js'
 import { NoPlaylistFoundException } from '../exceptions/no_playlist_found.exception.js'
 import { inject } from '@adonisjs/core'
 import { PlaylistInfos } from '../../domain/playlist.js'
+import { Track } from '../../domain/track.js'
 
 @inject()
 export class ExtractService {
@@ -13,7 +14,7 @@ export class ExtractService {
     if (!playlistsInfos) {
       throw new NoPlaylistFoundException()
     }
-    let downloads: { fileName: string; playlistTracks: Array<string> }[] = []
+    let downloads: { fileName: string; playlistTracks: Track[] }[] = []
     let index = 0
     while (index < playlistsInfos.length) {
       const playlist: PlaylistInfos = playlistsInfos[index]
@@ -21,7 +22,10 @@ export class ExtractService {
       const REQUEST_INTERVAL = 0
       await new Promise((resolve) => setTimeout(resolve, REQUEST_INTERVAL))
 
-      const playlistTracks = await this.generateTracksFromPlaylist(playlist.getTracksUrl(), token)
+      const playlistTracks = await this.playlistRepository.getSongsFromPlaylist(
+        playlist.getTracksUrl(),
+        token
+      )
       const fileName =
         (playlist.getTitle()
           ? playlist.getTitle().replace('/', '-')
@@ -31,38 +35,5 @@ export class ExtractService {
       index++
     }
     return downloads
-  }
-
-  async generateTracksFromPlaylist(playlistTracksUrl: string, token: string) {
-    let url = playlistTracksUrl
-    let result: SpotifyApi.PlaylistObjectSimplified =
-      await this.playlistRepository.getSongsFromPlaylist(url, token)
-
-    let nextUrl = result.next
-    const totalItems = result.total
-    const tracks: Array<string> = []
-    while (tracks.length < totalItems) {
-      if (url !== playlistTracksUrl) {
-        result = await this.playlistRepository.getSongsFromPlaylist(url, token)
-        nextUrl = result.next
-      }
-      tracks.push(
-        ...result.items.map((item: SpotifyApi.PlaylistTrackObject) => {
-          const artists = item.track?.artists
-            .map((artist: SpotifyApi.ArtistObjectSimplified) => artist.name)
-            .join(', ')
-          if (item.track !== null) {
-            return `${artists} - ${item.track?.name}`
-          }
-          return
-        })
-      )
-      url = nextUrl
-    }
-    return tracks
-  }
-
-  async extractPlaylist(playlistUrl: string, token: string) {
-    return await this.generateTracksFromPlaylist(playlistUrl, token)
   }
 }

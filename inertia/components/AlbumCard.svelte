@@ -3,20 +3,10 @@
   import { Button } from '~/lib/components/ui/button'
   import { FileText } from 'lucide-svelte'
   import * as Tooltip from '~/lib/components/ui/tooltip'
-  import { createDownloadLink, createTextFile } from '~/lib/helpers'
   let className: string | undefined | null = undefined
   export let tracksListInfos
   export let aspectRatio: 'portrait' | 'square' = 'square'
   export { className as class }
-
-  const downloadPlaylistFile = async () => {
-    const tracks = await fetch(`/extract/playlist?playlistTracksUrl=${tracksListInfos.tracksUrl}`)
-    const file = createTextFile(await tracks.json())
-    return createDownloadLink(file, tracksListInfos.title + '.txt')
-  }
-  function onclick() {
-    downloadPlaylistFile()
-  }
 </script>
 
 <div class={cn('hover:bg-secondary mb-4x space-y-4 rounded-md p-2', className)} {...$$restProps}>
@@ -41,7 +31,10 @@
   <Tooltip.Provider>
     <Tooltip.Root>
       <Tooltip.Trigger>
-        <Button {onclick} class="relative">
+        <Button
+          href={`/extract/playlist?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
+          class="relative"
+        >
           <FileText class="h-4 w-4" />
         </Button>
       </Tooltip.Trigger>
