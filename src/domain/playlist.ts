@@ -1,10 +1,10 @@
-import { TracksListInfos, type TracksListInfosProperties } from './tracks_list.js'
+import { TrackListInfos, type TrackListInfosProperties } from './track_list.js'
 
-interface PlaylistInfosProperties extends TracksListInfosProperties {
+interface PlaylistInfosProperties extends TrackListInfosProperties {
   owner: string
 }
 
-export class PlaylistInfos extends TracksListInfos {
+export class PlaylistInfos extends TrackListInfos {
   private readonly owner: string
 
   constructor(props: PlaylistInfosProperties) {
@@ -27,16 +27,16 @@ export class PlaylistInfos extends TracksListInfos {
 interface PaginatedPlaylistsInfosPropreties {
   limit: number
   offset: number
-  previousUrl: string
-  nextUrl: string
+  previousUrl: string | null
+  nextUrl: string | null
   total: number
   playlistsInfos: PlaylistInfos[]
 }
 export class PaginatedPlaylistsInfos {
   private limit: number
   private offset: number
-  private previousUrl: string
-  private nextUrl: string
+  private previousUrl: string | null
+  private nextUrl: string | null
   private total: number
   public playlistsInfos: PlaylistInfos[]
 
@@ -49,7 +49,23 @@ export class PaginatedPlaylistsInfos {
     this.playlistsInfos = props.playlistsInfos
   }
 
-  getNextUrl(): string {
+  getNextUrl(): string | null {
     return this.nextUrl
+  }
+
+  getPreviousUrl(): string | null {
+    return this.previousUrl
+  }
+
+  getLimit(): number {
+    return this.limit
+  }
+
+  getOffset(): number {
+    return this.offset
+  }
+
+  getTotal(): number {
+    return this.total
   }
 }

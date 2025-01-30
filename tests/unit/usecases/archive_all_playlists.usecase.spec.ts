@@ -1,0 +1,3 @@
+
+class MockSpotifyPlaylistRepository implements SpotifyPlaylistRepository {
+

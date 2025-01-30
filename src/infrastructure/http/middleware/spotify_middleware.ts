@@ -24,7 +24,10 @@ export default class SpotifyMiddleware {
       spotifyAccessTokenExpiresAt,
     })
 
-    if (expiresIn < 2 || Number.isNaN(expiresIn)) {
+    await next()
+
+    if (expiresIn < 1 || Number.isNaN(expiresIn)) {
+      // if (ctx.response.response.statusCode === 401) {
       console.log('access token invalid')
       let body
       try {
@@ -46,7 +49,6 @@ export default class SpotifyMiddleware {
 
       if (body?.ok) {
         const result = await body.json()
-        console.log({ result })
 
         let accessToken = result.access_token
         const accessTokenExpiresIn = result.expires_in
@@ -64,10 +66,7 @@ export default class SpotifyMiddleware {
       } else {
         console.log('error refreshing tokens:', body?.status, body?.statusText)
       }
-      return next()
+      await next()
     }
-    ctx.request.request.headers['cookie'] =
-      `${SPOTIFY_REFRESH_TOKEN_COOKIE_NAME}=${spotifyAccessToken}`
-    return next()
   }
 }
