@@ -72,17 +72,17 @@ export default class SpotifyController {
     }
 
     if (responseToken?.ok) {
-      const responseTokenJSON = await responseToken.json()
-
-      const accessToken = responseTokenJSON.access_token
-      const refreshToken = responseTokenJSON.refresh_token
-      const accessTokenExpiresIn = responseTokenJSON.expires_in
+      const { access_token, refresh_token, expires_in } = await (responseToken.json() as Promise<{
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+      }>);
 
       const currentDate = Math.floor(Date.now() / 1000)
-      const accessTokenExpiresAt = currentDate + accessTokenExpiresIn
+      const accessTokenExpiresAt = currentDate + expires_in
 
-      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
-      response.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME, refreshToken)
+      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, access_token)
+      response.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME, refresh_token)
       response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
         encode: false,
       })
@@ -118,15 +118,15 @@ export default class SpotifyController {
     }
 
     if (body?.ok) {
-      const result = await body.json()
-
-      let accessToken = result.access_token
-      const accessTokenExpiresIn = result.expires_in
+      const { access_token, expires_in } = await (body.json() as Promise<{
+        access_token: string;
+        expires_in: number;
+      }>);
 
       const currentDate = Math.floor(Date.now() / 1000)
-      let accessTokenExpiresAt = currentDate + accessTokenExpiresIn
+      let accessTokenExpiresAt = currentDate + expires_in
 
-      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
+      response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, access_token)
       response.plainCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME, accessTokenExpiresAt, {
         encode: false,
       })

@@ -1,4 +1,3 @@
-import { fontFamily } from 'tailwindcss/defaultTheme'
 import tailwindcssAnimate from 'tailwindcss-animate'
 
 /** @type {import('tailwindcss').Config} */
@@ -70,7 +69,6 @@ const config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['geist-sans', ...fontFamily.sans],
       },
       keyframes: {
         'accordion-down': {

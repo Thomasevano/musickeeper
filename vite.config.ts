@@ -12,8 +12,8 @@ export default defineConfig({
     },
   },
   plugins: [
-    inertia({ ssr: { enabled: false, entrypoint: 'inertia/app/ssr.ts' } }),
-    svelte({ compilerOptions: { hydratable: true } }),
+    inertia(),
+    svelte(),
     adonisjs({ entrypoints: ['inertia/app/app.ts'], reload: ['resources/views/**/*.edge'] }),
   ],
 

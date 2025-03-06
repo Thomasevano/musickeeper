@@ -7,7 +7,7 @@ import { serializeTrackInfosFromSpotify } from '../serializers/spotify/track.ser
 
 export class SpotifyPlaylistRepository implements PlaylistRepository {
   async getCurrentUserPlaylistsInfos(bearerToken: string): Promise<PaginatedPlaylistsInfos> {
-    let resultJSON
+    let resultJSON: SpotifyApi.ListOfCurrentUsersPlaylistsResponse
     try {
       const result = await fetch(`${process.env.SPOTIFY_BASE_URL}/me/playlists`, {
         headers: {
@@ -15,17 +15,14 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
           'Authorization': `Bearer ${bearerToken}`,
         },
       })
-      resultJSON = await result.json()
-      if (resultJSON.error) {
-        throw new Error()
-      }
+      resultJSON = await (result.json() as Promise<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>)
     } catch (error) {
-      if (resultJSON.error.status === 401 && resultJSON.error.message === 'Invalid access token') {
+      if (error.status === 401 && error.message === 'Invalid access token') {
         throw new ExpiredAccesTokenException()
       }
       throw new Error()
     }
-    const currentUserplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = resultJSON
+    const currentUserplaylistsInfos = resultJSON
     const serializedCurrentUserplaylistsInfos: PlaylistInfos[] =
       currentUserplaylistsInfos.items.map((playlist: SpotifyApi.PlaylistObjectSimplified) =>
         SerializePlaylistInfosFromSpotify(playlist)
@@ -42,12 +39,12 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
   }
 
   async getUserPlaylistsInfos(bearerToken: string, url: string): Promise<PaginatedPlaylistsInfos> {
-    const userplaylistsInfos: SpotifyApi.ListOfCurrentUsersPlaylistsResponse = await fetch(url, {
+    const userplaylistsInfos = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${bearerToken}`,
       },
-    }).then((response) => response.json())
+    }).then((response) => (response.json() as Promise<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>))
     const serializedUserplaylistsInfos: PlaylistInfos[] = userplaylistsInfos.items.map(
       (playlist: SpotifyApi.PlaylistObjectSimplified) => SerializePlaylistInfosFromSpotify(playlist)
     )
@@ -63,13 +60,13 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
   }
 
   async getSongsFromPlaylist(playlistTracksUrl: string, token: string): Promise<Track[]> {
-    let paginatedSpotifyPlaylistTracks: SpotifyApi.PagingObject<SpotifyApi.PlaylistTrackObject> =
+    let paginatedSpotifyPlaylistTracks =
       await fetch(playlistTracksUrl, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-      }).then((response) => response.json())
+      }).then((response) => (response.json() as Promise<SpotifyApi.PagingObject<SpotifyApi.PlaylistTrackObject>>))
 
     let nextUrl = paginatedSpotifyPlaylistTracks.next
     const totalItems = paginatedSpotifyPlaylistTracks.total
@@ -82,7 +79,7 @@ export class SpotifyPlaylistRepository implements PlaylistRepository {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-        }).then((response) => response.json())
+        }).then((response) => (response.json() as Promise<SpotifyApi.PagingObject<SpotifyApi.PlaylistTrackObject>>))
         nextUrl = paginatedSpotifyPlaylistTracks.next
       }
       tracks.push(

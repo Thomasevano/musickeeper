@@ -19,10 +19,6 @@ test('serializes a track list from spotify', async ({ assert }) => {
           external_urls: {
             spotify: 'string',
           },
-          followers: {
-            href: 'string',
-            total: 0,
-          },
           href: 'string',
           id: 'string',
           type: 'user',
@@ -94,7 +90,6 @@ test('serializes a track list from spotify', async ({ assert }) => {
           href: 'test-track-link',
           id: 'test-track-id',
           is_playable: false,
-          linked_from: {},
           restrictions: {
             reason: 'string',
           },
