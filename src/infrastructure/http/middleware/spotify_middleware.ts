@@ -14,7 +14,6 @@ export default class SpotifyMiddleware {
       { encoded: false }
     )
     const spotifyRefreshToken = ctx.request.encryptedCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME)
-    const spotifyAccessToken = ctx.request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
 
     const currentDate = Math.floor(Date.now() / 1000)
     const expiresIn = Math.floor((Number.parseInt(spotifyAccessTokenExpiresAt) - currentDate) / 60)
@@ -48,14 +47,14 @@ export default class SpotifyMiddleware {
       }
 
       if (body?.ok) {
-        const result = await body.json()
+        const { access_token, expires_in } = await (body.json() as Promise<{
+          access_token: string;
+          expires_in: number;
+        }>);
 
-        let accessToken = result.access_token
-        const accessTokenExpiresIn = result.expires_in
+        let accessTokenExpiresAt = currentDate + expires_in
 
-        let accessTokenExpiresAt = currentDate + accessTokenExpiresIn
-
-        ctx.response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, accessToken)
+        ctx.response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, access_token)
         ctx.response.plainCookie(
           SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
           accessTokenExpiresAt,
