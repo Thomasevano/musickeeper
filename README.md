@@ -1,6 +1,6 @@
 # MusicKeeper
 
-**⚠️ THIS PROJECT IS IN ALPHA STAGE. THIS MEANS IT IS IN ACTIVE DEVELOPMENT ⚠️**
+**⚠️ THIS PROJECT IS STILL IN DEVELOPMENT ⚠️**
 
 ## FAQ
 
@@ -15,13 +15,21 @@ MusicKeeper is a music manager app that help you manage, extract, transfer your 
 - You are subscribed to many music provider and it's tedious to keep them synchronized with your music
 - You want to take back control on your music, own the files and why not exit from music providers
 
-### Roadmap
+### Features
 
-- [ ] v0.0.1: Launch first version, no account just possibility to save your playlists as text files
-- [ ] v0.1.0: Be able to extract Albums,liked songs
-- Add Apple Music as music provider
-- Possibility to create an account with music provoder account
-- Transfer from one provider to another
-- Import your music library to to musickeeper
-- Sync between music provider and musickeeper
-- Add other music providers (Tidal, Youtube Music, Soundcloud, Amazon Music)
+- [x] Connect your Spotify account
+- [x] Extract your playlists as text files
+- [ ] Extract Albums, liked songs as text files
+- [ ] Buy an album directly from the app
+- [ ] Buy a playlist directly from the app
+- [ ] Transfer from one streaming service to another
+- [ ] Import your music library to to musickeeper
+- [ ] Sync between streaming service and musickeeper
+- Streaming service:
+  - [x] Spotify
+  - [ ] Apple Music
+  - [ ] Youtube Music
+  - [ ] Deezer
+  - [ ] Tidal
+  - [ ] Soundcloud
+  - [ ] Amazon Music
