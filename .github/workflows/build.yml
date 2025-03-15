@@ -27,8 +27,6 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          secrets: |
-            "vite_base_url=${{ secrets.VITE_BASE_URL }}"
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

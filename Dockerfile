@@ -19,8 +19,6 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
-RUN  --mount=type=secret,id=vite_base_url \
-  echo "VITE_BASE_URL=$(cat /run/secrets/vite_base_url)" >> .env.production
 RUN node ace build
 
 # Production stage
