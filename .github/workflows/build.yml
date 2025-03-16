@@ -1,4 +1,3 @@
-# For more details, read this: https://coolify.io/docs/github-actions
 name: Build Static Image
 on:
   workflow_dispatch:
@@ -9,7 +8,7 @@ env:
   IMAGE_NAME: 'thomasevano/musickeeper'
 
 jobs:
-  build-image-and-deploy:
+  build-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,6 +29,12 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+  production-deploy:
+    needs: build-image
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
       - name: Deploy to Coolify
         run: |
           curl --request GET '${{ secrets.COOLIFY_WEBHOOK }}' --header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'
