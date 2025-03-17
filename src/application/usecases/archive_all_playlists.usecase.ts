@@ -14,7 +14,18 @@ export class ArchiveAllPlaylistsUseCase {
 
   async execute(token: string) {
     var zip = new JSZip()
-    const { playlistsInfos } = await this.playlistRepository.getCurrentUserPlaylistsInfos(token)
+    const paginatedPlaylistsInfos = await this.playlistRepository.getCurrentUserPlaylistsInfos(token)
+    console.log({ paginatedPlaylistsInfos })
+    let playlistsInfos = paginatedPlaylistsInfos.playlistsInfos
+
+    while (playlistsInfos.length < paginatedPlaylistsInfos.getTotal()) {
+      let nextUrl = paginatedPlaylistsInfos.getNextUrl()
+      const nextplaylistsInfos = await this.playlistRepository.getUserPlaylistsInfos(token, nextUrl!)
+      if (nextplaylistsInfos.getNextUrl()) {
+        nextUrl = nextplaylistsInfos.getNextUrl()
+      }
+      playlistsInfos = playlistsInfos.concat(nextplaylistsInfos.playlistsInfos)
+    }
 
     if (!playlistsInfos) {
       throw new NoPlaylistFoundException()
