@@ -29,20 +29,10 @@ router
   .group(() => {
     router
       .group(() => {
-        router.get('playlists', [PlaylistController, 'extractCurrentUserPlaylistsInfos'])
-      })
-      .prefix('/archive')
-
-    router
-      .group(() => {
-        router.get('playlist', [PlaylistController, 'extractPlaylist'])
-      })
-      .prefix('/extract')
-
-    router
-      .group(() => {
-        router.get('playlists', [PlaylistController, 'index'])
-      })
-      .prefix('/library')
+        router.get('/', [PlaylistController, 'index'])
+        router.get('extract', [PlaylistController, 'extractPlaylist'])
+        router.get('archive', [PlaylistController, 'extractCurrentUserPlaylistsInfos'])
+      }).prefix('/playlists')
   })
+  .prefix('/library')
   .use(middleware.spotifyRefreshToken())

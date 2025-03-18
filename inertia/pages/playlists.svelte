@@ -45,7 +45,7 @@
         <Tooltip.Provider>
           <Tooltip.Root>
             <Tooltip.Trigger>
-              <Button href={`/archive/playlists`} target="_blank" class="relative">
+              <Button href={`playlists/archive`} target="_blank" class="relative">
                 Extract all {$paginatedUserPlaylistsInfos.total} playlists
               </Button>
             </Tooltip.Trigger>

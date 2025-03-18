@@ -32,7 +32,7 @@
     <Tooltip.Root>
       <Tooltip.Trigger>
         <Button
-          href={`/extract/playlist?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
+          href={`playlists/extract?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
           class="relative"
         >
           <FileText class="h-4 w-4" />
