@@ -35,4 +35,5 @@ router
       }).prefix('/playlists')
   })
   .prefix('/library')
+  .use(middleware.spotifyAuthCheck())
   .use(middleware.spotifyRefreshToken())
