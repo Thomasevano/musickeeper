@@ -88,7 +88,7 @@ export default class PlaylistsController {
 
     response
       .safeStatus(200)
-      .header('Content-Disposition', `attachment; filename="${playlistName}.txt"`)
+      .header('Content-Disposition', `attachment; filename="${encodeURIComponent(playlistName)}.txt"`)
       .send(txtFile)
   }
 }
