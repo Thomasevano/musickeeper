@@ -18,19 +18,10 @@ export default class SpotifyMiddleware {
     const currentDate = Math.floor(Date.now() / 1000)
     const expiresIn = Math.floor((Number.parseInt(spotifyAccessTokenExpiresAt) - currentDate) / 60)
 
-    console.log({
-      expiresIn,
-      spotifyAccessTokenExpiresAt,
-    })
-
-    await next()
-
     if (expiresIn < 1 || Number.isNaN(expiresIn)) {
-      // if (ctx.response.response.statusCode === 401) {
-      console.log('access token invalid')
-      let body
+      let tokenResponse
       try {
-        body = await fetch('https://accounts.spotify.com/api/token', {
+        tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -41,31 +32,30 @@ export default class SpotifyMiddleware {
             refresh_token: spotifyRefreshToken,
           }),
         })
+
+        if (tokenResponse.ok) {
+          const { access_token, expires_in } = await (tokenResponse.json() as Promise<{
+            access_token: string;
+            expires_in: number;
+          }>);
+
+          let accessTokenExpiresAt = currentDate + expires_in
+
+          ctx.response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, access_token)
+          ctx.response.plainCookie(
+            SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
+            accessTokenExpiresAt,
+            {
+              encode: false,
+            }
+          )
+        } else {
+          console.log('error refreshing tokens:', tokenResponse.status, tokenResponse.statusText)
+        }
       } catch (error) {
-        console.log({ error })
-        return
+        console.error({ error })
       }
-
-      if (body?.ok) {
-        const { access_token, expires_in } = await (body.json() as Promise<{
-          access_token: string;
-          expires_in: number;
-        }>);
-
-        let accessTokenExpiresAt = currentDate + expires_in
-
-        ctx.response.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME, access_token)
-        ctx.response.plainCookie(
-          SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
-          accessTokenExpiresAt,
-          {
-            encode: false,
-          }
-        )
-      } else {
-        console.log('error refreshing tokens:', body?.status, body?.statusText)
-      }
-      await next()
     }
+    await next()
   }
 }

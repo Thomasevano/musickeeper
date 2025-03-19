@@ -42,6 +42,6 @@ router.use([() => import('@adonisjs/core/bodyparser_middleware')])
  * the routes or the routes group.
  */
 export const middleware = router.named({
-  spotifyRefreshToken: () => import('#middleware/spotify_middleware'),
+  spotifyRefreshToken: () => import('#middleware/spotify_refresh_token'),
   spotifyAuthCheck: () => import('#middleware/spotify_auth_check'),
 })
