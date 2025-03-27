@@ -40,7 +40,7 @@
       <div class="flex flex-col justify-between md:flex-row">
         <div class="mb-6 space-y-2 md:mb-0">
           <h2 class="text-2xl font-semibold tracking-tight">Playlists</h2>
-          <p class="text-muted-foreground text-sm">Extract your Spotidy playlists as text files</p>
+          <p class="text-muted-foreground text-sm">Extract your Spotify playlists as text files</p>
         </div>
         <Tooltip.Provider>
           <Tooltip.Root>
