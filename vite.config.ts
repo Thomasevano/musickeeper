@@ -24,7 +24,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '~/': `${getDirname(import.meta.url)}/inertia/`,
-      '$lib': `${getDirname(import.meta.url)}/inertia/lib`,
+      '$lib': path.resolve('./inertia/lib'),
       '$components': path.resolve('./inertia/components'),
       '$helpers': path.resolve('./inertia/lib/helpers'),
     },

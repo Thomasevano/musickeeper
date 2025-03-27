@@ -5,9 +5,10 @@
     "outDir": "./build",
     "types": ["spotify-api"],
     "paths": {
+      // This is needed for shadcn-svelte CLI to add components
       "$lib": ["./inertia/lib"],
       "$lib/*": ["./inertia/lib/*"],
-    },
+    }
   },
   "exclude": ["./inertia/**/*", "node_modules", "build"],
 }

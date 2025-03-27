@@ -5,8 +5,7 @@
     "module": "ESNext",
     "paths": {
       "~/*": ["./*"],
-      "$lib": ["./inertia/lib"],
-      "$lib/*": ["./inertia/lib/*"]
+      "$lib/*": ["./lib/*"]
     }
   },
   "include": ["./**/*.ts", "./**/*.svelte"],
