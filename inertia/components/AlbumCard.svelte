@@ -9,7 +9,13 @@
   export { className as class }
 </script>
 
-<div class={cn('hover:bg-secondary mb-4x space-y-4 rounded-md p-2', className)} {...$$restProps}>
+<div
+  class={cn(
+    'hover:bg-secondary mb-4x space-y-4 rounded-md p-2 flex flex-col justify-between',
+    className
+  )}
+  {...$$restProps}
+>
   <div>
     <div class="overflow-hidden rounded-md">
       <img
@@ -21,26 +27,40 @@
         alt={tracksListInfos.title}
       />
     </div>
+    <div class="my-2 text-sm">
+      <h3 class="font-medium leading-none">{tracksListInfos.title}</h3>
+      <p class="text-muted-foreground text-xs">
+        {tracksListInfos.owner}
+      </p>
+    </div>
   </div>
-  <div class="space-y-1 text-sm">
-    <h3 class="font-medium leading-none">{tracksListInfos.title}</h3>
-    <p class="text-muted-foreground text-xs">
-      {tracksListInfos.owner}
-    </p>
+  <div class="flex justify-between">
+    <Tooltip.Provider>
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          <Button
+            href={`playlists/extract?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
+            class="relative"
+          >
+            <FileText class="h-4 w-4" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>
+          <p>Extract as text file</p>
+        </Tooltip.Content>
+      </Tooltip.Root>
+    </Tooltip.Provider>
+    <Tooltip.Provider>
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          <Button href={tracksListInfos.link} class="relative">
+            <i class="si si-spotify si--color text-2xl"></i>
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>
+          <p>Open on Spotify</p>
+        </Tooltip.Content>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   </div>
-  <Tooltip.Provider>
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        <Button
-          href={`playlists/extract?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
-          class="relative"
-        >
-          <FileText class="h-4 w-4" />
-        </Button>
-      </Tooltip.Trigger>
-      <Tooltip.Content>
-        <p>Extract as text file</p>
-      </Tooltip.Content>
-    </Tooltip.Root>
-  </Tooltip.Provider>
 </div>
