@@ -27,10 +27,13 @@
         alt={tracksListInfos.title}
       />
     </div>
-    <div class="my-2 text-sm">
+    <div class="mt-2.5 text-sm space-y-1">
       <h3 class="font-medium leading-none">{tracksListInfos.title}</h3>
-      <p class="text-muted-foreground text-xs">
+      <p class="text-muted-foreground text-sm">
         {tracksListInfos.owner}
+      </p>
+      <p class="text-muted-foreground text-sm">
+        {tracksListInfos.totalTracks} tracks
       </p>
     </div>
   </div>

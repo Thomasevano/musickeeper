@@ -11,5 +11,6 @@ export function SerializePlaylistInfosFromSpotify(
     link: playlist.external_urls.spotify,
     imageUrl: playlist.images[0].url,
     owner: playlist.owner.display_name ?? playlist.owner.id,
+    totalTracks: playlist.tracks.total,
   })
 }

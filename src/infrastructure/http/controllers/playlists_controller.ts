@@ -72,6 +72,7 @@ export default class PlaylistsController {
   }
 
   async extractPlaylist({ request, response }: HttpContext) {
+    const startExtractTimeStamp = Date.now()
     const token = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
     const requestQueryStrings = request.qs()
 
@@ -85,7 +86,9 @@ export default class PlaylistsController {
     const trackList = await this.extractTracksFromPlaylistUseCase.execute(playlistTracksUrl, token)
 
     const txtFile = Buffer.from(trackList)
-
+    const endExtractTimeStamp = Date.now()
+    const timeElapsed = (endExtractTimeStamp - startExtractTimeStamp) / 1000
+    console.log(`Extraction of playlist: ${playlistName} took ${timeElapsed} seconds`)
     response
       .safeStatus(200)
       .header('Content-Disposition', `attachment; filename="${encodeURIComponent(playlistName)}.txt"`)
