@@ -1,11 +1,13 @@
 import { TrackListInfos, type TrackListInfosProperties } from './track_list.js'
 
 interface PlaylistInfosProperties extends TrackListInfosProperties {
-  owner: string
+  owner: string,
+  totalTracks: number
 }
 
 export class PlaylistInfos extends TrackListInfos {
   private readonly owner: string
+  private readonly totalTracks: number
 
   constructor(props: PlaylistInfosProperties) {
     super({
@@ -16,11 +18,16 @@ export class PlaylistInfos extends TrackListInfos {
       link: props.link,
       imageUrl: props.imageUrl,
     })
-    this.owner = props.owner
+    this.owner = props.owner,
+      this.totalTracks = props.totalTracks
   }
 
   getOwner(): string {
     return this.owner
+  }
+
+  getTotalTracks(): number {
+    return this.totalTracks
   }
 }
 
