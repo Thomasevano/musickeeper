@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0](https://github.com/Thomasevano/musickeeper/compare/v0.0.3...v0.1.0) (2025-03-29)
+
+
+### Features
+
+* add link to open playlist on Spotify ([ad61506](https://github.com/Thomasevano/musickeeper/commit/ad61506a39bde8e75fc3d98b10e335a70ba45321))
+* add total tracks of a playlist ([ec04d2d](https://github.com/Thomasevano/musickeeper/commit/ec04d2dd2dc79c28d94f940baf553299caf8c1e8))
+
+
+### Bug Fixes
+
+* theme wasn't toggling ([548b9ce](https://github.com/Thomasevano/musickeeper/commit/548b9ce21e80fd62a44d42adb42dcde15d32cc46))
+* typo on playlists page subtitle ([485cb18](https://github.com/Thomasevano/musickeeper/commit/485cb180a433d8872caa4d36bb50c5e5bdce8dd9))
+
 ## [0.0.3](https://github.com/Thomasevano/musickeeper/compare/v0.0.2...v0.0.3) (2025-03-19)
 
 
