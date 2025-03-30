@@ -136,6 +136,9 @@ export default class SpotifyController {
   }
 
   async logout({ response }: HttpContext): Promise<void> {
-    response.clearCookie('spotify_auth_state')
+    response.clearCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
+    response.clearCookie(SPOTIFY_REFRESH_TOKEN_COOKIE_NAME)
+    response.clearCookie(SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME)
+    response.redirect().toPath('/')
   }
 }

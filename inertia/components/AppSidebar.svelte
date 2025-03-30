@@ -4,6 +4,7 @@
   import type { ComponentProps } from 'svelte'
   import ProviderSwitcher from './ProviderSwitcher.svelte'
   import SidebarThemeSwitcher from './SidebarThemeSwitcher.svelte'
+  import NavUser from './NavUser.svelte'
 
   let {
     ref = $bindable(null),
@@ -12,11 +13,6 @@
   }: ComponentProps<typeof Sidebar.Root> = $props()
 
   const data = {
-    user: {
-      name: 'tvn',
-      email: 'm@example.com',
-      avatar: '/avatars/shadcn.jpg',
-    },
     providers: [
       {
         name: 'Spotify',
@@ -67,4 +63,7 @@
       </Sidebar.Group>
     </div>
   </Sidebar.Content>
+  <Sidebar.Footer>
+    <NavUser />
+  </Sidebar.Footer>
 </Sidebar.Root>
