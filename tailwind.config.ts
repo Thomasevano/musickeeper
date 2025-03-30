@@ -70,6 +70,9 @@ const config = {
       },
       fontFamily: {
       },
+      gridTemplateColumns: {
+        'auto': 'repeat(auto-fill, minmax(160px, 1fr))',
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },

@@ -50,6 +50,7 @@ test.group('Serialize a User Spotify playlist infos ', async () => {
       link: 'https://open.spotify.com/playlist/playlist-id',
       imageUrl: 'image-url',
       owner: 'user-name',
+      totalTracks: 63
     })
 
     assert.deepEqual(serializedUserplaylistInfos, expectedUserPlaylistInfos)
@@ -101,6 +102,7 @@ test.group('Serialize a User Spotify playlist infos ', async () => {
       link: 'https://open.spotify.com/playlist/playlist-id',
       imageUrl: 'image-url',
       owner: 'user-id',
+      totalTracks: 63
     })
 
     assert.deepEqual(serializedUserplaylistInfos, expectedUserPlaylistInfos)

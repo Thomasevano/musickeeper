@@ -1,14 +1,16 @@
 <script>
   import Navigation from '~/components/Navigation.svelte'
   import Layout from '~/layouts/layout.svelte'
+  import * as Sidebar from '$lib/components/ui/sidebar'
+  import AppSidebar from '~/components/AppSidebar.svelte'
   let { children, data, title, description } = $props()
 </script>
 
 <Layout {title} {description}>
-  <Navigation />
-  {#if data}
-    <div class="grid lg:grid-cols-8">
+  <Sidebar.Provider>
+    <AppSidebar />
+    {#if data}
       {@render children()}
-    </div>
-  {/if}
+    {/if}
+  </Sidebar.Provider>
 </Layout>
