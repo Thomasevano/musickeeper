@@ -8,7 +8,7 @@ import {
   SPOTIFY_USER_ID_COOKIE_NAME,
 } from '../../../constants.js'
 import { ExtractTracksFromPlaylistUseCase } from '../../../application/usecases/extract_tracks_from_playlist.usecase.js'
-import { SpotifyPlaylistRepository } from '../../repositories/spotify_playlist.repository.js'
+import { SpotifyPlaylistRepository } from '../../repositories/spotify/spotify_playlist.repository.js'
 import { ArchiveAllPlaylistsUseCase } from '../../../application/usecases/archive_all_playlists.usecase.js'
 @inject()
 export default class PlaylistsController {

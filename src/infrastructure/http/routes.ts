@@ -18,7 +18,7 @@ router.get('/', [HomeController, 'index'])
 router
   .group(() => {
     router.get('login', [SpotifyController, 'login'])
-    router.get('callback', [SpotifyController, 'callback'])
+    router.get('callback', [SpotifyController, 'callback']).use(middleware.shareUser())
     router.get('refresh', [SpotifyController, 'refreshToken'])
     router.get('logout', [SpotifyController, 'logout'])
   })
@@ -37,3 +37,4 @@ router
   .prefix('/library')
   .use(middleware.spotifyAuthCheck())
   .use(middleware.spotifyRefreshToken())
+  .use(middleware.shareUser())

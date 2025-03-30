@@ -1,9 +1,9 @@
-import { ExpiredAccesTokenException } from '../../application/exceptions/expired_access_token.exception.js'
-import { PlaylistRepository } from '../../application/repositories/playlist.repository.js'
-import { PaginatedPlaylistsInfos, PlaylistInfos } from '../../domain/playlist.js'
-import { Track } from '../../domain/track.js'
-import { SerializePlaylistInfosFromSpotify } from '../serializers/spotify/playlist.serializer.js'
-import { serializeTrackInfosFromSpotify } from '../serializers/spotify/track.serializer.js'
+import { ExpiredAccesTokenException } from '../../../application/exceptions/expired_access_token.exception.js'
+import { PlaylistRepository } from '../../../application/repositories/playlist.repository.js'
+import { PaginatedPlaylistsInfos, PlaylistInfos } from '../../../domain/playlist.js'
+import { Track } from '../../../domain/track.js'
+import { SerializePlaylistInfosFromSpotify } from '../../serializers/spotify/playlist.serializer.js'
+import { serializeTrackInfosFromSpotify } from '../../serializers/spotify/track.serializer.js'
 
 export class SpotifyPlaylistRepository implements PlaylistRepository {
   async getCurrentUserPlaylistsInfos(bearerToken: string): Promise<PaginatedPlaylistsInfos> {

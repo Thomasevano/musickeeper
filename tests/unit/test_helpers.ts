@@ -1,5 +1,5 @@
 import { Track } from '../../src/domain/track.js'
-import { SpotifyPlaylistRepository } from '../../src/infrastructure/repositories/spotify_playlist.repository.js'
+import { SpotifyPlaylistRepository } from '../../src/infrastructure/repositories/spotify/spotify_playlist.repository.js'
 
 export class MockSpotifyPlaylistRepository extends SpotifyPlaylistRepository {
   async getSongsFromPlaylist(): Promise<Track[]> {
