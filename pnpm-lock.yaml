@@ -21,8 +21,8 @@ importers:
         specifier: ^2.2.1
         version: 2.2.1(@adonisjs/core@6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0))
       '@adonisjs/inertia':
-        specifier: ^2.1.3
-        version: 2.1.3(fecb1b64e3d4fd86b20717fef05000f3)
+        specifier: ^3.1.1
+        version: 3.1.1(fecb1b64e3d4fd86b20717fef05000f3)
       '@adonisjs/lucid':
         specifier: ^21.6.0
         version: 21.6.0(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@adonisjs/core@6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0))(@vinejs/vine@3.0.0)
@@ -320,14 +320,14 @@ packages:
       '@adonisjs/fold': ^10.0.1
       '@adonisjs/logger': ^6.0.1
 
-  '@adonisjs/inertia@2.1.3':
-    resolution: {integrity: sha512-ah05RXq5xb5FhqvLYQd1CU0UCrhaxC2U+xAftw1qPMXzx0jzX7DBjEK6kr5CEfM8PLOdt8gnOVmbDBsVyNSzbg==}
+  '@adonisjs/inertia@3.1.1':
+    resolution: {integrity: sha512-FWzAfGjjnh3jEB7sIx20xcNlKW+zHCBDE37fNasQK5QMrcuz0BzTRfb0jTuvyjgadbCksdge+rDtIOek1tId7A==}
     engines: {node: '>=20.6.0'}
     peerDependencies:
       '@adonisjs/core': ^6.9.1
       '@adonisjs/session': ^7.4.0
       '@adonisjs/vite': ^4.0.0
-      '@japa/api-client': ^2.0.0
+      '@japa/api-client': ^2.0.0 || ^3.0.0
       edge.js: ^6.0.0
     peerDependenciesMeta:
       '@japa/api-client':
@@ -1142,8 +1142,8 @@ packages:
   '@tsconfig/node16@1.0.4':
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
 
-  '@tuyau/utils@0.0.6':
-    resolution: {integrity: sha512-X6teHJyGGyjkSHRvBf9tX13K54O6yxaDcNI/NbgXYb/yBdm4Esr4yRBYjOKEvaQYkAChQh/CXyEeGYNPdj+2Zg==}
+  '@tuyau/utils@0.0.7':
+    resolution: {integrity: sha512-Y1JgQoshbcxEwmajeWpJibBmoBlGuEq38ICKmWQ5dS+ESqY0J0757rWcHAQgiB74J1vf/DxHkt8veBRSKTAjJQ==}
 
   '@types/bytes@3.1.5':
     resolution: {integrity: sha512-VgZkrJckypj85YxEsEavcMmmSOIzkUHqWmM4CCyia5dc54YwsXzJ5uT4fYxBQNEXx+oF1krlhgCbvfubXqZYsQ==}
@@ -1288,6 +1288,11 @@ packages:
 
   acorn@8.14.0:
     resolution: {integrity: sha512-cl669nCJTZBsL97OF4kUQm5g5hC2uihk0NxY3WENAC0TYdILVkAyHymAntgxGkl7K+t0cXIrH5siy5S4XkFycA==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
+  acorn@8.14.1:
+    resolution: {integrity: sha512-OvQ/2pUDKmgfCg++xsTX1wGxfTaszcHVcTctW4UJB4hibJx2HXxxO5UmVgyjMa+ZDsiaf5wWLXYpRWMmBI0QHg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
@@ -1644,11 +1649,6 @@ packages:
   cpy@11.1.0:
     resolution: {integrity: sha512-QGHetPSSuprVs+lJmMDcivvrBwTKASzXQ5qxFvRC2RFESjjod71bDvFvhxTjDgkNjrrb72AI6JPjfYwxrIy33A==}
     engines: {node: '>=18'}
-
-  crc-32@1.2.2:
-    resolution: {integrity: sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==}
-    engines: {node: '>=0.8'}
-    hasBin: true
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
@@ -2275,8 +2275,8 @@ packages:
   hot-hook@0.4.0:
     resolution: {integrity: sha512-D36jqIojBHqxfkel6r7QGfmal7HO3cFTnPKeZIpPsBtFdV3QPV7m42JTBDX3B/Ovi53RXbOix7t/uIeV2bfeRA==}
 
-  html-entities@2.5.2:
-    resolution: {integrity: sha512-K//PSRMQk4FZ78Kyau+mZurHn3FH0Vwr+H36eE0rPbeYkRRi9YxceYPhuN60UwWorxyKHhqoAJl2OFKa4BVtaA==}
+  html-entities@2.6.0:
+    resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
 
   html-escape@2.0.0:
     resolution: {integrity: sha512-BYh0wceM2Vm4/Q8TNfnKaHXs4DCv2DuYVS87DR40elSvFc+8a6B9mE9ej+8nCOkdqPx7puEx9+hm+GoJ3f9PzA==}
@@ -4011,8 +4011,8 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  yocto-queue@1.1.1:
-    resolution: {integrity: sha512-b4JR1PFR10y1mKjhHY9LaGo6tmrgjit7hxVIeAmyMw3jegXR4dhYqLaQF5zMXZxY7tLpMyJeLjr1C4rLmkVe8g==}
+  yocto-queue@1.2.1:
+    resolution: {integrity: sha512-AyeEbWOu/TAXdxlV9wmGcR0+yh2j3vYPGOECcIj2S7MkrLyC7ne+oye2BKTItt0ii2PHk4cDy+95+LshzbXnGg==}
     engines: {node: '>=12.20'}
 
   yoctocolors@2.1.1:
@@ -4238,17 +4238,16 @@ snapshots:
       vary: 1.1.2
       youch: 3.3.4
 
-  '@adonisjs/inertia@2.1.3(fecb1b64e3d4fd86b20717fef05000f3)':
+  '@adonisjs/inertia@3.1.1(fecb1b64e3d4fd86b20717fef05000f3)':
     dependencies:
       '@adonisjs/core': 6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0)
       '@adonisjs/session': 7.5.1(@adonisjs/core@6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0))(@japa/api-client@2.0.4(@japa/assert@3.0.0(@japa/runner@3.1.4)(openapi-types@12.1.3))(@japa/runner@3.1.4))(edge.js@6.2.0)
       '@adonisjs/vite': 4.0.0(@adonisjs/core@6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0))(@adonisjs/shield@8.1.1(@adonisjs/core@6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0))(@adonisjs/session@7.5.1(@adonisjs/core@6.17.1(@adonisjs/assembler@7.8.2(typescript@5.7.3))(@vinejs/vine@3.0.0)(edge.js@6.2.0))(@japa/api-client@2.0.4(@japa/assert@3.0.0(@japa/runner@3.1.4)(openapi-types@12.1.3))(@japa/runner@3.1.4))(edge.js@6.2.0))(@japa/api-client@2.0.4(@japa/assert@3.0.0(@japa/runner@3.1.4)(openapi-types@12.1.3))(@japa/runner@3.1.4))(edge.js@6.2.0))(edge.js@6.2.0)(vite@6.0.11(@types/node@22.12.0)(jiti@1.21.7)(yaml@2.7.0))
       '@poppinss/utils': 6.9.2
-      '@tuyau/utils': 0.0.6
-      crc-32: 1.2.2
+      '@tuyau/utils': 0.0.7
       edge-error: 4.0.2
       edge.js: 6.2.0
-      html-entities: 2.5.2
+      html-entities: 2.6.0
       locate-path: 7.2.0
       qs: 6.14.0
     optionalDependencies:
@@ -4979,7 +4978,7 @@ snapshots:
 
   '@tsconfig/node16@1.0.4': {}
 
-  '@tuyau/utils@0.0.6': {}
+  '@tuyau/utils@0.0.7': {}
 
   '@types/bytes@3.1.5': {}
 
@@ -5154,6 +5153,8 @@ snapshots:
       acorn: 8.14.0
 
   acorn@8.14.0: {}
+
+  acorn@8.14.1: {}
 
   ajv@6.12.6:
     dependencies:
@@ -5512,8 +5513,6 @@ snapshots:
       p-filter: 4.1.0
       p-map: 7.0.3
 
-  crc-32@1.2.2: {}
-
   create-require@1.1.1: {}
 
   cross-spawn@7.0.6:
@@ -5647,7 +5646,7 @@ snapshots:
 
   edge-parser@9.0.4:
     dependencies:
-      acorn: 8.14.0
+      acorn: 8.14.1
       astring: 1.9.0
       edge-error: 4.0.2
       edge-lexer: 6.0.3
@@ -6205,7 +6204,7 @@ snapshots:
       picomatch: 4.0.2
       read-package-up: 11.0.0
 
-  html-entities@2.5.2: {}
+  html-entities@2.6.0: {}
 
   html-escape@2.0.0: {}
 
@@ -6797,7 +6796,7 @@ snapshots:
 
   p-limit@4.0.0:
     dependencies:
-      yocto-queue: 1.1.1
+      yocto-queue: 1.2.1
 
   p-locate@4.1.0:
     dependencies:
@@ -7884,7 +7883,7 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  yocto-queue@1.1.1: {}
+  yocto-queue@1.2.1: {}
 
   yoctocolors@2.1.1: {}
 
