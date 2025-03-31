@@ -18,6 +18,10 @@ const inertiaConfig = defineConfig({
     enabled: false,
     entrypoint: 'inertia/app/ssr.ts',
   },
+  sharedData: {
+    appName: 'MusicKeeper',
+    appVersion: `${process.env.npm_package_version}`,
+  },
 })
 
 export default inertiaConfig
