@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-  import { Sun, Moon, Ellipsis } from 'lucide-svelte'
+  import { Sun, Moon, Ellipsis } from '@lucide/svelte'
 
   import { setMode, resetMode, mode } from 'mode-watcher'
   import * as Sidebar from '$lib/components/ui/sidebar'

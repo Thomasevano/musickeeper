@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Badge } from '$lib/components/ui/badge'
-  import { ArrowRight, FileText, Download, FolderKanban } from 'lucide-svelte'
+  import { ArrowRight, FileText, Download, FolderKanban } from '@lucide/svelte'
 
   export let feature: IFeature
 </script>

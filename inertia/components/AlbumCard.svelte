@@ -1,7 +1,7 @@
 <script lang="ts">
   import { cn } from '~/lib/utils'
   import { Button } from '~/lib/components/ui/button'
-  import { FileText } from 'lucide-svelte'
+  import { FileText } from '@lucide/svelte'
   import * as Tooltip from '~/lib/components/ui/tooltip'
   let className: string | undefined | null = undefined
   export let tracksListInfos

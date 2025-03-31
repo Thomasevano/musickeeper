@@ -3,7 +3,7 @@
   import * as Sidebar from '$lib/components/ui/sidebar'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import { useSidebar } from '$lib/components/ui/sidebar'
-  import { ChevronsUpDown, LogOut } from 'lucide-svelte'
+  import { ChevronsUpDown, LogOut } from '@lucide/svelte'
   import { page } from '@inertiajs/svelte'
   const user: { avatar: string; name: string; email: string } = $page.props.user
 

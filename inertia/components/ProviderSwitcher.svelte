@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import * as Sidebar from '$lib/components/ui/sidebar'
-  import { Check, ChevronsUpDown, GalleryVerticalEnd } from 'lucide-svelte'
+  import { Check, ChevronsUpDown, GalleryVerticalEnd } from '@lucide/svelte'
 
   let {
     providers,
