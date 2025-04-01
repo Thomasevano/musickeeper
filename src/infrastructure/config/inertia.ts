@@ -20,7 +20,6 @@ const inertiaConfig = defineConfig({
   },
   sharedData: {
     appName: 'MusicKeeper',
-    appVersion: `${process.env.npm_package_version}`,
   },
 })
 
