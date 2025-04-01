@@ -21,7 +21,7 @@
       <img
         class={cn(
           'h-auto w-auto object-cover',
-          aspectRatio === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
+          aspectRatio === 'portrait' ? 'aspect-3/4' : 'aspect-square'
         )}
         src={tracksListInfos.imageUrl}
         alt={tracksListInfos.title}

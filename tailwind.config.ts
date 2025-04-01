@@ -68,10 +68,9 @@ const config = {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
-      fontFamily: {
-      },
+      fontFamily: {},
       gridTemplateColumns: {
-        'auto': 'repeat(auto-fill, minmax(160px, 1fr))',
+        auto: 'repeat(auto-fill, minmax(160px, 1fr))',
       },
       keyframes: {
         'accordion-down': {
