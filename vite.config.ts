@@ -4,6 +4,7 @@ import inertia from '@adonisjs/inertia/client'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import adonisjs from '@adonisjs/vite/client'
 import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   build: {
@@ -18,6 +19,7 @@ export default defineConfig({
     inertia(),
     svelte(),
     adonisjs({ entrypoints: ['inertia/app/app.ts'], reload: ['resources/views/**/*.edge'] }),
+    tailwindcss(),
   ],
 
   /**

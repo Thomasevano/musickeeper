@@ -15,7 +15,7 @@
     </a>
 
     <h1
-      class="font-heading text-balance text-4xl font-bold !leading-[1.1] sm:text-5xl md:text-6xl lg:text-7xl"
+      class="font-heading text-balance text-4xl font-bold leading-[1.1]! sm:text-5xl md:text-6xl lg:text-7xl"
     >
       MusicKeeper
     </h1>

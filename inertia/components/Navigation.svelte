@@ -13,7 +13,7 @@
           <span class="font-display font-bold">MusicKeeper</span>
         </a>
         <button
-          class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-black focus:text-black focus:outline-none md:hidden lg:hidden"
+          class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-black focus:text-black focus:outline-hidden md:hidden lg:hidden"
           aria-label="Toggle theme"
         >
           <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -34,7 +34,7 @@
           </svg>
         </button>
       </div>
-      <nav class="hidden flex-grow flex-col md:flex md:flex-row md:justify-center md:pb-0">
+      <nav class="hidden grow flex-col md:flex md:flex-row md:justify-center md:pb-0">
         <div class="md:ml-auto md:justify-between">
           <Button href="/#features" variant="link">Features</Button>
         </div>
