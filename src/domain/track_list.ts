@@ -1,5 +1,3 @@
-import { Track } from './track.js'
-
 export interface TrackListInfosProperties {
   id: string
   title: string
@@ -7,6 +5,7 @@ export interface TrackListInfosProperties {
   tracksUrl: string
   link: string
   imageUrl: string
+  totalTracks: number
 }
 
 export class TrackListInfos {
@@ -16,6 +15,7 @@ export class TrackListInfos {
   private readonly tracksUrl: string
   private readonly link: string
   private readonly imageUrl: string
+  private readonly totalTracks: number
 
   constructor(props: TrackListInfosProperties) {
     this.id = props.id
@@ -24,6 +24,7 @@ export class TrackListInfos {
     this.tracksUrl = props.tracksUrl
     this.link = props.link
     this.imageUrl = props.imageUrl
+    this.totalTracks = props.totalTracks
   }
 
   getTitle(): string {
@@ -49,6 +50,10 @@ export class TrackListInfos {
   getId(): string {
     return this.id
   }
+
+  getTotalTracks(): number {
+    return this.totalTracks
+  }
 }
 
 export interface PaginatedTrackListInfosPropreties {
@@ -57,7 +62,6 @@ export interface PaginatedTrackListInfosPropreties {
   previousUrl: string | null
   nextUrl: string | null
   total: number
-  tracks: Track[] | null
 }
 export class PaginatedTrackListInfos {
   private limit: number
@@ -65,7 +69,6 @@ export class PaginatedTrackListInfos {
   private previousUrl: string | null
   private nextUrl: string | null
   private total: number
-  public tracks: Track[] | null
 
   constructor(props: PaginatedTrackListInfosPropreties) {
     this.limit = props.limit
@@ -73,7 +76,6 @@ export class PaginatedTrackListInfos {
     this.previousUrl = props.previousUrl
     this.nextUrl = props.nextUrl
     this.total = props.total
-    this.tracks = props.tracks
   }
 
   getNextUrl(): string | null {

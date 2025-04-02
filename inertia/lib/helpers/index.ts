@@ -1,1 +1,1 @@
-export { default as loadMorePlaylistsInfos } from './load_more'
+export { default as loadMore } from './load_more'

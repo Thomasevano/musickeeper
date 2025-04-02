@@ -1,19 +1,24 @@
 <script lang="ts">
-  import LibraryLayout from './libraryLayout.svelte'
+  import LibraryLayout from '~/layouts/libraryLayout.svelte'
   import { writable, type Writable } from 'svelte/store'
   import { onMount } from 'svelte'
-  import { loadMorePlaylistsInfos } from '$helpers'
-  import type { PaginatedPlaylistsInfos } from '../../src/domain/playlist'
-  import * as Tooltip from '~/lib/components/ui/tooltip'
-  import { Button } from '~/lib/components/ui/button'
-  import { Separator } from '~/lib/components/ui/separator'
+  import { loadMore } from '$helpers'
   import AlbumCard from '../components/AlbumCard.svelte'
-  import * as Sidebar from '$lib/components/ui/sidebar'
+  import { InferPageProps } from '@adonisjs/inertia/types'
+  import PlaylistsController from '../../src/infrastructure/http/controllers/playlists_controller'
 
-  let { spotifyUserPlaylistsInfos } = $props()
+  let {
+    spotifyUserPlaylistsInfos,
+  }: {
+    spotifyUserPlaylistsInfos: InferPageProps<
+      PlaylistsController,
+      'index'
+    >['spotifyUserPlaylistsInfos']
+  } = $props()
 
-  const paginatedUserPlaylistsInfos: Writable<PaginatedPlaylistsInfos> =
-    writable(spotifyUserPlaylistsInfos)
+  const paginatedUserPlaylistsInfos: Writable<
+    InferPageProps<PlaylistsController, 'index'>['spotifyUserPlaylistsInfos']
+  > = writable(spotifyUserPlaylistsInfos)
 
   let loadingRef: HTMLElement | undefined = $state()
   onMount(async () => {
@@ -26,7 +31,14 @@
 
       if (element.isIntersecting) {
         ;(async function () {
-          loadMorePlaylistsInfos(paginatedUserPlaylistsInfos, $paginatedUserPlaylistsInfos)
+          const morePlaylistsInfos = await loadMore($paginatedUserPlaylistsInfos, 'playlists')
+          paginatedUserPlaylistsInfos.set({
+            ...morePlaylistsInfos.nextSpotifyUserPlaylistsInfos,
+            playlistsInfos: [
+              ...$paginatedUserPlaylistsInfos.playlistsInfos,
+              ...morePlaylistsInfos.nextSpotifyUserPlaylistsInfos.playlistsInfos,
+            ],
+          })
         })()
       }
     })
@@ -35,41 +47,15 @@
   })
 </script>
 
-<LibraryLayout data={$paginatedUserPlaylistsInfos}>
-  <div class="h-full w-full px-4 py-6 lg:px-8">
-    <div class="flex flex-col justify-between md:flex-row">
-      <div class="flex flex-row">
-        <Sidebar.Trigger class="mr-2" />
-        <div class="mb-4 space-y-2 md:mb-0">
-          <h2 class="text-2xl font-semibold tracking-tight">Playlists</h2>
-          <p class="text-muted-foreground text-sm">Extract your Spotify playlists as text files</p>
-        </div>
-      </div>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Button href={`playlists/archive`} target="_blank" class="relative">
-              Extract all {$paginatedUserPlaylistsInfos.total} playlists
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Extract all playlists</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
-    </div>
-    <Separator class="my-4" />
-    <div class="grid grid-cols-auto gap-2">
-      {#if $paginatedUserPlaylistsInfos.playlistsInfos.length > 0}
-        {#each $paginatedUserPlaylistsInfos.playlistsInfos as playlistInfos}
-          <AlbumCard tracksListInfos={playlistInfos} aspectRatio="square" />
-        {/each}
-      {:else}
-        <p>No Playlists Yet!</p>
-      {/if}
-      {#if $paginatedUserPlaylistsInfos.nextUrl}
-        <div class="loading-indicator" bind:this={loadingRef}>Loading...</div>
-      {/if}
-    </div>
-  </div>
+<LibraryLayout data={$paginatedUserPlaylistsInfos} title="Playlists">
+  {#if $paginatedUserPlaylistsInfos.playlistsInfos.length > 0}
+    {#each $paginatedUserPlaylistsInfos.playlistsInfos as playlistInfos}
+      <AlbumCard tracksListInfos={playlistInfos} aspectRatio="square" />
+    {/each}
+  {:else}
+    <p>No Playlists Yet!</p>
+  {/if}
+  {#if $paginatedUserPlaylistsInfos.nextUrl}
+    <div class="loading-indicator" bind:this={loadingRef}>Loading...</div>
+  {/if}
 </LibraryLayout>

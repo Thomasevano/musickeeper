@@ -1,19 +1,18 @@
-import type { Writable } from 'svelte/store'
-import { PaginatedPlaylistsInfos } from '../../../src/domain/playlist'
+import { InferPageProps } from '@adonisjs/inertia/types'
+import PlaylistsController from '../../../src/infrastructure/http/controllers/playlists_controller'
+import AlbumsController from '../../../src/infrastructure/http/controllers/albums_controller'
 
 export default async function loadMore(
-  data: Writable<PaginatedPlaylistsInfos>,
-  $data: PaginatedPlaylistsInfos
+  $data:
+    | InferPageProps<PlaylistsController, 'index'>['spotifyUserPlaylistsInfos']
+    | InferPageProps<AlbumsController, 'index'>['spotifyAlbumsInfos'],
+  page: string
 ) {
-  const response = await fetch(`/library/playlists?url=${$data.nextUrl}`)
+  const response = await fetch(`/library/${page}?url=${$data.nextUrl}`)
 
   if (response.status !== 200) {
-    throw new Error('Error fetching playlists')
+    throw new Error('Error fetching data')
   }
 
-  const json = await response.json()
-  data.set({
-    ...json.nextSpotifyUserPlaylistsInfos,
-    playlistsInfos: [...$data.playlistsInfos, ...json.nextSpotifyUserPlaylistsInfos.playlistsInfos],
-  })
+  return await response.json()
 }
