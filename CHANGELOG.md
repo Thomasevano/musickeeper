@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/Thomasevano/musickeeper/compare/v0.1.0...v0.1.1) (2025-04-04)
+
+
+### Bug Fixes
+
+* show app version in footer in production ([31858c3](https://github.com/Thomasevano/musickeeper/commit/31858c367e015ad6a3363e1152ccb1612a623356))
+
 ## [0.1.0](https://github.com/Thomasevano/musickeeper/compare/v0.0.3...v0.1.0) (2025-03-31)
 
 
