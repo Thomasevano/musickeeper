@@ -4,8 +4,6 @@
   import { onMount } from 'svelte'
   import { loadMorePlaylistsInfos } from '$helpers'
   import type { PaginatedPlaylistsInfos } from '../../src/domain/playlist'
-  import * as Tooltip from '~/lib/components/ui/tooltip'
-  import { Button } from '~/lib/components/ui/button'
   import { Separator } from '~/lib/components/ui/separator'
   import AlbumCard from '../components/AlbumCard.svelte'
   import * as Sidebar from '$lib/components/ui/sidebar'
@@ -45,18 +43,6 @@
           <p class="text-muted-foreground text-sm">Extract your Spotify playlists as text files</p>
         </div>
       </div>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Button href={`playlists/archive`} target="_blank" class="relative">
-              Extract all {$paginatedUserPlaylistsInfos.total} playlists
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Extract all playlists</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
     </div>
     <Separator class="my-4" />
     <div class="grid grid-cols-auto gap-2">

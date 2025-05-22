@@ -30,9 +30,8 @@ router
     router
       .group(() => {
         router.get('/', [PlaylistController, 'index'])
-        router.get('extract', [PlaylistController, 'extractPlaylist'])
-        router.get('archive', [PlaylistController, 'extractCurrentUserPlaylistsInfos'])
-      }).prefix('/playlists')
+      })
+      .prefix('/playlists')
   })
   .prefix('/library')
   .use(middleware.spotifyAuthCheck())

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { cn } from '~/lib/utils'
   import { Button } from '~/lib/components/ui/button'
-  import { FileText } from '@lucide/svelte'
   import * as Tooltip from '~/lib/components/ui/tooltip'
   let className: string | undefined | null = undefined
   export let tracksListInfos
@@ -38,21 +37,6 @@
     </div>
   </div>
   <div class="flex justify-between">
-    <Tooltip.Provider>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          <Button
-            href={`playlists/extract?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
-            class="relative"
-          >
-            <FileText class="h-4 w-4" />
-          </Button>
-        </Tooltip.Trigger>
-        <Tooltip.Content>
-          <p>Extract as text file</p>
-        </Tooltip.Content>
-      </Tooltip.Root>
-    </Tooltip.Provider>
     <Tooltip.Provider>
       <Tooltip.Root>
         <Tooltip.Trigger>
