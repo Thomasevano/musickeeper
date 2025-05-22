@@ -41,21 +41,6 @@
     <Tooltip.Provider>
       <Tooltip.Root>
         <Tooltip.Trigger>
-          <Button
-            href={`playlists/extract?playlistTracksUrl=${tracksListInfos.tracksUrl}&playlistName=${tracksListInfos.title}`}
-            class="relative"
-          >
-            <FileText class="h-4 w-4" />
-          </Button>
-        </Tooltip.Trigger>
-        <Tooltip.Content>
-          <p>Extract as text file</p>
-        </Tooltip.Content>
-      </Tooltip.Root>
-    </Tooltip.Provider>
-    <Tooltip.Provider>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
           <Button href={tracksListInfos.link} class="relative">
             <i class="si si-spotify si--color text-2xl"></i>
           </Button>

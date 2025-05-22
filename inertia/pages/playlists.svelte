@@ -45,18 +45,6 @@
           <p class="text-muted-foreground text-sm">Extract your Spotify playlists as text files</p>
         </div>
       </div>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Button href={`playlists/archive`} target="_blank" class="relative">
-              Extract all {$paginatedUserPlaylistsInfos.total} playlists
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Extract all playlists</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
     </div>
     <Separator class="my-4" />
     <div class="grid grid-cols-auto gap-2">
