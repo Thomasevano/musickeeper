@@ -4,10 +4,9 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import { useSidebar } from '$lib/components/ui/sidebar'
   import { ChevronsUpDown, LogOut } from '@lucide/svelte'
-  import { page } from '@inertiajs/svelte'
-  const user: { avatar: string; name: string; email: string } = $page.props.user
 
   const sidebar = useSidebar()
+  let { user } = $props()
 </script>
 
 <Sidebar.Menu>

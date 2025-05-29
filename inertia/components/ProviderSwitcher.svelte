@@ -1,15 +1,18 @@
 <script lang="ts">
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import * as Sidebar from '$lib/components/ui/sidebar'
-  import { Check, ChevronsUpDown, GalleryVerticalEnd } from '@lucide/svelte'
+  import { useSidebar } from '$lib/components/ui/sidebar'
+  import { Check, ChevronsUpDown } from '@lucide/svelte'
+  import Badge from '~/lib/components/ui/badge/badge.svelte'
 
   let {
     providers,
     defaultProvider,
+    user,
   }: { providers: { name: string; logo: any }[]; defaultProvider: { name: string; logo: any } } =
     $props()
-
   let selectedProvider = $state(defaultProvider)
+  const sidebar = useSidebar()
 </script>
 
 <Sidebar.Menu>
@@ -23,21 +26,39 @@
             {...props}
           >
             <div
-              class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
+              class="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
             >
-              <GalleryVerticalEnd class="size-4" />
+              <i class={`si ${selectedProvider.logo} si--color text-2xl`}></i>
             </div>
-            <div class="flex flex-col gap-0.5 leading-none">
-              <span class="font-semibold">{selectedProvider.name}</span>
+            <span class="sr-only">Select Provider</span>
+            <div class="grid flex-1 text-left text-sm leading-tight">
+              <span class="truncate font-semibold">{selectedProvider.name}</span>
             </div>
             <ChevronsUpDown class="ml-auto" />
           </Sidebar.MenuButton>
         {/snippet}
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content class="w-[var(--bits-dropdown-menu-anchor-width)]" align="start">
-        {#each providers as provider (provider)}
-          <DropdownMenu.Item onSelect={() => (selectedProvider.name = provider.name)}>
+      <DropdownMenu.Content
+        class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
+        align="start"
+        side={sidebar.isMobile ? 'bottom' : 'right'}
+        sideOffset={4}
+      >
+        <DropdownMenu.Label class="text-muted-foreground text-xs"
+          >Music Providers</DropdownMenu.Label
+        >
+        {#each providers as provider}
+          <DropdownMenu.Item
+            onSelect={() => (
+              (selectedProvider.name = provider.name), (selectedProvider.logo = provider.logo)
+            )}
+            class="gap-2 p-2"
+          >
+            <i class={`si ${provider.logo} si--color text-2xl`}></i>
             {provider.name}
+            {#if user.providers.includes(provider.name.toLowerCase())}
+              <Badge variant="secondary" class="ml-2 text-xs">connected</Badge>
+            {/if}
             {#if provider.name === selectedProvider.name}
               <Check class="ml-auto" />
             {/if}

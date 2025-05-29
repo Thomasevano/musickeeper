@@ -5,6 +5,9 @@
   import ProviderSwitcher from './ProviderSwitcher.svelte'
   import SidebarThemeSwitcher from './SidebarThemeSwitcher.svelte'
   import NavUser from './NavUser.svelte'
+  import { page } from '@inertiajs/svelte'
+  const user: { avatar: string; name: string; email: string; providers: string[] } =
+    $page.props.user
 
   let {
     ref = $bindable(null),
@@ -16,7 +19,7 @@
     providers: [
       {
         name: 'Spotify',
-        logo: '<i class="si si-spotify si--color text-2xl" />',
+        logo: 'si-spotify',
       },
     ],
     items: [
@@ -31,7 +34,7 @@
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
   <Sidebar.Header>
-    <ProviderSwitcher providers={data.providers} defaultProvider={data.providers[0]} />
+    <ProviderSwitcher {user} providers={data.providers} defaultProvider={data.providers[0]} />
   </Sidebar.Header>
   <Sidebar.Content>
     <Sidebar.Group>
@@ -64,6 +67,6 @@
     </div>
   </Sidebar.Content>
   <Sidebar.Footer>
-    <NavUser />
+    <NavUser {user} />
   </Sidebar.Footer>
 </Sidebar.Root>

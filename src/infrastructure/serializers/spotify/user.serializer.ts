@@ -6,5 +6,6 @@ export function SerializeUserInfosFromSpotify(user: SpotifyApi.CurrentUsersProfi
     name: user.display_name ?? `user-${user.id}`,
     email: user.email,
     avatar: user.images && user.images[0].url,
+    providers: ['spotify'],
   })
 }
