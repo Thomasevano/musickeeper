@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-  import { Sun, Moon, Ellipsis } from '@lucide/svelte'
+  import { Sun, Moon, Ellipsis, Check } from '@lucide/svelte'
 
   import { setMode, resetMode, mode } from 'mode-watcher'
   import * as Sidebar from '$lib/components/ui/sidebar'
@@ -29,8 +29,18 @@
       align={sidebar.isMobile ? 'end' : 'start'}
       class="min-w-56 rounded-lg"
     >
-      <DropdownMenu.Item onclick={() => setMode('light')}>Light</DropdownMenu.Item>
-      <DropdownMenu.Item onclick={() => setMode('dark')}>Dark</DropdownMenu.Item>
+      <DropdownMenu.Item onclick={() => setMode('light')}>
+        Light
+        {#if $mode === 'light'}
+          <Check class="ml-auto" />
+        {/if}
+      </DropdownMenu.Item>
+      <DropdownMenu.Item onclick={() => setMode('dark')}>
+        Dark
+        {#if $mode === 'dark'}
+          <Check class="ml-auto" />
+        {/if}
+      </DropdownMenu.Item>
       <DropdownMenu.Item onclick={() => resetMode()}>System</DropdownMenu.Item>
     </DropdownMenu.Content>
   </Sidebar.MenuItem>
