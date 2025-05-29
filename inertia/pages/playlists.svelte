@@ -40,7 +40,9 @@
         <Sidebar.Trigger class="mr-2" />
         <div class="mb-4 space-y-2 md:mb-0">
           <h2 class="text-2xl font-semibold tracking-tight">Playlists</h2>
-          <p class="text-muted-foreground text-sm">Extract your Spotify playlists as text files</p>
+          <p class="text-muted-foreground text-sm">
+            All your Spotify playlists are available here.
+          </p>
         </div>
       </div>
     </div>
