@@ -9,8 +9,7 @@ export class SpotifyUserRepository implements UserRepository {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${bearerToken}`,
       },
-    })
-      .then((response) => (response.json() as Promise<SpotifyApi.CurrentUsersProfileResponse>))
+    }).then((response) => response.json() as Promise<SpotifyApi.CurrentUsersProfileResponse>)
 
     const serializedUser: User = SerializeUserInfosFromSpotify(user)
 

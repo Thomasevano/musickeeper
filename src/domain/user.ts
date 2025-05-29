@@ -1,8 +1,9 @@
-interface userProperties {
+interface UserProperties {
   id: string
   name: string
   email: string
   avatar?: string
+  providers?: string[]
 }
 
 export class User {
@@ -10,12 +11,14 @@ export class User {
   private name: string
   private email: string
   private avatar?: string
+  private providers?: string[]
 
-  constructor(props: userProperties) {
+  constructor(props: UserProperties) {
     this.id = props.id
     this.name = props.name
     this.email = props.email
     this.avatar = props.avatar
+    this.providers = props.providers ?? []
   }
 
   getId(): string {
@@ -32,5 +35,9 @@ export class User {
 
   getAvatar(): string | undefined {
     return this.avatar ?? undefined
+  }
+
+  getProviders(): string[] {
+    return this.providers ?? []
   }
 }
