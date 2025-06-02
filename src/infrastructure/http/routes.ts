@@ -12,6 +12,7 @@ import { middleware } from './kernel.js'
 const SpotifyController = () => import('./controllers/spotify_controller.js')
 const HomeController = () => import('./controllers/home_controller.js')
 const PlaylistController = () => import('./controllers/playlists_controller.js')
+const ListenLaterListController = () => import('./controllers/listen_later_list_controller.js')
 
 router.get('/', [HomeController, 'index'])
 
@@ -32,6 +33,7 @@ router
         router.get('/', [PlaylistController, 'index'])
       })
       .prefix('/playlists')
+    router.get('/listen-later', [ListenLaterListController, 'index'])
   })
   .prefix('/library')
   .use(middleware.spotifyAuthCheck())
