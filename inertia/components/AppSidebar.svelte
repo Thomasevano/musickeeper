@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Sidebar from '$lib/components/ui/sidebar'
-  import { ListMusic } from '@lucide/svelte'
+  import { ListMusic, ListEnd } from '@lucide/svelte'
   import type { ComponentProps } from 'svelte'
   import ProviderSwitcher from './ProviderSwitcher.svelte'
   import SidebarThemeSwitcher from './SidebarThemeSwitcher.svelte'
@@ -27,6 +27,11 @@
         title: 'Playlists',
         url: '/library/playlists',
         icon: ListMusic,
+      },
+      {
+        title: 'Listen Later',
+        url: '/library/listen-later',
+        icon: ListEnd,
       },
     ],
   }
