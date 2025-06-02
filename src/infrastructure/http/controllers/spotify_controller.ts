@@ -73,10 +73,10 @@ export default class SpotifyController {
 
     if (responseToken?.ok) {
       const { access_token, refresh_token, expires_in } = await (responseToken.json() as Promise<{
-        access_token: string;
-        refresh_token: string;
-        expires_in: number;
-      }>);
+        access_token: string
+        refresh_token: string
+        expires_in: number
+      }>)
 
       const currentDate = Math.floor(Date.now() / 1000)
       const accessTokenExpiresAt = currentDate + expires_in
@@ -87,7 +87,7 @@ export default class SpotifyController {
         encode: false,
       })
 
-      response.redirect().toPath(`/library/playlists`)
+      response.redirect().toPath(`/library/listen-later`)
     } else {
       console.log(responseToken?.status)
     }
@@ -119,9 +119,9 @@ export default class SpotifyController {
 
     if (body?.ok) {
       const { access_token, expires_in } = await (body.json() as Promise<{
-        access_token: string;
-        expires_in: number;
-      }>);
+        access_token: string
+        expires_in: number
+      }>)
 
       const currentDate = Math.floor(Date.now() / 1000)
       let accessTokenExpiresAt = currentDate + expires_in
