@@ -1,38 +1,32 @@
 <script lang="ts">
   import { Badge } from '$lib/components/ui/badge'
-  import { ArrowRight, FileText, Download, FolderKanban } from '@lucide/svelte'
+  import type { LandingFeature } from '~/lib/types'
 
-  export let feature: IFeature
+  export let feature: LandingFeature
 </script>
 
 <div class="bg-background relative overflow-hidden rounded-lg border p-2">
   <div class="flex h-[180px] flex-col justify-between rounded-md p-5">
-    {#if feature.icon === 'extract'}
-      <FileText class="size-12" />
-    {/if}
-    {#if feature.icon === 'transfer'}
-      <ArrowRight class="size-12" />
-    {/if}
-    {#if feature.icon === 'manage'}
-      <FolderKanban class="size-12" />
-    {/if}
     {#if feature.icon === 'connect'}
       <div class="flex justify-between">
+        <i class="si si-spotify mr-2 text-4xl"></i>
         <i class="si si-applemusic mr-2 text-4xl"></i>
         <i class="si si-soundcloud mr-2 text-4xl"></i>
-        <i class="si si-tidal mr-2 text-4xl"></i>
         <i class="si si-youtubemusic mr-2 text-4xl"></i>
       </div>
-    {/if}
-    {#if feature.icon === 'own'}
-      <Download class="size-12" />
+    {:else if typeof feature.icon !== 'string'}
+      <div class="rounded-full w-12 h-12 flex items-center justify-center bg-primary/10 mb-4">
+        <svelte:component this={feature.icon} class="size-8" />
+      </div>
     {/if}
 
     <div class="space-y-2">
       <h3 class="font-bold">
         <span class="mr-2">{feature.title}</span>
-        {#if !feature.isAvailable}
-          <Badge variant="secondary" radius="sm">Soon</Badge>
+        {#if feature.isAvailable}
+          <Badge variant="outline">Available</Badge>
+        {:else}
+          <Badge variant="secondary">Soon</Badge>
         {/if}
       </h3>
       <p class="text-muted-foreground text-sm">
