@@ -3,7 +3,7 @@
   import { buttonVariants, Button } from '$lib/components/ui/button'
 </script>
 
-<section class="space-y-6 pb-12 pt-16 lg:py-28">
+<section class="space-y-6 pb-6 pt-16 lg:py-28">
   <div class="container flex max-w-[64rem] flex-col items-center gap-5 text-center">
     <a
       href="https://github.com/Thomasevano/musickeeper"
