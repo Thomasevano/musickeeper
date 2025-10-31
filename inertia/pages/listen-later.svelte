@@ -15,6 +15,7 @@
   } = $props()
   let searchTerm = $state('')
   let listenLaterItems = $state([])
+  let db
 
   const debouncedSearch = new Debounced(() => searchTerm, 500)
 
@@ -44,7 +45,7 @@
   const request = indexedDB.open('listenLaterDB', 1)
 
   request.onupgradeneeded = (event) => {
-    const db = event.target?.result
+    db = event.target?.result
 
     const objectStore = db.createObjectStore('listenLaterList', {
       keyPath: 'id',
@@ -53,13 +54,51 @@
   }
 
   request.onsuccess = (event) => {
-    const db = event.target.result
+    db = event.target.result
     const transaction = db.transaction('listenLaterList', 'readwrite')
     const store = transaction.objectStore('listenLaterList')
 
     const getRequest = store.getAll()
     getRequest.onsuccess = () => {
       listenLaterItems = getRequest.result
+    }
+  }
+
+  function handleListen(item): void {
+    // Toggle hasBeenListened status
+    const transaction = db.transaction(['listenLaterList'], 'readwrite')
+    const objectStore = transaction.objectStore('listenLaterList')
+
+    const getRequest = objectStore.get(item.id)
+    getRequest.onsuccess = () => {
+      const data = getRequest.result
+
+      if (data) {
+        // Toggle the hasBeenListened value
+        data.hasBeenListened = !data.hasBeenListened
+
+        // Update the item in the database
+        const updateRequest = objectStore.put(data)
+
+        updateRequest.onsuccess = () => {
+          // Refresh the list after successful update
+          const refreshTransaction = db.transaction('listenLaterList', 'readonly')
+          const refreshStore = refreshTransaction.objectStore('listenLaterList')
+          const getAllRequest = refreshStore.getAll()
+
+          getAllRequest.onsuccess = () => {
+            listenLaterItems = getAllRequest.result
+          }
+        }
+
+        updateRequest.onerror = (error) => {
+          console.error('Error updating item:', error)
+        }
+      }
+    }
+
+    getRequest.onerror = (error) => {
+      console.error('Error getting item:', error)
     }
   }
 </script>
@@ -112,7 +151,28 @@
           <tbody>
             {#each listenLaterItems as item (item.id)}
               <tr>
-                <td class="px-4 py-2">{item.hasBeenListened ? 'Yes' : 'No'}</td>
+                <td class="px-4 py-2">
+                  <Tooltip.Provider>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        <Button
+                          variant="ghost"
+                          class="cursor-pointer"
+                          onclick={() => handleListen(item)}
+                        >
+                          {item.hasBeenListened ? '✅' : '❌'}
+                        </Button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        {#if item.hasBeenListened}
+                          <p>Mark as not listened</p>
+                        {:else}
+                          <p>Mark as listened</p>
+                        {/if}
+                      </Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                </td>
                 <td class="px-4 py-2">{item.title}</td>
                 <td class="px-4 py-2">{item.artists.join(', ')}</td>
                 <td class="px-4 py-2">{item.album}</td>
@@ -120,7 +180,7 @@
                   <Tooltip.Provider>
                     <Tooltip.Root>
                       <Tooltip.Trigger>
-                        <Button href={item.link} class="relative">
+                        <Button href={item.link} variant="link" class="relative">
                           <i class="si si-spotify si--color text-2xl"></i>
                         </Button>
                       </Tooltip.Trigger>
