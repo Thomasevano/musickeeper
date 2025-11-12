@@ -13,6 +13,7 @@ const SpotifyController = () => import('./controllers/spotify_controller.js')
 const HomeController = () => import('./controllers/home_controller.js')
 const PlaylistController = () => import('./controllers/playlists_controller.js')
 const ListenLaterListController = () => import('./controllers/listen_later_list_controller.js')
+const ErrorsController = () => import('./controllers/errors_controllers.js')
 
 router.get('/', [HomeController, 'index'])
 
@@ -39,3 +40,5 @@ router
   .use(middleware.spotifyAuthCheck())
   .use(middleware.spotifyRefreshToken())
   .use(middleware.shareUser())
+
+router.get('/errors/unauthorized_access', [ErrorsController, 'unauthorizedAccess'])

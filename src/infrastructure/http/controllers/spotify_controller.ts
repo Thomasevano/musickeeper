@@ -6,6 +6,7 @@ import {
   SPOTIFY_ACCESS_TOKEN_EXPIRES_AT_COOKIE_NAME,
   SPOTIFY_REFRESH_TOKEN_COOKIE_NAME,
 } from '../../../constants.js'
+import { SpotifyUserRepository } from '../../repositories/spotify/spotify_user.repository.js'
 
 function generateRandomString(length: number): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -18,7 +19,7 @@ function generateRandomString(length: number): string {
 
 @inject()
 export default class SpotifyController {
-  constructor() { }
+  constructor(private spotifyUserRepository: SpotifyUserRepository) { }
 
   login({ response }: HttpContext): void {
     const state = generateRandomString(16)
@@ -78,6 +79,18 @@ export default class SpotifyController {
         expires_in: number
       }>)
 
+      // Check if user is allowed before setting cookies
+      try {
+        await this.spotifyUserRepository.getCurrentUser(access_token)
+      } catch (error) {
+        if (error instanceof Error && error.message === 'SPOTIFY_USER_NOT_ALLOWED') {
+          // Don't set cookies, render unauthorized page
+          response.redirect().toPath('/errors/unauthorized_access')
+          return
+        }
+      }
+
+      // User is allowed, set cookies and redirect
       const currentDate = Math.floor(Date.now() / 1000)
       const accessTokenExpiresAt = currentDate + expires_in
 
