@@ -17,6 +17,11 @@ export default class ShareUserMiddleware {
         ctx.inertia.share({ user })
       } catch (error) {
         console.error('Error fetching user data:', error)
+        if (error instanceof Error && error.message === 'SPOTIFY_USER_NOT_ALLOWED') {
+          return ctx.inertia.render('errors/unauthorized_access')
+        }
+        // For other errors, let them propagate or handle differently
+        throw error
       }
     }
 

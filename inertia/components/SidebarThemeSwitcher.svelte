@@ -16,9 +16,9 @@
           {...props}
           class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
-          <Sun class={$mode === 'dark' ? 'hidden' : ''} />
-          <Moon class={$mode === 'light' ? 'hidden' : ''} />
-          <span class="ml-2">Theme: {$mode}</span>
+          <Sun class={mode.current === 'dark' ? 'hidden' : ''} />
+          <Moon class={mode.current === 'light' ? 'hidden' : ''} />
+          <span class="ml-2">Theme: {mode.current}</span>
           <span class="sr-only">Toggle theme</span>
           <Ellipsis class="ml-auto" />
         </Sidebar.MenuButton>
@@ -31,13 +31,13 @@
     >
       <DropdownMenu.Item onclick={() => setMode('light')}>
         Light
-        {#if $mode === 'light'}
+        {#if mode.current === 'light'}
           <Check class="ml-auto" />
         {/if}
       </DropdownMenu.Item>
       <DropdownMenu.Item onclick={() => setMode('dark')}>
         Dark
-        {#if $mode === 'dark'}
+        {#if mode.current === 'dark'}
           <Check class="ml-auto" />
         {/if}
       </DropdownMenu.Item>
