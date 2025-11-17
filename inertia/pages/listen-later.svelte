@@ -4,6 +4,7 @@
   import * as Sidebar from '$lib/components/ui/sidebar/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Command from '$lib/components/ui/command/index.js'
+  import * as Select from '$lib/components/ui/select/index.js'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
@@ -11,16 +12,18 @@
   let {
     matchingItems = {
       tracks: { items: [] },
+      albums: { items: [] },
     },
   } = $props()
   let searchTerm = $state('')
+  let searchType = $state('track')
   let listenLaterItems = $state([])
   let db
 
   const debouncedSearch = new Debounced(() => searchTerm, 500)
 
   async function handleSearch() {
-    await fetch(`/library/listen-later?q=${debouncedSearch.current}`)
+    await fetch(`/library/listen-later?q=${debouncedSearch.current}&type=${searchType}`)
       .then((response) => response.json())
       .then((data) => {
         matchingItems = data.matchingItems
@@ -38,19 +41,43 @@
       // Reset matching items when search is empty
       matchingItems = {
         tracks: { items: [] },
+        albums: { items: [] },
       }
     }
   })
 
-  const request = indexedDB.open('listenLaterDB', 1)
+  const request = indexedDB.open('listenLaterDB', 2)
 
   request.onupgradeneeded = (event) => {
     db = event.target?.result
+    const oldVersion = event.oldVersion
 
-    const objectStore = db.createObjectStore('listenLaterList', {
-      keyPath: 'id',
-      autoIncrement: true,
-    })
+    // Create object store for fresh installs
+    if (oldVersion < 1) {
+      db.createObjectStore('listenLaterList', {
+        keyPath: 'id',
+        autoIncrement: true,
+      })
+    }
+
+    // Migration from version 1 to 2: add type field to existing items
+    if (oldVersion < 2) {
+      const transaction = event.target.transaction
+      const objectStore = transaction.objectStore('listenLaterList')
+
+      objectStore.openCursor().onsuccess = (cursorEvent) => {
+        const cursor = cursorEvent.target.result
+        if (cursor) {
+          const item = cursor.value
+          // Add type field to existing items (default to 'track')
+          if (!item.type) {
+            item.type = 'track'
+            cursor.update(item)
+          }
+          cursor.continue()
+        }
+      }
+    }
   }
 
   request.onsuccess = (event) => {
@@ -101,6 +128,14 @@
       console.error('Error getting item:', error)
     }
   }
+  const types = [
+    { value: 'track', label: 'Tracks' },
+    { value: 'album', label: 'Albums' },
+  ]
+
+  const triggerContent = $derived(
+    types.find((t) => t.value === searchType)?.label ?? 'Select a type'
+  )
 </script>
 
 <LibraryLayout data={listenLaterItems}>
@@ -117,21 +152,46 @@
       </div>
     </div>
     <Separator class="my-4" />
+    <div class="mb-4 flex items-center gap-4">
+      <label for="search-type" class="text-sm font-medium">Search for:</label>
+      <Select.Root type="single" bind:value={searchType} class="w-[180px]">
+        <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
+        <Select.Content>
+          <Select.Group>
+            <Select.Label>Types</Select.Label>
+            {#each types as type (type.value)}
+              <Select.Item value={type.value} label={type.label}>
+                {type.label}
+              </Select.Item>
+            {/each}
+          </Select.Group>
+        </Select.Content>
+      </Select.Root>
+    </div>
     <Command.Root class="rounded-lg border shadow-md mb-4" shouldFilter={false}>
       <Command.Input
         bind:value={searchTerm}
-        placeholder="Search a song to add to your listen later list..."
+        placeholder="Search a song or album to add to your listen later list..."
       />
-      {#if matchingItems.tracks.items.length > 0}
+      {#if (searchType === 'track' && matchingItems.tracks?.items?.length > 0) || (searchType === 'album' && matchingItems.albums?.items?.length > 0)}
         <Command.List>
           <Command.Empty class="text-muted-foreground"
             >No results found for your search.</Command.Empty
           >
-          <Command.Group heading="Tracks">
-            {#each matchingItems.tracks.items as track (track.id)}
-              <TrackItem bind:listenLaterItems {track} />
-            {/each}
-          </Command.Group>
+          {#if searchType === 'track' && matchingItems.tracks?.items?.length > 0}
+            <Command.Group heading="Tracks">
+              {#each matchingItems.tracks.items as track (track.id)}
+                <TrackItem bind:listenLaterItems item={track} type="track" />
+              {/each}
+            </Command.Group>
+          {/if}
+          {#if searchType === 'album' && matchingItems.albums?.items?.length > 0}
+            <Command.Group heading="Albums">
+              {#each matchingItems.albums.items as album (album.id)}
+                <TrackItem bind:listenLaterItems item={album} type="album" />
+              {/each}
+            </Command.Group>
+          {/if}
         </Command.List>
       {/if}
     </Command.Root>
@@ -142,6 +202,7 @@
           <thead>
             <tr>
               <th class="px-4 py-2">Listened</th>
+              <th class="px-4 py-2">Type</th>
               <th class="px-4 py-2">Title</th>
               <th class="px-4 py-2">Artists</th>
               <th class="px-4 py-2">Album</th>
@@ -173,9 +234,10 @@
                     </Tooltip.Root>
                   </Tooltip.Provider>
                 </td>
+                <td class="px-4 py-2 capitalize">{item.type || 'track'}</td>
                 <td class="px-4 py-2">{item.title}</td>
                 <td class="px-4 py-2">{item.artists.join(', ')}</td>
-                <td class="px-4 py-2">{item.album}</td>
+                <td class="px-4 py-2">{item.album || '-'}</td>
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>

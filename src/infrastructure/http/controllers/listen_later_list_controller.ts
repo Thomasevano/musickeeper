@@ -13,9 +13,14 @@ export default class ListenLaterListController {
     }
 
     const searchItem = request.qs().q
+    const searchType = request.qs().type
 
     if (searchItem) {
-      const matchingItems = await this.searchRepository.searchItem(searchItem, spotifyAccessToken)
+      const matchingItems = await this.searchRepository.searchItem(
+        searchItem,
+        spotifyAccessToken,
+        searchType
+      )
       response.status(200).header('Content-Type', 'application/json').send({
         matchingItems,
       })
