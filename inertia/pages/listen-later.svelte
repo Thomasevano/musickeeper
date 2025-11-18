@@ -8,6 +8,7 @@
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
+  import { Trash2 } from '@lucide/svelte'
 
   let {
     matchingItems = {
@@ -119,7 +120,9 @@
           const getAllRequest = refreshStore.getAll()
 
           getAllRequest.onsuccess = () => {
-            listenLaterItems = getAllRequest.result.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
+            listenLaterItems = getAllRequest.result.sort(
+              (a, b) => (a.addedAt || 0) - (b.addedAt || 0)
+            )
           }
         }
 
@@ -133,6 +136,30 @@
       console.error('Error getting item:', error)
     }
   }
+
+  function handleDelete(item): void {
+    // Delete item from IndexedDB
+    const transaction = db.transaction(['listenLaterList'], 'readwrite')
+    const objectStore = transaction.objectStore('listenLaterList')
+
+    const deleteRequest = objectStore.delete(item.id)
+
+    deleteRequest.onsuccess = () => {
+      // Refresh the list after successful deletion
+      const refreshTransaction = db.transaction('listenLaterList', 'readonly')
+      const refreshStore = refreshTransaction.objectStore('listenLaterList')
+      const getAllRequest = refreshStore.getAll()
+
+      getAllRequest.onsuccess = () => {
+        listenLaterItems = getAllRequest.result.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
+      }
+    }
+
+    deleteRequest.onerror = (error) => {
+      console.error('Error deleting item:', error)
+    }
+  }
+
   const types = [
     { value: 'track', label: 'Tracks' },
     { value: 'album', label: 'Albums' },
@@ -212,6 +239,7 @@
               <th class="px-4 py-2">Artists</th>
               <th class="px-4 py-2">Album</th>
               <th class="px-4 py-2">Link</th>
+              <th class="px-4 py-2">Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -253,6 +281,25 @@
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         <p>Open on Spotify</p>
+                      </Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                </td>
+                <td class="px-4 py-2">
+                  <Tooltip.Provider>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="cursor-pointer text-destructive hover:text-destructive/90"
+                          onclick={() => handleDelete(item)}
+                        >
+                          <Trash2 class="h-4 w-4" />
+                        </Button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        <p>Delete from list</p>
                       </Tooltip.Content>
                     </Tooltip.Root>
                   </Tooltip.Provider>
