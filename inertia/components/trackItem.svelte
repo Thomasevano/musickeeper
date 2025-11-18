@@ -14,6 +14,7 @@
       hasBeenListened: false,
       album: itemType === 'album' ? item.name : item.album.name,
       type: itemType,
+      addedAt: Date.now(),
     }
     const dbRequest = indexedDB.open('listenLaterDB', 2)
 
