@@ -64,6 +64,7 @@
     if (oldVersion < 2) {
       const transaction = event.target.transaction
       const objectStore = transaction.objectStore('listenLaterList')
+      let counter = 0
 
       objectStore.openCursor().onsuccess = (cursorEvent) => {
         const cursor = cursorEvent.target.result
@@ -72,8 +73,12 @@
           // Add type field to existing items (default to 'track')
           if (!item.type) {
             item.type = 'track'
-            cursor.update(item)
           }
+          // Add addedAt field to existing items (use counter to preserve order)
+          if (!item.addedAt) {
+            item.addedAt = counter++
+          }
+          cursor.update(item)
           cursor.continue()
         }
       }
@@ -87,7 +92,7 @@
 
     const getRequest = store.getAll()
     getRequest.onsuccess = () => {
-      listenLaterItems = getRequest.result
+      listenLaterItems = getRequest.result.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
     }
   }
 
@@ -114,7 +119,7 @@
           const getAllRequest = refreshStore.getAll()
 
           getAllRequest.onsuccess = () => {
-            listenLaterItems = getAllRequest.result
+            listenLaterItems = getAllRequest.result.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
           }
         }
 
