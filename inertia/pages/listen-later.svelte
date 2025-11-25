@@ -8,7 +8,7 @@
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
-  import { Trash2 } from '@lucide/svelte'
+  import { Trash2, Check, X } from '@lucide/svelte'
 
   let {
     matchingItems = {
@@ -254,7 +254,11 @@
                           class="cursor-pointer"
                           onclick={() => handleListen(item)}
                         >
-                          {item.hasBeenListened ? '✅' : '❌'}
+                          {#if item.hasBeenListened}
+                            <Check color="green" />
+                          {:else}
+                            <X color="red" />
+                          {/if}
                         </Button>
                       </Tooltip.Trigger>
                       <Tooltip.Content>
