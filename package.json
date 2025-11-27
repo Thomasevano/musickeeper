@@ -29,7 +29,7 @@
     "@japa/assert": "^4.1.1",
     "@japa/plugin-adonisjs": "^4.0.0",
     "@japa/runner": "^4.4.0",
-    "@lucide/svelte": "^0.554.0",
+    "@lucide/svelte": "^0.544.0",
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "@swc/core": "^1.15.2",
     "@types/node": "^22.19.1",
