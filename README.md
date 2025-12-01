@@ -1,6 +1,31 @@
 # MusicKeeper
 
-**⚠️ THIS PROJECT IS STILL IN DEVELOPMENT ⚠️**
+⚠️ THIS PROJECT IS STILL IN DEVELOPMENT ⚠️
+
+##  Use Locally
+
+```bash
+git clone https://github.com/thomasevano/musickeeper.git
+cd musickeeper
+npm install
+cp .env.example .env
+```
+
+Generate an app key with AdonisJS
+
+```bash
+node ace generate:key
+```
+
+Edit the `.env` file with the Spotify credentials of the app you created on the Spotify developer dashboard([you can find documentation to create one here](https://github.com/thomasevano/musickeeper/wiki/How-to-create-a-Spotify-app))
+
+Then run the app
+
+```bash
+npm run dev
+```
+
+You can now access the app on <http://127.0.0.1:3333>
 
 ## FAQ
 
@@ -18,7 +43,7 @@ MusicKeeper is a music manager app that help you manage, extract, transfer your 
 ### Features
 
 - [x] Connect your Spotify account
-- [x] Extract your playlists as text files
+- [x] Extract your playlists as text files (available in v0.1.0)
 - [ ] Extract Albums, liked songs as text files
 - [ ] Buy an album directly from the app
 - [ ] Buy a playlist directly from the app
@@ -33,3 +58,7 @@ MusicKeeper is a music manager app that help you manage, extract, transfer your 
   - [ ] Tidal
   - [ ] Soundcloud
   - [ ] Amazon Music
+
+## 📝 License
+
+Copyright © 2025 [Thomas Evano](https://github.com/thomasevano).
