@@ -1,4 +1,4 @@
-FROM node:lts-alpine3.20 AS base
+FROM node:jod-alpine3.23 AS base
 ENV PNPM_HOME="/pnpm"
 RUN corepack enable
 
