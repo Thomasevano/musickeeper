@@ -2,19 +2,45 @@
 
 ⚠️ THIS PROJECT IS STILL IN DEVELOPMENT ⚠️
 
-##  Use Locally
+## Use it on your own
+
+Generate an app key with AdonisJS
+
+```bash
+node ace generate:key
+```
+
+### SelfHost MusicKeeper using Docker
+
+you can use the docker-compose.yml file or this one
+
+```yaml
+services:
+    musickeeper:
+      build: ghcr.io/thomasevano/musickeeper:latest
+      container_name: musickeeper
+      ports:
+        - "8080:8080"
+      environment:
+        - PORT=8080
+        - APP_KEY=
+        - SESSION_DRIVER=memory
+        - SPOTIFY_CLIENT_ID=your-spotify-client-id
+        - SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
+        - SPOTIFY_BASIC_TOKEN=your-spotify-basic-token
+        - SPOTIFY_BASE_URL=https://api.spotify.com
+        - SPOTIFY_REDIRECT_URI= #URL of your musickeeper instance you 
+        - VITE_BASE_URL= # URL with port of your musickeeper instance
+        - VITE_APP_NAME=MusicKeeper
+```
+
+###  Use Locally
 
 ```bash
 git clone https://github.com/thomasevano/musickeeper.git
 cd musickeeper
 pnpm install
 cp .env.example .env
-```
-
-Generate an app key with AdonisJS
-
-```bash
-node ace generate:key
 ```
 
 Edit the `.env` file with the Spotify credentials of the app you created on the Spotify developer dashboard([you can find documentation to create one here](https://github.com/thomasevano/musickeeper/wiki/How-to-create-a-Spotify-app))
