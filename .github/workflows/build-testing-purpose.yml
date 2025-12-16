@@ -1,13 +1,12 @@
-name: Build Static Image
+name: Build nightly image
 on:
-  release:
-    types: [created]
+  workflow_dispatch:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: 'thomasevano/musickeeper'
 
 jobs:
-  build-image:
+  build-nightly-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,7 +18,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN  }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build image and push to registry
         uses: docker/build-push-action@v6
         with:
@@ -27,13 +26,4 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-  production-deploy:
-    needs: build-image
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Deploy to Coolify
-        run: |
-          curl --request GET '${{ secrets.COOLIFY_WEBHOOK }}' --header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly
