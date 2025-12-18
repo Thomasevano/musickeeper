@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.0](https://github.com/Thomasevano/musickeeper/compare/v0.1.0...v0.2.0) (2025-12-18)
+
+
+### Features
+
+* add album type ([99391a8](https://github.com/Thomasevano/musickeeper/commit/99391a8e88c9246c1eca639e0edc8c05a312ff9f))
+* add check icon on current theme ([7e4aa37](https://github.com/Thomasevano/musickeeper/commit/7e4aa37b09c1f75b49ae46668fccbe835ad90ad9))
+* add listen later and remove playlists ([e3e2267](https://github.com/Thomasevano/musickeeper/commit/e3e22671032ec415eaf2caa3f04f16ce5a14a59f))
+* delete an item from the list ([5c58269](https://github.com/Thomasevano/musickeeper/commit/5c582698ac8efce954cf64a43ed3887f94215408))
+* mark en entry has listened ([e3483d0](https://github.com/Thomasevano/musickeeper/commit/e3483d0a82875379481af767242a42cc6617e82e))
+* remove playlists extract ([921a4be](https://github.com/Thomasevano/musickeeper/commit/921a4be368e7d37c92f79c0a188bdc4f3a6c37ff))
+
+
+### Bug Fixes
+
+* order list items by added date ([34444d1](https://github.com/Thomasevano/musickeeper/commit/34444d176d6c96c4ce3f809368c7660517e4b88d))
+* show an error page when user unauthorized try to access the app closes [#2](https://github.com/Thomasevano/musickeeper/issues/2) ([c5797ea](https://github.com/Thomasevano/musickeeper/commit/c5797ea35158e493bc02c5ad7c3134bb0d4e72b9))
+* show app version in footer in production ([31858c3](https://github.com/Thomasevano/musickeeper/commit/31858c367e015ad6a3363e1152ccb1612a623356))
+* use lucide icons instead of emoji ([933db5f](https://github.com/Thomasevano/musickeeper/commit/933db5f85261a11b73f5b8f5af52e436311a451c))
+
 ## [0.1.0](https://github.com/Thomasevano/musickeeper/compare/v0.0.3...v0.1.0) (2025-03-31)
 
 
