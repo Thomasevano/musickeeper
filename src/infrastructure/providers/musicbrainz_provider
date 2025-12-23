@@ -1,0 +1,7 @@
+import { MusicBrainzApi } from 'musicbrainz-api';
+
+const mbApi = new MusicBrainzApi({
+  appName: ${ process.env.APP_NAME },
+  appVersion: ${ process.env.APP_VERSION },
+  appContactInfo: 'user@mail.org',
+});
