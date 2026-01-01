@@ -9,30 +9,31 @@
   import Button from '~/lib/components/ui/button/button.svelte'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
   import { Trash2, Check, X } from '@lucide/svelte'
+  import { ListenLaterItem } from '../../src/domain/music_item'
 
-  let {
-    matchingItems = {
-      tracks: { items: [] },
-      albums: { items: [] },
-    },
-  } = $props()
+  let { serialializedItems = [] } = $props()
   let searchTerm = $state('')
   let searchType = $state('track')
-  let listenLaterItems = $state([])
-  let db
+  // let listenLaterItems = $state(Array<ListenLaterItem>)
+  let listenLaterItems = $state([]) as ListenLaterItem[]
+  let db: IDBDatabase
 
   const debouncedSearch = new Debounced(() => searchTerm, 500)
 
   async function handleSearch() {
     await fetch(`/library/listen-later?q=${debouncedSearch.current}&type=${searchType}`)
+      .then
+      // (response) => console.log(response.json())
+      ()
       .then((response) => response.json())
       .then((data) => {
-        matchingItems = data.matchingItems
+        serialializedItems = data.serializedItems
       })
       .catch((error) => {
         console.error('Error fetching data from music provider:', error)
         return []
       })
+    console.log({ serialializedItems })
   }
 
   $effect(() => {
@@ -40,10 +41,7 @@
       handleSearch()
     } else {
       // Reset matching items when search is empty
-      matchingItems = {
-        tracks: { items: [] },
-        albums: { items: [] },
-      }
+      serialializedItems = []
     }
   })
 
@@ -97,7 +95,7 @@
     }
   }
 
-  function handleListen(item): void {
+  function handleListen(item: ListenLaterItem): void {
     // Toggle hasBeenListened status
     const transaction = db.transaction(['listenLaterList'], 'readwrite')
     const objectStore = transaction.objectStore('listenLaterList')
@@ -137,7 +135,7 @@
     }
   }
 
-  function handleDelete(item): void {
+  function handleDelete(item: ListenLaterItem): void {
     // Delete item from IndexedDB
     const transaction = db.transaction(['listenLaterList'], 'readwrite')
     const objectStore = transaction.objectStore('listenLaterList')
@@ -151,7 +149,9 @@
       const getAllRequest = refreshStore.getAll()
 
       getAllRequest.onsuccess = () => {
-        listenLaterItems = getAllRequest.result.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
+        listenLaterItems = getAllRequest.result.sort(
+          (a: ListenLaterItem, b: ListenLaterItem) => a.addedAt - b.addedAt
+        )
       }
     }
 
@@ -186,7 +186,7 @@
     <Separator class="my-4" />
     <div class="mb-4 flex items-center gap-4">
       <label for="search-type" class="text-sm font-medium">Search for:</label>
-      <Select.Root type="single" bind:value={searchType} class="w-[180px]">
+      <Select.Root type="single" bind:value={searchType}>
         <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
         <Select.Content>
           <Select.Group>
@@ -205,21 +205,21 @@
         bind:value={searchTerm}
         placeholder="Search a song or album to add to your listen later list..."
       />
-      {#if (searchType === 'track' && matchingItems.tracks?.items?.length > 0) || (searchType === 'album' && matchingItems.albums?.items?.length > 0)}
+      {#if serialializedItems && serialializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
         <Command.List>
           <Command.Empty class="text-muted-foreground"
             >No results found for your search.</Command.Empty
           >
-          {#if searchType === 'track' && matchingItems.tracks?.items?.length > 0}
+          {#if searchType === 'track'}
             <Command.Group heading="Tracks">
-              {#each matchingItems.tracks.items as track (track.id)}
+              {#each serialializedItems as track (track.id)}
                 <TrackItem bind:listenLaterItems item={track} type="track" />
               {/each}
             </Command.Group>
           {/if}
-          {#if searchType === 'album' && matchingItems.albums?.items?.length > 0}
+          {#if searchType === 'album'}
             <Command.Group heading="Albums">
-              {#each matchingItems.albums.items as album (album.id)}
+              {#each serialializedItems as album (album.id)}
                 <TrackItem bind:listenLaterItems item={album} type="album" />
               {/each}
             </Command.Group>
@@ -238,7 +238,6 @@
               <th class="px-4 py-2">Title</th>
               <th class="px-4 py-2">Artists</th>
               <th class="px-4 py-2">Album</th>
-              <th class="px-4 py-2">Link</th>
               <th class="px-4 py-2">Delete</th>
             </tr>
           </thead>
@@ -271,24 +270,10 @@
                     </Tooltip.Root>
                   </Tooltip.Provider>
                 </td>
-                <td class="px-4 py-2 capitalize">{item.type || 'track'}</td>
+                <td class="px-4 py-2 capitalize">{item.itemType || 'track'}</td>
                 <td class="px-4 py-2">{item.title}</td>
                 <td class="px-4 py-2">{item.artists.join(', ')}</td>
-                <td class="px-4 py-2">{item.album || '-'}</td>
-                <td class="px-4 py-2">
-                  <Tooltip.Provider>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        <Button href={item.link} variant="link" class="relative">
-                          <i class="si si-spotify si--color text-2xl"></i>
-                        </Button>
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>
-                        <p>Open on Spotify</p>
-                      </Tooltip.Content>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                </td>
+                <td class="px-4 py-2">{item.albumName || '-'}</td>
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>
