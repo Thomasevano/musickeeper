@@ -36,8 +36,8 @@ export default defineConfig({
     () => import('@adonisjs/cors/cors_provider'),
     () => import('@adonisjs/inertia/inertia_provider'),
     () => import('@adonisjs/vite/vite_provider'),
-    () => import('./src/spotify_provider.js'),
-    () => import('@adonisjs/static/static_provider')
+    () => import('./src/infrastructure/providers/musicbrainz_provider.js'),
+    () => import('@adonisjs/static/static_provider'),
   ],
 
   /*
