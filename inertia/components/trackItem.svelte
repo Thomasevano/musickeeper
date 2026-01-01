@@ -2,19 +2,15 @@
   import { Check, Plus } from '@lucide/svelte'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
+  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
 
   let { listenLaterItems = $bindable(), item, type } = $props()
 
-  function addToListenLater(item, itemType) {
-    const itemTolistenLater = {
-      id: item.id,
-      title: item.name,
-      artists: item.artists.map((artist) => artist.name),
-      link: item.external_urls.spotify,
+  function addToListenLater(item: MusicItem) {
+    const itemTolistenLater: ListenLaterItem = {
+      ...item,
       hasBeenListened: false,
-      album: itemType === 'album' ? item.name : item.album.name,
-      type: itemType,
-      addedAt: Date.now(),
+      addedAt: new Date(),
     }
     const dbRequest = indexedDB.open('listenLaterDB', 2)
 
@@ -43,19 +39,19 @@
       const deleteRequest = store.delete(itemId)
       deleteRequest.onsuccess = () => {
         console.log('Item removed from listen later list:', itemId)
-        listenLaterItems = listenLaterItems.filter((item) => item.id !== itemId)
+        listenLaterItems = listenLaterItems.filter((item: ListenLaterItem) => item.id !== itemId)
       }
       deleteRequest.onerror = (error) => {
         console.error('Error removing item from listen later list:', error)
       }
     }
   }
-  function toggleListenLater(item, itemType) {
-    if (listenLaterItems.some((i) => i.id === item.id)) {
+  function toggleListenLater(item: MusicItem) {
+    if (listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)) {
       removeFromListenLater(item.id)
     } else {
       console.log('Adding item to listen later list:', item)
-      addToListenLater(item, itemType)
+      addToListenLater(item)
     }
   }
 </script>
@@ -65,27 +61,21 @@
     <Tooltip.Trigger class="w-full">
       <Command.Item
         class="cursor-pointer flex justify-between p-2"
-        onclick={() => toggleListenLater(item, type)}
+        onclick={() => toggleListenLater(item)}
       >
         <div class="flex items-center gap-4">
-          <img
-            src={type === 'album' ? item.images[2]?.url : item.album.images[2]?.url}
-            alt={`Cover of ${type === 'album' ? item.name : item.album.name}`}
-            class="object-cover h-32 w-32"
-          />
           <div class="flex flex-col justify-between text-left">
-            <p class="px-4 py-2">Title: {item.name}</p>
+            <p class="px-4 py-2">Title: {item.title}</p>
             <p class="px-4 py-2">
-              Artists: {item.artists.map((artist) => artist.name).join(', ')}
+              Artists: {item.artists.map((artist: string) => artist).join(', ')}
             </p>
             {#if type === 'track'}
-              <p class="px-4 py-2">Album: {item.album.name}</p>
-            {:else}
-              <p class="px-4 py-2">Type: Album</p>
-            {/if}
+              <p class="px-4 py-2">Album: {item.albumName}</p>
+            {:else}{/if}
+            <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
           </div>
         </div>
-        {#if listenLaterItems.some((i) => i.id === item.id)}
+        {#if listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)}
           <Check class="size-icon" />
         {:else}
           <Plus />
