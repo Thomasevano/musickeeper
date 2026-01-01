@@ -1,3 +1,5 @@
+import { IRecordingList, IReleaseList } from 'musicbrainz-api'
+
 export abstract class SearchRepository {
-  abstract searchItem(query: string, token: string, type?: string): Promise<SpotifyApi.SearchResponse>
+  abstract searchItem(query: string, type?: string): Promise<IRecordingList | IReleaseList>
 }
