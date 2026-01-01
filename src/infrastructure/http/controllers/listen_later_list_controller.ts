@@ -1,26 +1,15 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { SearchRepository } from '../../../application/repositories/search.repository.js'
-import { SpotifySearchRepository } from '../../repositories/spotify/spotify_search.repository.js'
-import { SPOTIFY_ACCESS_TOKEN_COOKIE_NAME } from '../../../constants.js'
+import { MusicBrainzRepository } from '../../repositories/musicbrainz_search.repository.js'
 
 export default class ListenLaterListController {
-  constructor(private searchRepository: SearchRepository = new SpotifySearchRepository()) { }
+  constructor(private searchRepository: SearchRepository = new MusicBrainzRepository()) {}
   async index({ inertia, request, response }: HttpContext) {
-    const spotifyAccessToken: string = request.encryptedCookie(SPOTIFY_ACCESS_TOKEN_COOKIE_NAME)
-
-    if (!spotifyAccessToken) {
-      console.error('No access token found!')
-    }
-
     const searchItem = request.qs().q
     const searchType = request.qs().type
 
     if (searchItem) {
-      const matchingItems = await this.searchRepository.searchItem(
-        searchItem,
-        spotifyAccessToken,
-        searchType
-      )
+      const matchingItems = await this.searchRepository.searchItem(searchItem, searchType)
       response.status(200).header('Content-Type', 'application/json').send({
         matchingItems,
       })
