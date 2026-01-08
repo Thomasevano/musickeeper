@@ -3,7 +3,7 @@ import type { ApplicationService } from '@adonisjs/core/types'
 import { SearchRepository } from '../../application/repositories/search.repository.js'
 import { MusicBrainzRepository } from '../repositories/musicbrainz_search.repository.js'
 
-export default class SpotifyProvider {
+export default class MusicBrainzProvider {
   constructor(protected app: ApplicationService) {}
   async boot() {
     this.app.container.bind(SearchRepository, () => {
