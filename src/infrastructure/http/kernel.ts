@@ -28,7 +28,7 @@ server.use([
   () => import('@adonisjs/cors/cors_middleware'),
   () => import('@adonisjs/vite/vite_middleware'),
   () => import('@adonisjs/inertia/inertia_middleware'),
-  () => import('@adonisjs/static/static_middleware')
+  () => import('@adonisjs/static/static_middleware'),
 ])
 
 /**
@@ -41,8 +41,4 @@ router.use([() => import('@adonisjs/core/bodyparser_middleware')])
  * Named middleware collection must be explicitly assigned to
  * the routes or the routes group.
  */
-export const middleware = router.named({
-  spotifyRefreshToken: () => import('#middleware/spotify_refresh_token'),
-  spotifyAuthCheck: () => import('#middleware/spotify_auth_check'),
-  shareUser: () => import('#middleware/share_user_middleware'),
-})
+export const middleware = router.named({})
