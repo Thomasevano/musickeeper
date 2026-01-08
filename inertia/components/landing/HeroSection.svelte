@@ -25,9 +25,8 @@
       recommanded to listen to.
     </p>
     <div class="flex justify-center space-x-2 md:space-x-4">
-      <Button size="lg" href="{import.meta.env.VITE_BASE_URL}/auth/spotify/login">
-        <i class="si si-spotify si--color mr-2 text-2xl"></i>
-        Connect your Spotify
+      <Button size="lg" href="{import.meta.env.VITE_BASE_URL}/library/listen-later">
+        Connect
         <span class="ml-1" aria-hidden="true">&rarr;</span>
       </Button>
     </div>
