@@ -1,6 +1,5 @@
 <script lang="ts">
   import * as Sidebar from '$lib/components/ui/sidebar'
-  import { ListMusic, ListEnd } from '@lucide/svelte'
   import type { ComponentProps } from 'svelte'
   import SidebarThemeSwitcher from './SidebarThemeSwitcher.svelte'
 

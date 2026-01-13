@@ -111,6 +111,8 @@ test('Serialize a track from MusicBrainz', async ({ assert }) => {
     ],
     'isrcs': ['GBAHT1600302', 'GBAHT1600331'],
   }
+  const exampleCoverArtUrl =
+    'http://coverartarchive.org/release/0153f3a0-5dac-4a5e-b503-8df1b3bb002c/14963972370.jpg'
   const expectedTrackMusicItem: MusicItem = {
     id: '026fa041-3917-4c73-9079-ed16e36f20f8',
     title: 'Blow Your Mind (Mwah)',
@@ -119,9 +121,13 @@ test('Serialize a track from MusicBrainz', async ({ assert }) => {
     artists: ['Dua Lipa'],
     albumName: 'Blow Your Mind (Mwah) (Remixes)',
     itemType: SearchType.track,
+    coverArt: exampleCoverArtUrl,
   }
 
-  const serializedTrackMusicItem = serializeRecordingAsTrackMusicItem(exampleMusicBrainzRecording)
+  const serializedTrackMusicItem = serializeRecordingAsTrackMusicItem(
+    exampleMusicBrainzRecording,
+    exampleCoverArtUrl
+  )
 
   assert.deepEqual(serializedTrackMusicItem, expectedTrackMusicItem)
 })
