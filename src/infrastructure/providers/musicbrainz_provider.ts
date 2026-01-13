@@ -1,5 +1,5 @@
-import { MusicBrainzApi } from 'musicbrainz-api'
 import type { ApplicationService } from '@adonisjs/core/types'
+import { CoverArtArchiveApi, MusicBrainzApi } from 'musicbrainz-api'
 import { SearchRepository } from '../../application/repositories/search.repository.js'
 import { MusicBrainzRepository } from '../repositories/musicbrainz_search.repository.js'
 
@@ -17,3 +17,5 @@ export const musicbrainzApi = new MusicBrainzApi({
   appVersion: process.env.APP_VERSION,
   appContactInfo: process.env.APP_CONTACT_EMAIL,
 })
+
+export const coverArtArchiveApiClient = new CoverArtArchiveApi()

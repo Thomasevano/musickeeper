@@ -1,7 +1,10 @@
 import { IReleaseMatch, IArtistCredit } from 'musicbrainz-api'
 import { MusicItem, SearchType } from '../../../domain/music_item.js'
 
-export function serializeReleaseAsAlbumMusicItem(release: IReleaseMatch): MusicItem {
+export function serializeReleaseAsAlbumMusicItem(
+  release: IReleaseMatch,
+  coverArtUrl: string = 'https://placehold.co/32x32'
+): MusicItem {
   return new MusicItem({
     id: release.id,
     title: release.title,
@@ -11,5 +14,6 @@ export function serializeReleaseAsAlbumMusicItem(release: IReleaseMatch): MusicI
     ),
     albumName: release.title,
     itemType: SearchType.album,
+    coverArt: coverArtUrl,
   })
 }

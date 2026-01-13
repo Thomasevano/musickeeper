@@ -11,6 +11,7 @@ interface MusicItemProperties {
   artists: string[]
   albumName?: string
   itemType: SearchType
+  coverArt?: string
 }
 
 export class MusicItem {
@@ -21,6 +22,7 @@ export class MusicItem {
   public artists: string[]
   public albumName?: string
   public itemType: SearchType
+  coverArt?: string
   public constructor(props: MusicItemProperties) {
     this.id = props.id
     this.title = props.title
@@ -29,6 +31,7 @@ export class MusicItem {
     this.artists = props.artists
     this.albumName = props.albumName
     this.itemType = props.itemType
+    this.coverArt = props.coverArt
   }
 }
 
