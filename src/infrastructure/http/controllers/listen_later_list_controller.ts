@@ -14,7 +14,7 @@ export default class ListenLaterListController {
 
     if (searchItem && searchItem.length >= 3) {
       const matchingItems = await this.searchRepository.searchItem(searchItem, searchType)
-      const serializedItems = this.serializeSearchResults(matchingItems)
+      const serializedItems = await this.serializeSearchResults(matchingItems)
       response.status(200).header('Content-Type', 'application/json').send({
         serializedItems,
       })
@@ -25,7 +25,7 @@ export default class ListenLaterListController {
       {
         title: 'Listen Later - MusicKeeper',
         description:
-          'Musickeeper a platform to extract an manage your music library from music streaming services',
+          "got music recommandations you don't want to lose, just add it to the listen later list",
       }
     )
   }

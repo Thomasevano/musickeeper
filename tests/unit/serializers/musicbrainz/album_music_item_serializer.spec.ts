@@ -88,6 +88,8 @@ test('Serialize a release from MusicBrainz as an Album', async ({ assert }) => {
     ],
   }
 
+  const exampleCoverArtUrl = undefined
+
   const expectedAlbumMusicItem: MusicItem = {
     id: '62d1c4ef-fc00-37af-8df7-485f6a31fcc4',
     title: 'Fred Schneider & The Shake Society',
@@ -96,9 +98,13 @@ test('Serialize a release from MusicBrainz as an Album', async ({ assert }) => {
     albumName: 'Fred Schneider & The Shake Society',
     itemType: SearchType.album,
     length: undefined,
+    coverArt: 'https://placehold.co/32x32',
   }
 
-  const serializedAlbumMusicItem = serializeReleaseAsAlbumMusicItem(exampleMusicBrainzRelease)
+  const serializedAlbumMusicItem = serializeReleaseAsAlbumMusicItem(
+    exampleMusicBrainzRelease,
+    exampleCoverArtUrl
+  )
 
   assert.deepEqual(serializedAlbumMusicItem, expectedAlbumMusicItem)
 })

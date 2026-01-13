@@ -59,10 +59,8 @@
 <Tooltip.Provider>
   <Tooltip.Root>
     <Tooltip.Trigger class="w-full">
-      <Command.Item
-        class="cursor-pointer flex justify-between p-2"
-        onclick={() => toggleListenLater(item)}
-      >
+      <Command.Item class="cursor-pointer flex p-2" onclick={() => toggleListenLater(item)}>
+        <img src={item.coverArt} alt={`Cover of ${item.title}`} class="object-cover h-32 w-32" />
         <div class="flex items-center gap-4">
           <div class="flex flex-col justify-between text-left">
             <p class="px-4 py-2">Title: {item.title}</p>
@@ -75,11 +73,13 @@
             <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
           </div>
         </div>
-        {#if listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)}
-          <Check class="size-icon" />
-        {:else}
-          <Plus />
-        {/if}
+        <div class="ml-auto">
+          {#if listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)}
+            <Check class="size-icon" />
+          {:else}
+            <Plus />
+          {/if}
+        </div>
       </Command.Item>
     </Tooltip.Trigger>
     <Tooltip.Content>Add to Listen Later</Tooltip.Content>
