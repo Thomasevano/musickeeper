@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Debounced } from 'runed'
   import LibraryLayout from './libraryLayout.svelte'
-  import * as Sidebar from '$lib/components/ui/sidebar/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
@@ -175,7 +174,6 @@
   <div class="h-full w-full px-4 py-6 lg:px-8">
     <div class="flex flex-col justify-between md:flex-row">
       <div class="flex flex-row">
-        <Sidebar.Trigger class="mr-2" />
         <div class="mb-4 space-y-2 md:mb-0">
           <h2 class="text-2xl font-semibold tracking-tight">Listen Later</h2>
           <p class="text-muted-foreground text-sm">
