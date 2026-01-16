@@ -184,7 +184,7 @@
     </div>
     <Separator class="my-4" />
     <div class="mb-4 flex items-center gap-4">
-      <label for="search-type" class="text-sm font-medium">Search for:</label>
+      <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType}>
         <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
         <Select.Content>
@@ -198,41 +198,41 @@
           </Select.Group>
         </Select.Content>
       </Select.Root>
+      <Command.Root class="rounded-lg border shadow-md" shouldFilter={false}>
+        <Command.Input
+          bind:value={searchTerm}
+          placeholder="Search a song or album to add to your listen later list..."
+        />
+        {#if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
+          <Command.List>
+            <Command.Empty class="text-muted-foreground"
+              >No results found for your search.</Command.Empty
+            >
+            {#if searchType === 'track'}
+              <Command.Group heading="Tracks">
+                {#each serializedItems as track (track.id)}
+                  <TrackItem bind:listenLaterItems item={track} type="track" />
+                {/each}
+              </Command.Group>
+            {/if}
+            {#if searchType === 'album'}
+              <Command.Group heading="Albums">
+                {#each serializedItems as album (album.id)}
+                  <TrackItem bind:listenLaterItems item={album} type="album" />
+                {/each}
+              </Command.Group>
+            {/if}
+          </Command.List>
+        {/if}
+      </Command.Root>
     </div>
-    <Command.Root class="rounded-lg border shadow-md mb-4" shouldFilter={false}>
-      <Command.Input
-        bind:value={searchTerm}
-        placeholder="Search a song or album to add to your listen later list..."
-      />
-      {#if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
-        <Command.List>
-          <Command.Empty class="text-muted-foreground"
-            >No results found for your search.</Command.Empty
-          >
-          {#if searchType === 'track'}
-            <Command.Group heading="Tracks">
-              {#each serializedItems as track (track.id)}
-                <TrackItem bind:listenLaterItems item={track} type="track" />
-              {/each}
-            </Command.Group>
-          {/if}
-          {#if searchType === 'album'}
-            <Command.Group heading="Albums">
-              {#each serializedItems as album (album.id)}
-                <TrackItem bind:listenLaterItems item={album} type="album" />
-              {/each}
-            </Command.Group>
-          {/if}
-        </Command.List>
-      {/if}
-    </Command.Root>
-
     <div>
       {#if listenLaterItems.length > 0}
         <table>
           <thead>
             <tr>
               <th class="px-4 py-2">Listened</th>
+              <th class="px-4 py-2">Cover</th>
               <th class="px-4 py-2">Type</th>
               <th class="px-4 py-2">Title</th>
               <th class="px-4 py-2">Artists</th>
@@ -269,7 +269,14 @@
                     </Tooltip.Root>
                   </Tooltip.Provider>
                 </td>
-                <td class="px-4 py-2 capitalize">{item.itemType || 'track'}</td>
+                <td class="px-4 py-2">
+                  <img
+                    src={item.coverArt}
+                    alt={`Cover of ${item.title}`}
+                    class="object-cover h-32 w-32"
+                  />
+                </td>
+                <td class="px-4 py-2 capitalize">{item.itemType}</td>
                 <td class="px-4 py-2">{item.title}</td>
                 <td class="px-4 py-2">{item.artists.join(', ')}</td>
                 <td class="px-4 py-2">{item.albumName || '-'}</td>
