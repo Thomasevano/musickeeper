@@ -6,7 +6,7 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "start": "node bin/server.js",
-    "build": "APP_VERSION=$npm_package_version APP_NAME=$npm_package_name node ace build",
+    "build": "node ace build",
     "dev": "node ace serve --hmr",
     "test": "node ace test",
     "lint": "eslint .",
@@ -106,3 +106,4 @@
   },
   "prettier": "@adonisjs/prettier-config"
 }
+
