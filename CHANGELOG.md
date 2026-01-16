@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.2.0](https://github.com/Thomasevano/musickeeper/compare/v0.1.0...v0.2.0) (2026-01-16)
+
+
+### Features
+
+* add album type ([99391a8](https://github.com/Thomasevano/musickeeper/commit/99391a8e88c9246c1eca639e0edc8c05a312ff9f))
+* add art cover to music item ([8f2437c](https://github.com/Thomasevano/musickeeper/commit/8f2437c88ad7e252f7d29b0c973f5f3f6678a2c7))
+* add check icon on current theme ([7e4aa37](https://github.com/Thomasevano/musickeeper/commit/7e4aa37b09c1f75b49ae46668fccbe835ad90ad9))
+* add listen later and remove playlists ([e3e2267](https://github.com/Thomasevano/musickeeper/commit/e3e22671032ec415eaf2caa3f04f16ce5a14a59f))
+* add MusicBrainz API ([e4eb24c](https://github.com/Thomasevano/musickeeper/commit/e4eb24ca33655b0f5a536e79e6b7a82f4fcb96e0))
+* delete an item from the list ([5c58269](https://github.com/Thomasevano/musickeeper/commit/5c582698ac8efce954cf64a43ed3887f94215408))
+* mark en entry has listened ([e3483d0](https://github.com/Thomasevano/musickeeper/commit/e3483d0a82875379481af767242a42cc6617e82e))
+* remove playlists extract ([921a4be](https://github.com/Thomasevano/musickeeper/commit/921a4be368e7d37c92f79c0a188bdc4f3a6c37ff))
+
+
+### Bug Fixes
+
+* order list items by added date ([34444d1](https://github.com/Thomasevano/musickeeper/commit/34444d176d6c96c4ce3f809368c7660517e4b88d))
+* show an error page when user unauthorized try to access the app closes [#2](https://github.com/Thomasevano/musickeeper/issues/2) ([c5797ea](https://github.com/Thomasevano/musickeeper/commit/c5797ea35158e493bc02c5ad7c3134bb0d4e72b9))
+* show app version in footer in production ([31858c3](https://github.com/Thomasevano/musickeeper/commit/31858c367e015ad6a3363e1152ccb1612a623356))
+* use lucide icons instead of emoji ([933db5f](https://github.com/Thomasevano/musickeeper/commit/933db5f85261a11b73f5b8f5af52e436311a451c))
+
+
+### Miscellaneous Chores
+
+* release 0.2.0 ([4d861ef](https://github.com/Thomasevano/musickeeper/commit/4d861efa7939746d42f5a0c1ce8aedf1d05737f6))
+
 ## [0.2.0](https://github.com/Thomasevano/musickeeper/compare/v0.1.0...v0.2.0) (2025-12-18)
 
 
