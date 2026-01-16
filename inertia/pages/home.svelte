@@ -8,7 +8,6 @@
 </script>
 
 <Layout {title} {description}>
-  <Navigation />
   <HeroSection />
   <Features />
 </Layout>
