@@ -16,22 +16,18 @@ you can use the docker-compose.yml file or this one
 
 ```yaml
 services:
-    musickeeper:
-      build: ghcr.io/thomasevano/musickeeper:latest
-      container_name: musickeeper
-      ports:
-        - "8080:8080"
-      environment:
-        - PORT=8080
-        - APP_KEY=
-        - SESSION_DRIVER=memory
-        - SPOTIFY_CLIENT_ID=your-spotify-client-id
-        - SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
-        - SPOTIFY_BASIC_TOKEN=your-spotify-basic-token
-        - SPOTIFY_BASE_URL=https://api.spotify.com
-        - SPOTIFY_REDIRECT_URI= #URL of your musickeeper instance you 
-        - VITE_BASE_URL= # URL with port of your musickeeper instance
-        - VITE_APP_NAME=MusicKeeper
+  musickeeper:
+    build: ghcr.io/thomasevano/musickeeper:latest
+    container_name: musickeeper
+    ports:
+      - '8080:8080'
+    environment:
+      - PORT=8080
+      - APP_KEY=
+      - SESSION_DRIVER=memory
+      - VITE_BASE_URL= # URL with port of your musickeeper instance
+      - VITE_APP_NAME=MusicKeeper
+      - MB_APP_CONTACT_EMAIL= # contact email for MusicBrainz
 ```
 
 ###  Use Locally
