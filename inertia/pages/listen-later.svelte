@@ -87,7 +87,7 @@
 
     const getRequest = store.getAll()
     getRequest.onsuccess = () => {
-      listenLaterItems = getRequest.result.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0))
+      sortListenLaterItems(getRequest)
     }
   }
 
@@ -116,10 +116,9 @@
           getAllRequest.onsuccess = () => {
             sortListenLaterItems(getAllRequest)
           }
-
-          updateRequest.onerror = (error) => {
-            console.error('Error updating item:', error)
-          }
+        }
+        updateRequest.onerror = (error) => {
+          console.error('Error updating item:', error)
         }
       }
     }
@@ -162,14 +161,13 @@
   )
 
   function sortListenLaterItems(getAllRequest: IDBRequest<any[]>) {
-    listenLaterItems = getAllRequest.result.sort((a: ListenLaterItem, b: ListenLaterItem) => {
-      // this condition exists only for legacy reasons, I should remove it later
-      // TODO: remove this condition when I can export and import the list
-      if ((typeof a.addedAt && typeof b.addedAt) === typeof Date) {
-        a.addedAt.getDate() - b.addedAt.getDate()
-      }
-      a.addedAt - b.addedAt
-    })
+    // TODO: remove this condition when I can export and import the list
+    // this condition exists only for legacy reasons, I should remove it later
+    listenLaterItems = getAllRequest.result.sort((a: ListenLaterItem, b: ListenLaterItem) =>
+      (typeof a.addedAt && typeof b.addedAt) === typeof Date
+        ? a.addedAt.getDate() - b.addedAt.getDate()
+        : (a.addedAt || 0) - (b.addedAt || 0)
+    )
   }
 </script>
 
