@@ -171,7 +171,7 @@
 </script>
 
 <LibraryLayout data={listenLaterItems}>
-  <div class="h-full w-full px-4 py-6 lg:px-8">
+  <div class="mx-auto w-full max-w-7xl px-8 py-6 md:px-12 lg:px-16">
     <div class="flex flex-col justify-between md:flex-row">
       <div class="flex flex-row">
         <div class="mb-4 space-y-2 md:mb-0">
