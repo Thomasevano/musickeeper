@@ -16,6 +16,7 @@ export default await Env.create(new URL('../..', import.meta.url), {
   PORT: Env.schema.number(),
   APP_KEY: Env.schema.string(),
   LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']),
+  MB_APP_CONTACT_EMAIL: Env.schema.string({ format: 'email' }),
 
   /*
   |----------------------------------------------------------
