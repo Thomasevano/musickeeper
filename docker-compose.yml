@@ -1,8 +1,8 @@
 services:
-    musickeeper:
-      build: Dockerfile
-      container_name: musickeeper
-      ports:
-        - "3333:8080"
-      env_file:
-        - .env.local
+  musickeeper:
+    build: .
+    container_name: musickeeper
+    ports:
+      - '3333:8080'
+    env_file:
+      - .env.prod.local
