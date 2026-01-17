@@ -7,14 +7,8 @@ import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      external: ['JSZip'],
-    },
-  },
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-  },
+  build: {},
+  define: {},
   plugins: [
     inertia(),
     svelte(),

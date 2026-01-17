@@ -1,5 +1,10 @@
 import { defineConfig } from '@adonisjs/inertia'
 import type { InferSharedProps } from '@adonisjs/inertia/types'
+import { readFileSync } from 'node:fs'
+
+const packageJson = JSON.parse(
+  readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')
+)
 
 const inertiaConfig = defineConfig({
   /**
@@ -19,12 +24,13 @@ const inertiaConfig = defineConfig({
     entrypoint: 'inertia/app/ssr.ts',
   },
   sharedData: {
-    appName: 'MusicKeeper',
+    appName: packageJson.name,
+    appVersion: packageJson.version,
   },
 })
 
 export default inertiaConfig
 
 declare module '@adonisjs/inertia/types' {
-  export interface SharedProps extends InferSharedProps<typeof inertiaConfig> { }
+  export interface SharedProps extends InferSharedProps<typeof inertiaConfig> {}
 }
