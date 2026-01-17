@@ -37,6 +37,7 @@
       <nav class="hidden grow flex-col md:flex md:flex-row md:justify-center md:pb-0">
         <div class="md:ml-auto md:justify-between">
           <Button href="/#features" variant="link">Features</Button>
+          <Button href="https://thomasevano.fr/en/tags/musickeeper/" variant="link">Blog</Button>
         </div>
         <div class="flex md:ml-auto">
           <ToggleTheme />
