@@ -29,12 +29,12 @@
     "@japa/assert": "^4.1.1",
     "@japa/plugin-adonisjs": "^4.0.0",
     "@japa/runner": "^4.4.0",
-    "@lucide/svelte": "^0.544.0",
+    "@lucide/svelte": "^0.561.0",
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "@swc/core": "^1.15.2",
     "@types/node": "^22.19.1",
     "@types/spotify-api": "^0.0.25",
-    "bits-ui": "2.14.3",
+    "bits-ui": "2.15.4",
     "clsx": "^2.1.1",
     "dequal": "^2.0.3",
     "eslint": "^9.39.1",
@@ -49,7 +49,7 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwind-merge": "^3.4.0",
-    "tailwind-variants": "^3.1.1",
+    "tailwind-variants": "^3.2.2",
     "tailwindcss": "^4.1.17",
     "ts-node-maintained": "^10.9.6",
     "typescript": "~5.9.3",
@@ -106,4 +106,3 @@
   },
   "prettier": "@adonisjs/prettier-config"
 }
-
