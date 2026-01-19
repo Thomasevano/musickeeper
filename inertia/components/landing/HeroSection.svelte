@@ -17,16 +17,15 @@
     <h1
       class="font-heading text-balance text-4xl font-bold leading-[1.1]! sm:text-5xl md:text-6xl lg:text-7xl"
     >
-      MusicKeeper
+      Keep track of music recommendations
     </h1>
 
     <p class="text-muted-foreground max-w-2xl text-balance leading-normal sm:text-xl sm:leading-8">
-      A music manager app that help you manage and keep track on music you want or have been
-      recommanded to listen to.
+      A simple app to keep track on music you want or have been recommanded to listen to.
     </p>
     <div class="flex justify-center space-x-2 md:space-x-4">
       <Button size="lg" href="{import.meta.env.VITE_BASE_URL}/library/listen-later">
-        Connect
+        Get Started
         <span class="ml-1" aria-hidden="true">&rarr;</span>
       </Button>
     </div>
