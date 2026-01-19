@@ -21,7 +21,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
+            type=semver,pattern={{raw}
 
       - uses: actions/checkout@v4.1.7
       - name: Login to ghcr.io
@@ -41,5 +41,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.meta.outputs.tags }}
+            ${{ steps.meta.outputs.tags }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
