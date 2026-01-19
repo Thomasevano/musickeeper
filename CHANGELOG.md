@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0](https://github.com/Thomasevano/musickeeper/compare/v0.2.0...v0.3.0) (2026-01-19)
+
+
+### Features
+
+* add art cover to music item ([810f2b8](https://github.com/Thomasevano/musickeeper/commit/810f2b838c0a2c2cc6943652434708f5609c6ee5))
+* add MusicBrainz API ([7b7da1d](https://github.com/Thomasevano/musickeeper/commit/7b7da1dc9a89cb096eaad53a1bd3c6fa451601de))
+* **ui:** remove sidebar and use navbar instead ([6267baa](https://github.com/Thomasevano/musickeeper/commit/6267baad589193ab13b5bb162c30de82099a9aed))
+
+
+### Bug Fixes
+
+* **api:** access package.json varaibles in production for musicbrainz api ([5ae5e2c](https://github.com/Thomasevano/musickeeper/commit/5ae5e2ce1242d434056d1195da2d80d5cd2e6760))
+* docker build ([70b37b7](https://github.com/Thomasevano/musickeeper/commit/70b37b767a4d62120b321bf28b00c08c4d6dd62d))
+* sorting listenlater items ([8972a5b](https://github.com/Thomasevano/musickeeper/commit/8972a5b4244db817bd35c3935251a2cf99ae7c9a))
+* **ui:** show app version in footer ([5dab5c6](https://github.com/Thomasevano/musickeeper/commit/5dab5c6621786ba257eaa99828e95382f4b4cf80))
+
 ## [0.2.0](https://github.com/Thomasevano/musickeeper/compare/v0.1.0...v0.2.0) (2025-12-18)
 
 
