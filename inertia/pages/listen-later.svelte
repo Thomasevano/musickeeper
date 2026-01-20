@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Debounced } from 'runed'
-  import LibraryLayout from './libraryLayout.svelte'
+  import LibraryLayout from '../layouts/libraryLayout.svelte'
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
