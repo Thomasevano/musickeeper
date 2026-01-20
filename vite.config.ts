@@ -10,7 +10,12 @@ export default defineConfig({
   build: {},
   define: {},
   plugins: [
-    inertia(),
+    inertia({
+      ssr: {
+        enabled: true,
+        entrypoint: 'inertia/app/ssr.ts',
+      },
+    }),
     svelte(),
     adonisjs({ entrypoints: ['inertia/app/app.ts'], reload: ['resources/views/**/*.edge'] }),
     tailwindcss(),
