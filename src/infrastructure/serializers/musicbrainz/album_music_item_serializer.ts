@@ -3,7 +3,7 @@ import { MusicItem, SearchType } from '../../../domain/music_item.js'
 
 export function serializeReleaseAsAlbumMusicItem(
   release: IReleaseMatch,
-  coverArtUrl: string = 'https://placehold.co/32x32'
+  coverArtUrl: string = '../../../../resources/images/Blank_album.svg'
 ): MusicItem {
   return new MusicItem({
     id: release.id,
