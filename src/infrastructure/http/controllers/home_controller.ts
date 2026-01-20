@@ -5,9 +5,9 @@ export default class HomeController {
       'home',
       {},
       {
-        title: 'MusicKeeper - Music Manager',
+        title: 'MusicKeeper',
         description:
-          'Musickeeper a platform to extract an manage your music library from music streaming services',
+          'A simple app to keep track on music you want or have been recommanded to listen to',
       }
     )
   }
