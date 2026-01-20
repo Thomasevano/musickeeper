@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/Thomasevano/musickeeper/compare/v0.3.0...v0.3.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* remove need of base url ([3f29966](https://github.com/Thomasevano/musickeeper/commit/3f29966c68f85c95496a8c7b2fa95f855f1cfee5))
+
 ## [0.3.0](https://github.com/Thomasevano/musickeeper/compare/v0.2.0...v0.3.0) (2026-01-19)
 
 
