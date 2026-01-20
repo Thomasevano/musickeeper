@@ -16,7 +16,7 @@
   let listenLaterItems = $state([]) as ListenLaterItem[]
   let db: IDBDatabase
 
-  const debouncedSearch = new Debounced(() => searchTerm, 500)
+  const debouncedSearch = new Debounced(() => searchTerm, 250)
 
   async function handleSearch() {
     try {
