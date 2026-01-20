@@ -2,7 +2,8 @@
   import { Check, Plus } from '@lucide/svelte'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
-  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem } from '../../src/domain/music_item'
+  import CoverArt from '~/components/CoverArt.svelte'
 
   let { listenLaterItems = $bindable(), item, type } = $props()
 
@@ -60,7 +61,7 @@
   <Tooltip.Root>
     <Tooltip.Trigger class="w-full">
       <Command.Item class="cursor-pointer flex p-2" onclick={() => toggleListenLater(item)}>
-        <img src={item.coverArt} alt={`Cover of ${item.title}`} class="object-cover h-32 w-32" />
+        <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
         <div class="flex items-center gap-4">
           <div class="flex flex-col justify-between text-left">
             <p class="px-4 py-2">Title: {item.title}</p>

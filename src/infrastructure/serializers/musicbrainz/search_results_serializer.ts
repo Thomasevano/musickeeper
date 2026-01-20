@@ -11,11 +11,14 @@ export async function serializeMusicBrainzSearchResults(
   if (searchResults.releases) {
     // @ts-expect-error musicbrainz-api doesn't allow union types
     const promises = searchResults.releases.map(async (release: IReleaseMatch) => {
-      const coverArt = await coverArtArchiveApiClient.getReleaseCover(release.id, 'front')
+      const coverArt = await coverArtArchiveApiClient.getReleaseCovers(release.id)
       // TODO: maybe this could be refactored as one serializer for music items
       // TODO: write a test for this file
-      if (coverArt.url) {
-        return serializeReleaseAsAlbumMusicItem(release, coverArt.url)
+      if (coverArt.images) {
+        if (coverArt.images.length > 0) {
+          return serializeReleaseAsAlbumMusicItem(release, coverArt.images[0].thumbnails.small)
+        }
+        return serializeReleaseAsAlbumMusicItem(release)
       }
       return serializeReleaseAsAlbumMusicItem(release)
     })
@@ -24,13 +27,15 @@ export async function serializeMusicBrainzSearchResults(
   // @ts-expect-error musicbrainz-api doesn't allow union types
   const promises = searchResults.recordings.map(async (recording: IRecordingMatch) => {
     if (recording.releases) {
-      const coverArt = await coverArtArchiveApiClient.getReleaseCover(
-        recording.releases[0].id,
-        'front'
-      )
-      if (coverArt.url) {
-        return serializeRecordingAsTrackMusicItem(recording, coverArt.url)
+      const coversArt = await coverArtArchiveApiClient.getReleaseCovers(recording.releases[0].id)
+
+      if (coversArt.images) {
+        if (coversArt.images.length > 0) {
+          return serializeRecordingAsTrackMusicItem(recording, coversArt.images[0].thumbnails.small)
+        }
+        return serializeRecordingAsTrackMusicItem(recording)
       }
+      return serializeRecordingAsTrackMusicItem(recording)
     }
     return serializeRecordingAsTrackMusicItem(recording)
   })

@@ -9,6 +9,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
   import { Trash2, Check, X } from '@lucide/svelte'
   import { ListenLaterItem } from '../../src/domain/music_item'
+  import CoverArt from '~/components/CoverArt.svelte'
 
   let { serializedItems = [] } = $props()
   let searchTerm = $state('')
@@ -187,9 +188,11 @@
       <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType}>
         <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
+
         <Select.Content>
           <Select.Group>
             <Select.Label>Types</Select.Label>
+
             {#each types as type (type.value)}
               <Select.Item value={type.value} label={type.label}>
                 {type.label}
@@ -198,16 +201,19 @@
           </Select.Group>
         </Select.Content>
       </Select.Root>
+
       <Command.Root class="rounded-lg border shadow-md" shouldFilter={false}>
         <Command.Input
           bind:value={searchTerm}
           placeholder="Search a song or album to add to your listen later list..."
         />
+
         {#if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
           <Command.List>
             <Command.Empty class="text-muted-foreground"
               >No results found for your search.</Command.Empty
             >
+
             {#if searchType === 'track'}
               <Command.Group heading="Tracks">
                 {#each serializedItems as track (track.id)}
@@ -215,6 +221,7 @@
                 {/each}
               </Command.Group>
             {/if}
+
             {#if searchType === 'album'}
               <Command.Group heading="Albums">
                 {#each serializedItems as album (album.id)}
@@ -270,11 +277,7 @@
                   </Tooltip.Provider>
                 </td>
                 <td class="px-4 py-2">
-                  <img
-                    src={item.coverArt}
-                    alt={`Cover of ${item.title}`}
-                    class="object-cover h-32 w-32"
-                  />
+                  <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
                 </td>
                 <td class="px-4 py-2 capitalize">{item.itemType}</td>
                 <td class="px-4 py-2">{item.title}</td>
