@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.2](https://github.com/Thomasevano/musickeeper/compare/v0.3.1...v0.3.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* **ci:** typo version ([31a3557](https://github.com/Thomasevano/musickeeper/commit/31a355763184f956a0938c24a19b486d28bc0f25))
+
+
+### Performance Improvements
+
+* reduce debounce time ([e6a5935](https://github.com/Thomasevano/musickeeper/commit/e6a59357fe9aee4857147900ed984ca9e47ec010))
+* **ui:** bundle a placeholder svg instead of using url ([cbbca7e](https://github.com/Thomasevano/musickeeper/commit/cbbca7efc39f3adb8e9b966b9c4f3eeb1af43ff9))
+
 ## [0.3.1](https://github.com/Thomasevano/musickeeper/compare/v0.3.0...v0.3.1) (2026-01-20)
 
 
