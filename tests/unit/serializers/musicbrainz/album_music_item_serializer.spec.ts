@@ -98,7 +98,7 @@ test('Serialize a release from MusicBrainz as an Album', async ({ assert }) => {
     albumName: 'Fred Schneider & The Shake Society',
     itemType: SearchType.album,
     length: undefined,
-    coverArt: 'https://placehold.co/32x32',
+    coverArt: '../../../../resources/images/Blank_album.svg',
   }
 
   const serializedAlbumMusicItem = serializeReleaseAsAlbumMusicItem(
