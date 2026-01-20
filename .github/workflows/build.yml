@@ -21,7 +21,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{raw}
+            type=semver,pattern={{raw}}
 
       - uses: actions/checkout@v4.1.7
       - name: Login to ghcr.io
