@@ -25,7 +25,6 @@ services:
       - PORT=8080
       - APP_KEY=
       - SESSION_DRIVER=memory
-      - VITE_BASE_URL= # URL with port of your musickeeper instance
       - VITE_APP_NAME=MusicKeeper
       - MB_APP_CONTACT_EMAIL= # contact email for MusicBrainz
 ```

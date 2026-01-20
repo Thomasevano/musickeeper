@@ -24,7 +24,7 @@
       A simple app to keep track on music you want or have been recommanded to listen to.
     </p>
     <div class="flex justify-center space-x-2 md:space-x-4">
-      <Button size="lg" href="{import.meta.env.VITE_BASE_URL}/library/listen-later">
+      <Button size="lg" href="/library/listen-later">
         Get Started
         <span class="ml-1" aria-hidden="true">&rarr;</span>
       </Button>
