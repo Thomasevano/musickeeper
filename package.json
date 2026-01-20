@@ -35,7 +35,6 @@
     "@types/node": "^22.19.1",
     "@types/spotify-api": "^0.0.25",
     "bits-ui": "2.15.4",
-    "clsx": "^2.1.1",
     "dequal": "^2.0.3",
     "eslint": "^9.39.1",
     "esm-env": "^1.2.2",
@@ -48,8 +47,6 @@
     "postcss-load-config": "^6.0.1",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
-    "tailwind-merge": "^3.4.0",
-    "tailwind-variants": "^3.2.2",
     "tailwindcss": "^4.1.17",
     "ts-node-maintained": "^10.9.6",
     "typescript": "~5.9.3",
@@ -70,6 +67,7 @@
     "@inertiajs/svelte": "^2.2.18",
     "@tailwindcss/vite": "^4.1.17",
     "@vinejs/vine": "^4.1.0",
+    "clsx": "^2.1.1",
     "jszip": "^3.10.1",
     "mode-watcher": "^1.1.0",
     "musicbrainz-api": "^0.27.1",
@@ -79,6 +77,8 @@
     "runed": "^0.36.0",
     "simple-icons-font": "^15.21.0",
     "svelte": "^5.43.8",
+    "tailwind-merge": "^3.4.0",
+    "tailwind-variants": "^3.2.2",
     "tailwindcss-animate": "^1.0.7"
   },
   "hotHook": {
