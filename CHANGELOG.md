@@ -1,7 +1,12 @@
 # Changelog
 
-## [0.3.1](https://github.com/Thomasevano/musickeeper/compare/v0.3.0...v0.3.1) (2026-01-20)
+## [0.3.2](https://github.com/Thomasevano/musickeeper/compare/v0.3.1...v0.3.2) (2026-01-20)
 
+### Bug Fixes
+
+- **ci:** typo version ([31a3557](https://github.com/Thomasevano/musickeeper/commit/31a355763184f956a0938c24a19b486d28bc0f25))
+
+## [0.3.1](https://github.com/Thomasevano/musickeeper/compare/v0.3.0...v0.3.1) (2026-01-20)
 
 ### Bug Fixes
 
