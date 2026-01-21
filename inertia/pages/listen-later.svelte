@@ -15,11 +15,13 @@
   let searchTerm = $state('')
   let searchType = $state('track')
   let listenLaterItems = $state([]) as ListenLaterItem[]
+  let isSearching = $state(false)
   let db: IDBDatabase
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
 
   async function handleSearch() {
+    isSearching = true
     try {
       const response = await fetch(
         `/library/listen-later?q=${debouncedSearch.current}&type=${searchType}`
@@ -29,6 +31,8 @@
     } catch (error) {
       console.error('Error fetching data from music provider:', error)
       serializedItems = []
+    } finally {
+      isSearching = false
     }
   }
 
@@ -207,8 +211,13 @@
           bind:value={searchTerm}
           placeholder="Search a song or album to add to your listen later list..."
         />
-
-        {#if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
+        {#if isSearching}
+          <Command.List>
+            <Command.Group heading={searchType === 'track' ? 'Tracks' : 'Albums'}>
+              <TrackItem loading={true} type={searchType} />
+            </Command.Group>
+          </Command.List>
+        {:else if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
           <Command.List>
             <Command.Empty class="text-muted-foreground"
               >No results found for your search.</Command.Empty
