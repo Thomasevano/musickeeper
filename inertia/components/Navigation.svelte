@@ -2,6 +2,7 @@
   import { IsMobile } from '$lib/components/hooks/is_mobile.svelte.js'
   import * as NavigationMenu from '$lib/components/ui/navigation-menu/index.js'
   import { navigationMenuTriggerStyle } from '$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte'
+  import { ModeWatcher } from 'mode-watcher'
   import ToggleTheme from './ToggleTheme.svelte'
 
   const isMobile = new IsMobile()
@@ -9,8 +10,9 @@
 
 <NavigationMenu.Root
   viewport={isMobile.current}
-  class="mx-auto w-full max-w-7xl px-8 flex py-5 justify-between items-center md:px-12 lg:px-16"
+  class="mx-auto w-full max-w-7xl px-8 flex flex-0 py-5 justify-between items-center md:px-12 lg:px-16"
 >
+  <ModeWatcher />
   <a href="/" class="font-display font-bold">MusicKeeper</a>
   <NavigationMenu.List class="flex-wrap">
     <NavigationMenu.Item>
