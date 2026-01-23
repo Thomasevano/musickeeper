@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { Debounced } from 'runed'
-  import LibraryLayout from '../layouts/libraryLayout.svelte'
-  import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
+  import { Separator } from '$lib/components/ui/separator/index.js'
+  import * as Tooltip from '$lib/components/ui/tooltip/index.js'
+  import { receive, send } from '$lib/helpers'
+  import { Check, Trash2, X } from '@lucide/svelte'
+  import { Debounced } from 'runed'
+  import CoverArt from '~/components/CoverArt.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
-  import * as Tooltip from '$lib/components/ui/tooltip/index.js'
-  import { Trash2, Check, X } from '@lucide/svelte'
   import { ListenLaterItem } from '../../src/domain/music_item'
-  import CoverArt from '~/components/CoverArt.svelte'
+  import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let { serializedItems = [] } = $props()
   let searchTerm = $state('')
@@ -258,7 +259,7 @@
           </thead>
           <tbody>
             {#each listenLaterItems as item (item.id)}
-              <tr>
+              <tr in:receive={{ key: item.id }} out:send={{ key: item.id }}>
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>
