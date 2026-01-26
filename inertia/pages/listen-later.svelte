@@ -259,7 +259,7 @@
           </thead>
           <tbody>
             {#each listenLaterItems as item (item.id)}
-              <tr in:receive={{ key: item.id }} out:send={{ key: item.id }}>
+              <tr in:receive={{ key: item.id }} out:send={{ key: item.id }} class="text-center">
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>
@@ -287,7 +287,12 @@
                   </Tooltip.Provider>
                 </td>
                 <td class="px-4 py-2">
-                  <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
+                  <CoverArt
+                    src={item.coverArt}
+                    alt={`Cover of ${item.title}`}
+                    size="md"
+                    class="mx-auto"
+                  />
                 </td>
                 <td class="px-4 py-2 capitalize">{item.itemType}</td>
                 <td class="px-4 py-2">{item.title}</td>
