@@ -245,7 +245,7 @@
     </div>
     <div>
       {#if listenLaterItems.length > 0}
-        <table>
+        <table class="w-full">
           <thead>
             <tr>
               <th class="px-4 py-2">Listened</th>
