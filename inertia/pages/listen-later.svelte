@@ -300,10 +300,10 @@
                         <Button
                           variant="ghost"
                           size="icon"
-                          class="cursor-pointer text-destructive hover:text-destructive/90"
+                          class="cursor-pointer"
                           onclick={() => handleDelete(item)}
                         >
-                          <Trash2 class="h-4 w-4" />
+                          <Trash2 color="red" />
                         </Button>
                       </Tooltip.Trigger>
                       <Tooltip.Content>

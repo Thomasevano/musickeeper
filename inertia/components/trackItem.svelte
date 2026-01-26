@@ -103,7 +103,7 @@
             {#if isInListenLaterList}
               <Check class="size-icon" />
             {:else}
-              <Plus />
+              <Plus class="size-icon" />
             {/if}
           </div>
         </Command.Item>
