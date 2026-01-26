@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/Thomasevano/musickeeper/compare/v0.3.3...v0.3.4) (2026-01-26)
+
+
+### Bug Fixes
+
+* **build:** favicon ([98da2bf](https://github.com/Thomasevano/musickeeper/commit/98da2bfb1c686abd681f0c845bd066e484e542a9))
+
 ## [0.3.3](https://github.com/Thomasevano/musickeeper/compare/v0.3.2...v0.3.3) (2026-01-26)
 
 
