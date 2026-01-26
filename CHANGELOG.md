@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.3](https://github.com/Thomasevano/musickeeper/compare/v0.3.2...v0.3.3) (2026-01-26)
+
+
+### Bug Fixes
+
+* **ui:** footer to bottom of page ([713b969](https://github.com/Thomasevano/musickeeper/commit/713b969cbfeeb6907f3f8220a96d53ef9f7a2a16))
+* **ui:** show the correct tooltip content while searching ([235dfe0](https://github.com/Thomasevano/musickeeper/commit/235dfe02d46aa105a91af385ef0f33dca4f5bb6a))
+* **ui:** table must take all width available ([a301e20](https://github.com/Thomasevano/musickeeper/commit/a301e205bf64242a5bc621f20b8f9f2ac6759f03))
+
+
+### Performance Improvements
+
+* reduce debounce time ([aad4d47](https://github.com/Thomasevano/musickeeper/commit/aad4d47122b5484525eb98ca76dbbbebfbc294d9))
+* **ui:** bundle a placeholder svg instead of using url ([445eaf0](https://github.com/Thomasevano/musickeeper/commit/445eaf094408378bdf2da487dc2adc025499679e))
+* **ui:** use thumbnail instead of full image for covert and use a loading skeleton ([0ffabd4](https://github.com/Thomasevano/musickeeper/commit/0ffabd465906930d7ad7ec57f4f008a9e6f29434))
+
 ## [0.3.2](https://github.com/Thomasevano/musickeeper/compare/v0.3.1...v0.3.2) (2026-01-20)
 
 ### Bug Fixes
