@@ -56,6 +56,9 @@
       addToListenLater(item)
     }
   }
+  let isInListenLaterList = $derived(
+    listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)
+  )
 </script>
 
 {#if loading}
@@ -97,7 +100,7 @@
             </div>
           </div>
           <div class="ml-auto">
-            {#if listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)}
+            {#if isInListenLaterList}
               <Check class="size-icon" />
             {:else}
               <Plus />
@@ -105,7 +108,7 @@
           </div>
         </Command.Item>
       </Tooltip.Trigger>
-      {#if listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)}
+      {#if isInListenLaterList}
         <Tooltip.Content>Delete from list</Tooltip.Content>
       {:else}
         <Tooltip.Content>Add to list</Tooltip.Content>
