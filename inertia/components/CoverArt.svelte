@@ -36,7 +36,7 @@
   }
 </script>
 
-<div class={cn('rounded-md', sizeClass, className)} {...restProps}>
+<div class={cn(sizeClass, className)} {...restProps}>
   {#if isLoading}
     <Skeleton class={cn(sizeClass)} />
   {/if}
@@ -44,7 +44,7 @@
     {src}
     {alt}
     class={cn(
-      'object-cover transition-opacity duration-300',
+      'object-cover rounded-md transition-opacity duration-300',
       sizeClass,
       isLoading ? 'opacity-0' : 'opacity-100'
     )}
