@@ -105,7 +105,11 @@
           </div>
         </Command.Item>
       </Tooltip.Trigger>
-      <Tooltip.Content>Add to Listen Later</Tooltip.Content>
+      {#if listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)}
+        <Tooltip.Content>Delete from list</Tooltip.Content>
+      {:else}
+        <Tooltip.Content>Add to list</Tooltip.Content>
+      {/if}
     </Tooltip.Root>
   </Tooltip.Provider>
 {/if}
