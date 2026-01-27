@@ -15,7 +15,7 @@ export default class ListenLaterListController {
     if (searchItem && searchItem.length >= 3) {
       const matchingItems = await this.searchRepository.searchItem(searchItem, searchType)
       const serializedItems = await this.serializeSearchResults(matchingItems)
-      response.status(200).header('Content-Type', 'application/json').send({
+      return response.status(200).header('Content-Type', 'application/json').send({
         serializedItems,
       })
     }
