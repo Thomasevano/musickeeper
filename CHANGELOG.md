@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/Thomasevano/musickeeper/compare/v0.3.4...v0.4.0) (2026-01-27)
+
+
+### Features
+
+* add artist search ([81d44b4](https://github.com/Thomasevano/musickeeper/commit/81d44b4177444e8792a0867fe2cb19f5db144bd9))
+
+
+### Bug Fixes
+
+* return response in controller ([eb7a26a](https://github.com/Thomasevano/musickeeper/commit/eb7a26a33caebb9990049dbc08288bcdd9e771bc))
+
 ## [0.3.4](https://github.com/Thomasevano/musickeeper/compare/v0.3.3...v0.3.4) (2026-01-26)
 
 
