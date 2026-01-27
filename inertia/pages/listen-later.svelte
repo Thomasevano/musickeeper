@@ -14,19 +14,31 @@
 
   let { serializedItems = [] } = $props()
   let searchTerm = $state('')
+  let artistName = $state('')
   let searchType = $state('track')
   let listenLaterItems = $state([]) as ListenLaterItem[]
   let isSearching = $state(false)
   let db: IDBDatabase
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
+  const debouncedArtist = new Debounced(() => artistName, 350)
+
+  const hasSearchTerm = $derived(debouncedSearch.current && debouncedSearch.current.trim() !== '')
+  const hasArtist = $derived(debouncedArtist.current && debouncedArtist.current.trim() !== '')
 
   async function handleSearch() {
     isSearching = true
     try {
-      const response = await fetch(
-        `/library/listen-later?q=${debouncedSearch.current}&type=${searchType}`
-      )
+      const params = new URLSearchParams({
+        q: debouncedSearch.current,
+        type: searchType,
+      })
+
+      if (hasArtist) {
+        params.append('artist', debouncedArtist.current)
+      }
+
+      const response = await fetch(`/library/listen-later?${params.toString()}`)
       const data = await response.json()
       serializedItems = data.serializedItems
     } catch (error) {
@@ -38,10 +50,9 @@
   }
 
   $effect(() => {
-    if (debouncedSearch.current && debouncedSearch.current.trim() !== '') {
+    if (hasSearchTerm || hasArtist) {
       handleSearch()
     } else {
-      // Reset matching items when search is empty
       serializedItems = []
     }
   })
@@ -207,11 +218,22 @@
         </Select.Content>
       </Select.Root>
 
+      <div class="flex gap-2 w-full">
+        <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
+          <Command.Input bind:value={searchTerm} placeholder="Search a song or album title..." />
+        </Command.Root>
+
+        <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
+          <Command.Input
+            bind:value={artistName}
+            placeholder="Artist name (optional for more precise results)..."
+          />
+        </Command.Root>
+      </div>
+    </div>
+
+    <div class="mb-4">
       <Command.Root class="rounded-lg border shadow-md" shouldFilter={false}>
-        <Command.Input
-          bind:value={searchTerm}
-          placeholder="Search a song or album to add to your listen later list..."
-        />
         {#if isSearching}
           <Command.List>
             <Command.Group heading={searchType === 'track' ? 'Tracks' : 'Albums'}>

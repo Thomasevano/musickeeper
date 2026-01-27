@@ -11,9 +11,17 @@ export default class ListenLaterListController {
   async index({ inertia, request, response }: HttpContext) {
     const searchItem = request.qs().q
     const searchType = request.qs().type
+    const artistName = request.qs().artist
 
-    if (searchItem && searchItem.length >= 3) {
-      const matchingItems = await this.searchRepository.searchItem(searchItem, searchType)
+    const hasValidSearch =
+      (searchItem && searchItem.length >= 3) || (artistName && artistName.trim().length >= 3)
+
+    if (hasValidSearch) {
+      const matchingItems = await this.searchRepository.searchItem(
+        searchItem || '',
+        searchType,
+        artistName
+      )
       const serializedItems = await this.serializeSearchResults(matchingItems)
       return response.status(200).header('Content-Type', 'application/json').send({
         serializedItems,
