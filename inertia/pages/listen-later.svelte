@@ -278,7 +278,8 @@
 
       // Check for duplicate before showing confirmation dialog
       const title = data.musicItem?.title || data.linkMetadata?.title || ''
-      const artists = data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
+      const artists =
+        data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
       const duplicate = findDuplicate(title, artists)
 
       // Update dialog with fetched data
@@ -300,11 +301,44 @@
   }
 
   function handleConfirmDialogConfirm(itemType: SearchType) {
-    // US-010 will implement saving the item
-    // For now, close the dialog and reset state
-    isConfirmDialogOpen = false
-    resetPendingState()
-    linkUrl = ''
+    if (!pendingMusicItem) return
+
+    // Create ListenLaterItem from confirmed data
+    // Spread artists array to convert from Svelte reactive proxy to plain array for IndexedDB
+    const newItem: ListenLaterItem = new ListenLaterItem({
+      id: pendingMusicItem.id,
+      title: pendingMusicItem.title,
+      releaseDate: pendingMusicItem.releaseDate,
+      length: pendingMusicItem.length,
+      artists: [...pendingMusicItem.artists],
+      albumName: pendingMusicItem.albumName,
+      itemType: itemType,
+      coverArt: pendingMusicItem.coverArt,
+      hasBeenListened: false,
+      addedAt: new Date(),
+      sourceUrl: linkUrl,
+    })
+
+    // Save to IndexedDB
+    const transaction = db.transaction('listenLaterList', 'readwrite')
+    const store = transaction.objectStore('listenLaterList')
+
+    const addRequest = store.add(newItem)
+
+    addRequest.onsuccess = () => {
+      // Add to the list immediately so it appears in the UI
+      listenLaterItems = [...listenLaterItems, newItem]
+
+      // Close dialog and reset state
+      isConfirmDialogOpen = false
+      resetPendingState()
+      linkUrl = ''
+    }
+
+    addRequest.onerror = (error) => {
+      console.error('Error saving item to listen later list:', error)
+      dialogError = 'Failed to save item. Please try again.'
+    }
   }
 
   function handleConfirmDialogCancel() {
@@ -394,10 +428,7 @@
           class="flex-1"
           disabled={isProcessingLink}
         />
-        <Button
-          onclick={handlePasteLink}
-          disabled={isProcessingLink || !linkUrl.trim()}
-        >
+        <Button onclick={handlePasteLink} disabled={isProcessingLink || !linkUrl.trim()}>
           <Link2 class="mr-2 h-4 w-4" />
           {isProcessingLink ? 'Processing...' : 'Add'}
         </Button>
@@ -431,7 +462,9 @@
         <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
           <Command.Input
             bind:value={searchTerm}
-            placeholder={isOffline ? 'Search disabled while offline' : 'Search a song or album title...'}
+            placeholder={isOffline
+              ? 'Search disabled while offline'
+              : 'Search a song or album title...'}
             disabled={isOffline}
           />
         </Command.Root>
@@ -439,7 +472,9 @@
         <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
           <Command.Input
             bind:value={artistName}
-            placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional for more precise results)...'}
+            placeholder={isOffline
+              ? 'Search disabled while offline'
+              : 'Artist name (optional for more precise results)...'}
             disabled={isOffline}
           />
         </Command.Root>
@@ -499,7 +534,9 @@
                 id={`item-${item.id}`}
                 in:receive={{ key: item.id }}
                 out:send={{ key: item.id }}
-                class="text-center transition-colors duration-500 {highlightedItemId === item.id ? 'bg-yellow-100 dark:bg-yellow-900' : ''}"
+                class="text-center transition-colors duration-500 {highlightedItemId === item.id
+                  ? 'bg-yellow-100 dark:bg-yellow-900'
+                  : ''}"
               >
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
