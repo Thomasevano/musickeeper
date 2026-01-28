@@ -38,14 +38,17 @@ export class MusicItem {
 interface ListenLaterItemProperties extends MusicItemProperties {
   hasBeenListened: boolean
   addedAt: Date
+  sourceUrl?: string
 }
 
 export class ListenLaterItem extends MusicItem {
   public hasBeenListened: boolean
   public addedAt: Date
+  public sourceUrl?: string
   public constructor(props: ListenLaterItemProperties) {
     super(props)
     this.hasBeenListened = props.hasBeenListened
     this.addedAt = props.addedAt
+    this.sourceUrl = props.sourceUrl
   }
 }
