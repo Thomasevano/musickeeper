@@ -73,7 +73,7 @@
     }
   })
 
-  const request = indexedDB.open('listenLaterDB', 2)
+  const request = indexedDB.open('listenLaterDB', 3)
 
   request.onupgradeneeded = (event) => {
     db = event.target?.result
@@ -110,6 +110,10 @@
         }
       }
     }
+
+    // Migration from version 2 to 3: add optional sourceUrl field
+    // No data transformation needed - sourceUrl is optional and existing items
+    // will simply not have it, which is valid for the new schema
   }
 
   request.onsuccess = (event) => {
