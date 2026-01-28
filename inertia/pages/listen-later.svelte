@@ -33,6 +33,8 @@
   let pendingMusicItem = $state<MusicItem | null>(null)
   let pendingLinkMetadata = $state<LinkMetadata | null>(null)
   let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
+  let existingDuplicate = $state<ListenLaterItem | null>(null)
+  let highlightedItemId = $state<string | null>(null)
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -244,10 +246,16 @@
         return
       }
 
+      // Check for duplicate before showing confirmation dialog
+      const title = data.musicItem?.title || data.linkMetadata?.title || ''
+      const artists = data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
+      const duplicate = findDuplicate(title, artists)
+
       // Open confirmation dialog with fetched data
       pendingMusicItem = data.musicItem
       pendingLinkMetadata = data.linkMetadata
       pendingSource = data.source
+      existingDuplicate = duplicate
       isConfirmDialogOpen = true
     } catch (error) {
       linkError = 'Failed to connect to server'
@@ -274,6 +282,45 @@
     pendingMusicItem = null
     pendingLinkMetadata = null
     pendingSource = null
+    existingDuplicate = null
+  }
+
+  function findDuplicate(title: string, artists: string[]): ListenLaterItem | null {
+    const normalizedTitle = title.toLowerCase().trim()
+    const normalizedArtists = artists.map((a) => a.toLowerCase().trim()).sort()
+
+    return (
+      listenLaterItems.find((item) => {
+        const itemTitle = item.title.toLowerCase().trim()
+        const itemArtists = item.artists.map((a: string) => a.toLowerCase().trim()).sort()
+
+        // Match if title and at least one artist matches
+        if (itemTitle !== normalizedTitle) return false
+
+        // Check if any artist overlaps
+        return normalizedArtists.some((artist) => itemArtists.includes(artist))
+      }) || null
+    )
+  }
+
+  function handleViewExisting() {
+    if (existingDuplicate) {
+      isConfirmDialogOpen = false
+      highlightedItemId = existingDuplicate.id
+
+      // Scroll to the item
+      const element = document.getElementById(`item-${existingDuplicate.id}`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+
+      // Remove highlight after 3 seconds
+      setTimeout(() => {
+        highlightedItemId = null
+      }, 3000)
+
+      resetPendingState()
+    }
   }
 </script>
 
@@ -398,7 +445,12 @@
           </thead>
           <tbody>
             {#each listenLaterItems as item (item.id)}
-              <tr in:receive={{ key: item.id }} out:send={{ key: item.id }} class="text-center">
+              <tr
+                id={`item-${item.id}`}
+                in:receive={{ key: item.id }}
+                out:send={{ key: item.id }}
+                class="text-center transition-colors duration-500 {highlightedItemId === item.id ? 'bg-yellow-100 dark:bg-yellow-900' : ''}"
+              >
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>
@@ -474,6 +526,8 @@
   musicItem={pendingMusicItem}
   linkMetadata={pendingLinkMetadata}
   source={pendingSource}
+  existingItem={existingDuplicate}
   onConfirm={handleConfirmDialogConfirm}
   onCancel={handleConfirmDialogCancel}
+  onViewExisting={handleViewExisting}
 />

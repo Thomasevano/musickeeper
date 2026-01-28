@@ -4,8 +4,8 @@
   import { Badge } from '$lib/components/ui/badge/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
   import CoverArt from '~/components/CoverArt.svelte'
-  import { AlertTriangle } from '@lucide/svelte'
-  import { MusicItem, SearchType } from '../../src/domain/music_item'
+  import { AlertTriangle, Copy } from '@lucide/svelte'
+  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
 
   interface Props {
@@ -13,11 +13,13 @@
     musicItem: MusicItem | null
     linkMetadata: LinkMetadata | null
     source: 'musicbrainz' | 'link' | null
+    existingItem: ListenLaterItem | null
     onConfirm: (itemType: SearchType) => void
     onCancel: () => void
+    onViewExisting: () => void
   }
 
-  let { open = $bindable(), musicItem, linkMetadata, source, onConfirm, onCancel }: Props = $props()
+  let { open = $bindable(), musicItem, linkMetadata, source, existingItem, onConfirm, onCancel, onViewExisting }: Props = $props()
 
   let selectedType = $state<SearchType>(SearchType.track)
 
@@ -60,13 +62,63 @@
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title>Add to Listen Later</Dialog.Title>
+      <Dialog.Title>
+        {#if existingItem}
+          Duplicate Found
+        {:else}
+          Add to Listen Later
+        {/if}
+      </Dialog.Title>
       <Dialog.Description>
-        Review the extracted music information before adding.
+        {#if existingItem}
+          This item appears to already be in your list.
+        {:else}
+          Review the extracted music information before adding.
+        {/if}
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if musicItem}
+    {#if existingItem}
+      <div class="flex items-center gap-2 rounded-md border border-yellow-500 bg-yellow-50 p-3 dark:bg-yellow-950 mb-4">
+        <Copy class="h-5 w-5 text-yellow-500" />
+        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+          An item with the same title and artist already exists in your list.
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <p class="text-sm font-medium text-muted-foreground mb-2">Existing item in your list:</p>
+          <div class="flex gap-4 p-3 rounded-md border bg-muted/50">
+            <CoverArt
+              src={existingItem.coverArt}
+              alt={`Cover of ${existingItem.title}`}
+              size="md"
+            />
+            <div class="flex flex-col justify-center">
+              <h4 class="font-medium">{existingItem.title}</h4>
+              <p class="text-sm text-muted-foreground">{existingItem.artists.join(', ')}</p>
+              <p class="text-xs text-muted-foreground capitalize">{existingItem.itemType}</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-sm font-medium text-muted-foreground mb-2">New item from link:</p>
+          <div class="flex gap-4 p-3 rounded-md border">
+            <CoverArt
+              src={musicItem?.coverArt}
+              alt={`Cover of ${musicItem?.title}`}
+              size="md"
+            />
+            <div class="flex flex-col justify-center">
+              <h4 class="font-medium">{musicItem?.title || 'Unknown Title'}</h4>
+              <p class="text-sm text-muted-foreground">{musicItem?.artists?.join(', ') || 'Unknown Artist'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    {:else if musicItem}
       <div class="flex gap-4">
         <CoverArt
           src={musicItem.coverArt}
@@ -113,8 +165,14 @@
     {/if}
 
     <Dialog.Footer>
-      <Button variant="outline" onclick={onCancel}>Cancel</Button>
-      <Button onclick={handleConfirm} disabled={!musicItem}>Add to List</Button>
+      {#if existingItem}
+        <Button variant="outline" onclick={onCancel}>Cancel</Button>
+        <Button variant="secondary" onclick={onViewExisting}>View Existing</Button>
+        <Button onclick={handleConfirm} disabled={!musicItem}>Add Anyway</Button>
+      {:else}
+        <Button variant="outline" onclick={onCancel}>Cancel</Button>
+        <Button onclick={handleConfirm} disabled={!musicItem}>Add to List</Button>
+      {/if}
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
