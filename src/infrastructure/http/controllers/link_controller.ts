@@ -4,6 +4,7 @@ import {
   StreamingPlatform,
   isLinkParseError,
 } from '../../services/link_parser.service.js'
+import { LinkMetadataService, isLinkMetadataError } from '../../services/link_metadata.service.js'
 
 export interface OEmbedResponse {
   title: string
@@ -46,7 +47,10 @@ export default class LinkController {
     [StreamingPlatform.SoundCloud]: 'https://soundcloud.com/oembed',
   }
 
-  constructor(private linkParser: LinkParserService = new LinkParserService()) {}
+  constructor(
+    private linkParser: LinkParserService = new LinkParserService(),
+    private linkMetadataService: LinkMetadataService = new LinkMetadataService()
+  ) {}
 
   async oembed({ request, response }: HttpContext) {
     const { url } = request.body()
@@ -230,5 +234,25 @@ export default class LinkController {
       author_name: authorName,
       thumbnail_url: ogImage,
     }
+  }
+
+  async metadata({ request, response }: HttpContext) {
+    const { url } = request.body()
+
+    if (!url || typeof url !== 'string') {
+      return response.status(400).json({ error: 'URL is required' })
+    }
+
+    const result = await this.linkMetadataService.fetchMetadata(url)
+
+    if (isLinkMetadataError(result)) {
+      return response.status(400).json({ error: result.error, originalUrl: result.originalUrl })
+    }
+
+    return response.status(200).json({
+      musicItem: result.musicItem,
+      source: result.source,
+      linkMetadata: result.linkMetadata,
+    })
   }
 }
