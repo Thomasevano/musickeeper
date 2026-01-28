@@ -17,6 +17,7 @@ router.get('/', [HomeController, 'index'])
 router
   .group(() => {
     router.post('/oembed', [LinkController, 'oembed'])
+    router.post('/apple-music', [LinkController, 'appleMusic'])
   })
   .prefix('/api/link')
 
