@@ -4,7 +4,7 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
   import { receive, send } from '$lib/helpers'
-  import { Check, Link2, Trash2, X } from '@lucide/svelte'
+  import { Check, CheckCircle, Link2, Trash2, X } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import CoverArt from '~/components/CoverArt.svelte'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
@@ -37,6 +37,9 @@
   let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
   let existingDuplicate = $state<ListenLaterItem | null>(null)
   let highlightedItemId = $state<string | null>(null)
+
+  // Success feedback state
+  let successMessage = $state<string | null>(null)
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -284,11 +287,52 @@
   }
 
   function handleConfirmDialogConfirm(itemType: SearchType) {
-    // US-010 will implement saving the item
-    // For now, close the dialog and reset state
-    isConfirmDialogOpen = false
-    resetPendingState()
-    linkUrl = ''
+    if (!pendingMusicItem) return
+
+    // Create ListenLaterItem from confirmed data
+    // Spread artists array to convert from Svelte reactive proxy to plain array for IndexedDB
+    const newItem: ListenLaterItem = new ListenLaterItem({
+      id: pendingMusicItem.id,
+      title: pendingMusicItem.title,
+      releaseDate: pendingMusicItem.releaseDate,
+      length: pendingMusicItem.length,
+      artists: [...pendingMusicItem.artists],
+      albumName: pendingMusicItem.albumName,
+      itemType: itemType,
+      coverArt: pendingMusicItem.coverArt,
+      hasBeenListened: false,
+      addedAt: new Date(),
+      sourceUrl: linkUrl,
+    })
+
+    // Save to IndexedDB
+    const transaction = db.transaction('listenLaterList', 'readwrite')
+    const store = transaction.objectStore('listenLaterList')
+
+    const addRequest = store.add(newItem)
+
+    addRequest.onsuccess = () => {
+      // Add to the list immediately so it appears in the UI
+      listenLaterItems = [...listenLaterItems, newItem]
+
+      // Close dialog and reset state
+      isConfirmDialogOpen = false
+      resetPendingState()
+      linkUrl = ''
+
+      // Show success message
+      successMessage = `"${newItem.title}" added to your Listen Later list`
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        successMessage = null
+      }, 3000)
+    }
+
+    addRequest.onerror = (error) => {
+      console.error('Error saving item to listen later list:', error)
+      dialogError = 'Failed to save item. Please try again.'
+    }
   }
 
   function handleConfirmDialogCancel() {
@@ -379,6 +423,12 @@
       </div>
       {#if linkError}
         <p class="text-destructive text-sm mt-2">{linkError}</p>
+      {/if}
+      {#if successMessage}
+        <div class="flex items-center gap-2 rounded-md border border-green-500 bg-green-50 p-3 dark:bg-green-950 mt-2">
+          <CheckCircle class="h-5 w-5 text-green-500" />
+          <p class="text-sm text-green-700 dark:text-green-300">{successMessage}</p>
+        </div>
       {/if}
     </div>
 
