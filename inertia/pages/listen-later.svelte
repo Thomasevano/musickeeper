@@ -4,11 +4,12 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
   import { receive, send } from '$lib/helpers'
-  import { Check, Trash2, X } from '@lucide/svelte'
+  import { Check, Link2, Trash2, X } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import CoverArt from '~/components/CoverArt.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
+  import Input from '~/lib/components/ui/input/input.svelte'
   import { ListenLaterItem } from '../../src/domain/music_item'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
@@ -19,6 +20,11 @@
   let listenLaterItems = $state([]) as ListenLaterItem[]
   let isSearching = $state(false)
   let db: IDBDatabase
+
+  // Paste link state
+  let linkUrl = $state('')
+  let isProcessingLink = $state(false)
+  let linkError = $state('')
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -189,6 +195,57 @@
         : (a.addedAt || 0) - (b.addedAt || 0)
     )
   }
+
+  function isValidUrl(urlString: string): boolean {
+    try {
+      const url = new URL(urlString)
+      return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  async function handlePasteLink() {
+    linkError = ''
+
+    if (!linkUrl.trim()) {
+      linkError = 'Please enter a URL'
+      return
+    }
+
+    if (!isValidUrl(linkUrl)) {
+      linkError = 'Please enter a valid URL'
+      return
+    }
+
+    isProcessingLink = true
+
+    try {
+      const response = await fetch('/api/link/metadata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: linkUrl }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        linkError = data.error || 'Failed to fetch metadata'
+        return
+      }
+
+      // TODO: US-007 will add confirmation dialog here
+      // For now, log the result
+      console.log('Link metadata fetched:', data)
+    } catch (error) {
+      linkError = 'Failed to connect to server'
+      console.error('Error fetching link metadata:', error)
+    } finally {
+      isProcessingLink = false
+    }
+  }
 </script>
 
 <LibraryLayout data={listenLaterItems}>
@@ -204,6 +261,33 @@
       </div>
     </div>
     <Separator class="my-4" />
+
+    <!-- Paste Link Section -->
+    <div class="mb-6">
+      <h3 class="text-lg font-medium mb-2">Add from Link</h3>
+      <div class="flex gap-2">
+        <Input
+          type="url"
+          bind:value={linkUrl}
+          placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
+          class="flex-1"
+          disabled={isProcessingLink}
+        />
+        <Button
+          onclick={handlePasteLink}
+          disabled={isProcessingLink || !linkUrl.trim()}
+        >
+          <Link2 class="mr-2 h-4 w-4" />
+          {isProcessingLink ? 'Processing...' : 'Add'}
+        </Button>
+      </div>
+      {#if linkError}
+        <p class="text-destructive text-sm mt-2">{linkError}</p>
+      {/if}
+    </div>
+
+    <Separator class="my-4" />
+
     <div class="mb-4 flex items-center gap-4">
       <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType}>

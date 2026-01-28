@@ -18,6 +18,7 @@ router
   .group(() => {
     router.post('/oembed', [LinkController, 'oembed'])
     router.post('/apple-music', [LinkController, 'appleMusic'])
+    router.post('/metadata', [LinkController, 'metadata'])
   })
   .prefix('/api/link')
 
