@@ -7,10 +7,12 @@
   import { Check, Link2, Trash2, X } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import CoverArt from '~/components/CoverArt.svelte'
+  import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { ListenLaterItem } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let { serializedItems = [] } = $props()
@@ -25,6 +27,12 @@
   let linkUrl = $state('')
   let isProcessingLink = $state(false)
   let linkError = $state('')
+
+  // Confirmation dialog state
+  let isConfirmDialogOpen = $state(false)
+  let pendingMusicItem = $state<MusicItem | null>(null)
+  let pendingLinkMetadata = $state<LinkMetadata | null>(null)
+  let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -236,15 +244,36 @@
         return
       }
 
-      // TODO: US-007 will add confirmation dialog here
-      // For now, log the result
-      console.log('Link metadata fetched:', data)
+      // Open confirmation dialog with fetched data
+      pendingMusicItem = data.musicItem
+      pendingLinkMetadata = data.linkMetadata
+      pendingSource = data.source
+      isConfirmDialogOpen = true
     } catch (error) {
       linkError = 'Failed to connect to server'
       console.error('Error fetching link metadata:', error)
     } finally {
       isProcessingLink = false
     }
+  }
+
+  function handleConfirmDialogConfirm(itemType: SearchType) {
+    // US-010 will implement saving the item
+    // For now, close the dialog and reset state
+    isConfirmDialogOpen = false
+    resetPendingState()
+    linkUrl = ''
+  }
+
+  function handleConfirmDialogCancel() {
+    isConfirmDialogOpen = false
+    resetPendingState()
+  }
+
+  function resetPendingState() {
+    pendingMusicItem = null
+    pendingLinkMetadata = null
+    pendingSource = null
   }
 </script>
 
@@ -439,3 +468,12 @@
     </div>
   </div>
 </LibraryLayout>
+
+<ConfirmMusicDialog
+  bind:open={isConfirmDialogOpen}
+  musicItem={pendingMusicItem}
+  linkMetadata={pendingLinkMetadata}
+  source={pendingSource}
+  onConfirm={handleConfirmDialogConfirm}
+  onCancel={handleConfirmDialogCancel}
+/>
