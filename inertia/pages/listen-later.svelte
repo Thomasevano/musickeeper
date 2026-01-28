@@ -30,6 +30,8 @@
 
   // Confirmation dialog state
   let isConfirmDialogOpen = $state(false)
+  let isDialogLoading = $state(false)
+  let dialogError = $state<string | null>(null)
   let pendingMusicItem = $state<MusicItem | null>(null)
   let pendingLinkMetadata = $state<LinkMetadata | null>(null)
   let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
@@ -228,6 +230,18 @@
       return
     }
 
+    // Open dialog immediately with loading state
+    isProcessingLink = true
+    isDialogLoading = true
+    dialogError = null
+    isConfirmDialogOpen = true
+
+    await fetchLinkMetadata()
+  }
+
+  async function fetchLinkMetadata() {
+    isDialogLoading = true
+    dialogError = null
     isProcessingLink = true
 
     try {
@@ -242,7 +256,7 @@
       const data = await response.json()
 
       if (!response.ok) {
-        linkError = data.error || 'Failed to fetch metadata'
+        dialogError = data.error || 'Failed to fetch metadata'
         return
       }
 
@@ -251,18 +265,22 @@
       const artists = data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
       const duplicate = findDuplicate(title, artists)
 
-      // Open confirmation dialog with fetched data
+      // Update dialog with fetched data
       pendingMusicItem = data.musicItem
       pendingLinkMetadata = data.linkMetadata
       pendingSource = data.source
       existingDuplicate = duplicate
-      isConfirmDialogOpen = true
     } catch (error) {
-      linkError = 'Failed to connect to server'
+      dialogError = 'Failed to connect to server. Please check your internet connection.'
       console.error('Error fetching link metadata:', error)
     } finally {
+      isDialogLoading = false
       isProcessingLink = false
     }
+  }
+
+  function handleRetry() {
+    fetchLinkMetadata()
   }
 
   function handleConfirmDialogConfirm(itemType: SearchType) {
@@ -283,6 +301,8 @@
     pendingLinkMetadata = null
     pendingSource = null
     existingDuplicate = null
+    dialogError = null
+    isDialogLoading = false
   }
 
   function findDuplicate(title: string, artists: string[]): ListenLaterItem | null {
@@ -523,6 +543,8 @@
 
 <ConfirmMusicDialog
   bind:open={isConfirmDialogOpen}
+  isLoading={isDialogLoading}
+  error={dialogError}
   musicItem={pendingMusicItem}
   linkMetadata={pendingLinkMetadata}
   source={pendingSource}
@@ -530,4 +552,5 @@
   onConfirm={handleConfirmDialogConfirm}
   onCancel={handleConfirmDialogCancel}
   onViewExisting={handleViewExisting}
+  onRetry={handleRetry}
 />
