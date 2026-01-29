@@ -10,8 +10,17 @@
 import router from '@adonisjs/core/services/router'
 const HomeController = () => import('./controllers/home_controller.js')
 const ListenLaterListController = () => import('./controllers/listen_later_list_controller.js')
+const LinkController = () => import('./controllers/link_controller.js')
 
 router.get('/', [HomeController, 'index'])
+
+router
+  .group(() => {
+    router.post('/oembed', [LinkController, 'oembed'])
+    router.post('/apple-music', [LinkController, 'appleMusic'])
+    router.post('/metadata', [LinkController, 'metadata'])
+  })
+  .prefix('/api/link')
 
 router
   .group(() => {
