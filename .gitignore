@@ -13,6 +13,10 @@ tmp
 # Frontend assets compiled code
 public/assets
 
+# PWA build artifacts (generated during build)
+public/sw.js
+public/workbox-*.js
+
 # Build tools specific
 npm-debug.log
 yarn-error.log

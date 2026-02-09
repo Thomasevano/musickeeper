@@ -4,6 +4,7 @@ import '../../resources/css/app.css'
 import { createInertiaApp } from '@inertiajs/svelte'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { hydrate, mount } from 'svelte'
+// Using native SW registration instead of vite-pwa-register for explicit scope control
 
 const appName = import.meta.env.VITE_APP_NAME || 'AdonisJS'
 
@@ -24,3 +25,20 @@ createInertiaApp({
     }
   },
 })
+
+// Register PWA service worker with root scope
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((registration) => {
+    // Handle updates - activate new SW immediately
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing
+      if (newWorker) {
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ type: 'SKIP_WAITING' })
+          }
+        })
+      }
+    })
+  })
+}

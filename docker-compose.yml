@@ -3,6 +3,6 @@ services:
     build: .
     container_name: musickeeper
     ports:
-      - '3333:8080'
+      - '3333:3334'
     env_file:
       - .env.prod.local

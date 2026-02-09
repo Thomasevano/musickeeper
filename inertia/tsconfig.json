@@ -6,7 +6,8 @@
     "paths": {
       "~/*": ["./*"],
       "$lib/*": ["./lib/*"]
-    }
+    },
+    "types": ["vite-plugin-pwa/client"]
   },
-  "include": ["./**/*.ts", "./**/*.svelte"],
+  "include": ["./**/*.ts", "./**/*.svelte"]
 }
