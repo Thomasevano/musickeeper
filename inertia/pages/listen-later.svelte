@@ -1,10 +1,11 @@
 <script lang="ts">
+  import * as Alert from '$lib/components/ui/alert/index.js'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
   import { receive, send } from '$lib/helpers'
-  import { Check, Trash2, X } from '@lucide/svelte'
+  import { Check, Trash2, X, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import CoverArt from '~/components/CoverArt.svelte'
   import TrackItem from '~/components/trackItem.svelte'
@@ -18,7 +19,22 @@
   let searchType = $state('track')
   let listenLaterItems = $state([]) as ListenLaterItem[]
   let isSearching = $state(false)
+  let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
   let db: IDBDatabase
+
+  // Listen for online/offline events
+  $effect(() => {
+    const handleOnline = () => (isOffline = false)
+    const handleOffline = () => (isOffline = true)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  })
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -189,6 +205,15 @@
 
 <LibraryLayout data={listenLaterItems}>
   <div class="mx-auto w-full max-w-7xl px-8 py-6 md:px-12 lg:px-16">
+    {#if isOffline}
+      <Alert.Root variant="info" class="mb-4">
+        <WifiOff />
+        <Alert.Title>You're currently offline</Alert.Title>
+        <Alert.Description>
+          Your saved items are available, but search is disabled.
+        </Alert.Description>
+      </Alert.Root>
+    {/if}
     <div class="flex flex-col justify-between md:flex-row">
       <div class="flex flex-row">
         <div class="mb-4 space-y-2 md:mb-0">
@@ -200,9 +225,9 @@
       </div>
     </div>
     <Separator class="my-4" />
-    <div class="mb-4 flex items-center gap-4">
+    <div class="mb-4 flex items-center gap-4" class:opacity-50={isOffline}>
       <label for="search-type" class="text-sm font-medium">Type:</label>
-      <Select.Root type="single" bind:value={searchType}>
+      <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
         <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
 
         <Select.Content>
@@ -220,13 +245,18 @@
 
       <div class="flex gap-2 w-full">
         <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
-          <Command.Input bind:value={searchTerm} placeholder="Search a song or album title..." />
+          <Command.Input
+            bind:value={searchTerm}
+            placeholder={isOffline ? 'Search disabled while offline' : 'Search a song or album title...'}
+            disabled={isOffline}
+          />
         </Command.Root>
 
         <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
           <Command.Input
             bind:value={artistName}
-            placeholder="Artist name (optional for more precise results)..."
+            placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional for more precise results)...'}
+            disabled={isOffline}
           />
         </Command.Root>
       </div>
