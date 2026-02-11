@@ -4,12 +4,15 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import * as Tooltip from '$lib/components/ui/tooltip/index.js'
   import { receive, send } from '$lib/helpers'
-  import { Check, Trash2, X } from '@lucide/svelte'
+  import { Check, CheckCircle, Link2, Trash2, X } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import CoverArt from '~/components/CoverArt.svelte'
+  import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
-  import { ListenLaterItem } from '../../src/domain/music_item'
+  import Input from '~/lib/components/ui/input/input.svelte'
+  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let { serializedItems = [] } = $props()
@@ -19,6 +22,24 @@
   let listenLaterItems = $state([]) as ListenLaterItem[]
   let isSearching = $state(false)
   let db: IDBDatabase
+
+  // Paste link state
+  let linkUrl = $state('')
+  let isProcessingLink = $state(false)
+  let linkError = $state('')
+
+  // Confirmation dialog state
+  let isConfirmDialogOpen = $state(false)
+  let isDialogLoading = $state(false)
+  let dialogError = $state<string | null>(null)
+  let pendingMusicItem = $state<MusicItem | null>(null)
+  let pendingLinkMetadata = $state<LinkMetadata | null>(null)
+  let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
+  let existingDuplicate = $state<ListenLaterItem | null>(null)
+  let highlightedItemId = $state<string | null>(null)
+
+  // Success feedback state
+  let successMessage = $state<string | null>(null)
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -57,7 +78,7 @@
     }
   })
 
-  const request = indexedDB.open('listenLaterDB', 2)
+  const request = indexedDB.open('listenLaterDB', 3)
 
   request.onupgradeneeded = (event) => {
     db = event.target?.result
@@ -94,6 +115,10 @@
         }
       }
     }
+
+    // Migration from version 2 to 3: add optional sourceUrl field
+    // No data transformation needed - sourceUrl is optional and existing items
+    // will simply not have it, which is valid for the new schema
   }
 
   request.onsuccess = (event) => {
@@ -185,6 +210,182 @@
         : (a.addedAt || 0) - (b.addedAt || 0)
     )
   }
+
+  function isValidUrl(urlString: string): boolean {
+    try {
+      const url = new URL(urlString)
+      return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  async function handlePasteLink() {
+    linkError = ''
+
+    if (!linkUrl.trim()) {
+      linkError = 'Please enter a URL'
+      return
+    }
+
+    if (!isValidUrl(linkUrl)) {
+      linkError = 'Please enter a valid URL'
+      return
+    }
+
+    // Open dialog immediately with loading state
+    isProcessingLink = true
+    isDialogLoading = true
+    dialogError = null
+    isConfirmDialogOpen = true
+
+    await fetchLinkMetadata()
+  }
+
+  async function fetchLinkMetadata() {
+    isDialogLoading = true
+    dialogError = null
+    isProcessingLink = true
+
+    try {
+      const response = await fetch('/api/link/metadata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: linkUrl }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        dialogError = data.error || 'Failed to fetch metadata'
+        return
+      }
+
+      // Check for duplicate before showing confirmation dialog
+      const title = data.musicItem?.title || data.linkMetadata?.title || ''
+      const artists = data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
+      const duplicate = findDuplicate(title, artists)
+
+      // Update dialog with fetched data
+      pendingMusicItem = data.musicItem
+      pendingLinkMetadata = data.linkMetadata
+      pendingSource = data.source
+      existingDuplicate = duplicate
+    } catch (error) {
+      dialogError = 'Failed to connect to server. Please check your internet connection.'
+      console.error('Error fetching link metadata:', error)
+    } finally {
+      isDialogLoading = false
+      isProcessingLink = false
+    }
+  }
+
+  function handleRetry() {
+    fetchLinkMetadata()
+  }
+
+  function handleConfirmDialogConfirm(itemType: SearchType) {
+    if (!pendingMusicItem) return
+
+    // Create ListenLaterItem from confirmed data
+    // Spread artists array to convert from Svelte reactive proxy to plain array for IndexedDB
+    const newItem: ListenLaterItem = new ListenLaterItem({
+      id: pendingMusicItem.id,
+      title: pendingMusicItem.title,
+      releaseDate: pendingMusicItem.releaseDate,
+      length: pendingMusicItem.length,
+      artists: [...pendingMusicItem.artists],
+      albumName: pendingMusicItem.albumName,
+      itemType: itemType,
+      coverArt: pendingMusicItem.coverArt,
+      hasBeenListened: false,
+      addedAt: new Date(),
+      sourceUrl: linkUrl,
+    })
+
+    // Save to IndexedDB
+    const transaction = db.transaction('listenLaterList', 'readwrite')
+    const store = transaction.objectStore('listenLaterList')
+
+    const addRequest = store.add(newItem)
+
+    addRequest.onsuccess = () => {
+      // Add to the list immediately so it appears in the UI
+      listenLaterItems = [...listenLaterItems, newItem]
+
+      // Close dialog and reset state
+      isConfirmDialogOpen = false
+      resetPendingState()
+      linkUrl = ''
+
+      // Show success message
+      successMessage = `"${newItem.title}" added to your Listen Later list`
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        successMessage = null
+      }, 3000)
+    }
+
+    addRequest.onerror = (error) => {
+      console.error('Error saving item to listen later list:', error)
+      dialogError = 'Failed to save item. Please try again.'
+    }
+  }
+
+  function handleConfirmDialogCancel() {
+    isConfirmDialogOpen = false
+    resetPendingState()
+  }
+
+  function resetPendingState() {
+    pendingMusicItem = null
+    pendingLinkMetadata = null
+    pendingSource = null
+    existingDuplicate = null
+    dialogError = null
+    isDialogLoading = false
+  }
+
+  function findDuplicate(title: string, artists: string[]): ListenLaterItem | null {
+    const normalizedTitle = title.toLowerCase().trim()
+    const normalizedArtists = artists.map((a) => a.toLowerCase().trim()).sort()
+
+    return (
+      listenLaterItems.find((item) => {
+        const itemTitle = item.title.toLowerCase().trim()
+        const itemArtists = item.artists.map((a: string) => a.toLowerCase().trim()).sort()
+
+        // Match if title and at least one artist matches
+        if (itemTitle !== normalizedTitle) return false
+
+        // Check if any artist overlaps
+        return normalizedArtists.some((artist) => itemArtists.includes(artist))
+      }) || null
+    )
+  }
+
+  function handleViewExisting() {
+    if (existingDuplicate) {
+      isConfirmDialogOpen = false
+      highlightedItemId = existingDuplicate.id
+
+      // Scroll to the item
+      const element = document.getElementById(`item-${existingDuplicate.id}`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+
+      // Remove highlight after 3 seconds
+      setTimeout(() => {
+        highlightedItemId = null
+      }, 3000)
+
+      resetPendingState()
+    }
+  }
 </script>
 
 <LibraryLayout data={listenLaterItems}>
@@ -200,6 +401,39 @@
       </div>
     </div>
     <Separator class="my-4" />
+
+    <!-- Paste Link Section -->
+    <div class="mb-6">
+      <h3 class="text-lg font-medium mb-2">Add from Link</h3>
+      <div class="flex gap-2">
+        <Input
+          type="url"
+          bind:value={linkUrl}
+          placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
+          class="flex-1"
+          disabled={isProcessingLink}
+        />
+        <Button
+          onclick={handlePasteLink}
+          disabled={isProcessingLink || !linkUrl.trim()}
+        >
+          <Link2 class="mr-2 h-4 w-4" />
+          {isProcessingLink ? 'Processing...' : 'Add'}
+        </Button>
+      </div>
+      {#if linkError}
+        <p class="text-destructive text-sm mt-2">{linkError}</p>
+      {/if}
+      {#if successMessage}
+        <div class="flex items-center gap-2 rounded-md border border-green-500 bg-green-50 p-3 dark:bg-green-950 mt-2">
+          <CheckCircle class="h-5 w-5 text-green-500" />
+          <p class="text-sm text-green-700 dark:text-green-300">{successMessage}</p>
+        </div>
+      {/if}
+    </div>
+
+    <Separator class="my-4" />
+
     <div class="mb-4 flex items-center gap-4">
       <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType}>
@@ -281,7 +515,12 @@
           </thead>
           <tbody>
             {#each listenLaterItems as item (item.id)}
-              <tr in:receive={{ key: item.id }} out:send={{ key: item.id }} class="text-center">
+              <tr
+                id={`item-${item.id}`}
+                in:receive={{ key: item.id }}
+                out:send={{ key: item.id }}
+                class="text-center transition-colors duration-500 {highlightedItemId === item.id ? 'bg-yellow-100 dark:bg-yellow-900' : ''}"
+              >
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>
@@ -351,3 +590,17 @@
     </div>
   </div>
 </LibraryLayout>
+
+<ConfirmMusicDialog
+  bind:open={isConfirmDialogOpen}
+  isLoading={isDialogLoading}
+  error={dialogError}
+  musicItem={pendingMusicItem}
+  linkMetadata={pendingLinkMetadata}
+  source={pendingSource}
+  existingItem={existingDuplicate}
+  onConfirm={handleConfirmDialogConfirm}
+  onCancel={handleConfirmDialogCancel}
+  onViewExisting={handleViewExisting}
+  onRetry={handleRetry}
+/>
