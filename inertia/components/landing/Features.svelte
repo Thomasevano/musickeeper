@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { CloudOff, FolderSync, Download, ListEnd, Share2 } from '@lucide/svelte'
+  import {
+    CloudOff,
+    FolderSync,
+    Download,
+    ListEnd,
+    Share2,
+    HardDriveDownload,
+  } from '@lucide/svelte'
   import type { LandingFeature } from '~/lib/types'
   import FeatureCard from './FeatureCard.svelte'
 
@@ -12,8 +19,14 @@
     },
     {
       icon: CloudOff,
-      title: 'Offline First',
+      title: 'Local First',
       description: 'Everything is store locally in your browser',
+      isAvailable: true,
+    },
+    {
+      icon: HardDriveDownload,
+      title: 'PWA & Offline Support',
+      description: 'Install it on your device and check your list even without internet access',
       isAvailable: true,
     },
     {
