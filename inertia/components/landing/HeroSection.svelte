@@ -1,16 +1,19 @@
 <script>
+  import { page } from '@inertiajs/svelte'
   import { cn } from '$lib/utils'
   import { buttonVariants, Button } from '$lib/components/ui/button'
+
+  const { appVersion } = $page.props
 </script>
 
 <section class="space-y-6 pb-6 pt-16 lg:py-28">
   <div class="container flex max-w-5xl flex-col items-center gap-5 text-center">
     <a
-      href="https://github.com/Thomasevano/musickeeper"
+      href={`https://github.com/Thomasevano/musickeeper/releases/tag/v${appVersion}`}
       class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
       target="_blank"
     >
-      source code is available on Github <i class="si si-github si--color ml-2 mr-2 text-2xl"></i>
+      v{appVersion} &mdash; See what's new 🎉
       <span aria-hidden="true">&rarr;</span>
     </a>
 
