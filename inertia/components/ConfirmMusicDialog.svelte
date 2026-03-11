@@ -3,6 +3,7 @@
   import * as Select from '$lib/components/ui/select/index.js'
   import { Badge } from '$lib/components/ui/badge/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
+  import Input from '~/lib/components/ui/input/input.svelte'
   import Skeleton from '~/lib/components/ui/skeleton/skeleton.svelte'
   import CoverArt from '~/components/CoverArt.svelte'
   import { AlertTriangle, Copy, RefreshCw, Loader2 } from '@lucide/svelte'
@@ -17,7 +18,7 @@
     linkMetadata: LinkMetadata | null
     source: 'musicbrainz' | 'link' | null
     existingItem: ListenLaterItem | null
-    onConfirm: (itemType: SearchType) => void
+    onConfirm: (itemType: SearchType, title: string, artists: string[], albumName: string) => void
     onCancel: () => void
     onViewExisting: () => void
     onRetry: () => void
@@ -32,11 +33,17 @@
   )
 
   let selectedType = $state<SearchType>(SearchType.track)
+  let editableTitle = $state('')
+  let editableArtists = $state('')
+  let editableAlbumName = $state('')
 
-  // Pre-select item type from detected type
+  // Pre-select item type and sync editable fields from fetched data
   $effect(() => {
     if (musicItem) {
       selectedType = musicItem.itemType
+      editableTitle = musicItem.title || ''
+      editableArtists = musicItem.artists?.join(', ') || ''
+      editableAlbumName = musicItem.albumName || ''
     } else if (linkMetadata) {
       selectedType = linkMetadata.type
     }
@@ -51,14 +58,9 @@
     types.find((t) => t.value === selectedType)?.label ?? 'Select type'
   )
 
-  // Check if metadata is missing important fields
-  const hasMissingMetadata = $derived(() => {
-    if (!musicItem) return true
-    return !musicItem.title || !musicItem.artists || musicItem.artists.length === 0
-  })
-
   function handleConfirm() {
-    onConfirm(selectedType)
+    const parsedArtists = editableArtists.split(',').map(a => a.trim()).filter(Boolean)
+    onConfirm(selectedType, editableTitle.trim(), parsedArtists, editableAlbumName.trim())
   }
 
   function handleOpenChange(isOpen: boolean) {
@@ -153,12 +155,13 @@
           <div class="flex gap-4 p-3 rounded-md border">
             <CoverArt
               src={musicItem?.coverArt}
-              alt={`Cover of ${musicItem?.title}`}
+              alt={`Cover of ${editableTitle}`}
               size="md"
             />
-            <div class="flex flex-col justify-center">
-              <h4 class="font-medium">{musicItem?.title || 'Unknown Title'}</h4>
-              <p class="text-sm text-muted-foreground">{musicItem?.artists?.join(', ') || 'Unknown Artist'}</p>
+            <div class="flex flex-col justify-center gap-2 flex-1">
+              <Input bind:value={editableTitle} placeholder="Title" />
+              <Input bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
+              <Input bind:value={editableAlbumName} placeholder="Album name (optional)" />
             </div>
           </div>
         </div>
@@ -167,14 +170,10 @@
       <div class="flex gap-4">
         <CoverArt
           src={musicItem.coverArt}
-          alt={`Cover of ${musicItem.title}`}
+          alt={`Cover of ${editableTitle}`}
           size="lg"
         />
-        <div class="flex flex-col justify-center gap-2">
-          <h3 class="text-lg font-semibold">{musicItem.title || 'Unknown Title'}</h3>
-          <p class="text-muted-foreground">
-            {musicItem.artists?.join(', ') || 'Unknown Artist'}
-          </p>
+        <div class="flex flex-col justify-center gap-1">
           {#if source === 'musicbrainz'}
             <Badge variant="secondary" class="w-fit">MusicBrainz Match</Badge>
           {:else if source === 'link'}
@@ -183,14 +182,20 @@
         </div>
       </div>
 
-      {#if hasMissingMetadata()}
-        <div class="flex items-center gap-2 rounded-md border border-yellow-500 bg-yellow-50 p-3 dark:bg-yellow-950">
-          <AlertTriangle class="h-5 w-5 text-yellow-500" />
-          <p class="text-sm text-yellow-700 dark:text-yellow-300">
-            Some metadata could not be extracted. You may want to edit after adding.
-          </p>
+      <div class="space-y-3">
+        <div class="space-y-1">
+          <label for="edit-title" class="text-sm font-medium">Title</label>
+          <Input id="edit-title" bind:value={editableTitle} placeholder="Title" />
         </div>
-      {/if}
+        <div class="space-y-1">
+          <label for="edit-artists" class="text-sm font-medium">Artists</label>
+          <Input id="edit-artists" bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
+        </div>
+        <div class="space-y-1">
+          <label for="edit-album" class="text-sm font-medium">Album</label>
+          <Input id="edit-album" bind:value={editableAlbumName} placeholder="Album name (optional)" />
+        </div>
+      </div>
 
       <div class="flex items-center gap-4">
         <label for="item-type" class="text-sm font-medium">Item Type:</label>
@@ -221,10 +226,10 @@
       {:else if existingItem}
         <Button variant="outline" onclick={onCancel}>Cancel</Button>
         <Button variant="secondary" onclick={onViewExisting}>View Existing</Button>
-        <Button onclick={handleConfirm} disabled={!musicItem}>Add Anyway</Button>
+        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}>Add Anyway</Button>
       {:else}
         <Button variant="outline" onclick={onCancel}>Cancel</Button>
-        <Button onclick={handleConfirm} disabled={!musicItem}>Add to List</Button>
+        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}>Add to List</Button>
       {/if}
     </Dialog.Footer>
   </Dialog.Content>

@@ -300,18 +300,17 @@
     fetchLinkMetadata()
   }
 
-  function handleConfirmDialogConfirm(itemType: SearchType) {
+  function handleConfirmDialogConfirm(itemType: SearchType, title: string, artists: string[], albumName: string) {
     if (!pendingMusicItem) return
 
-    // Create ListenLaterItem from confirmed data
-    // Spread artists array to convert from Svelte reactive proxy to plain array for IndexedDB
+    // Create ListenLaterItem from confirmed (and possibly edited) data
     const newItem: ListenLaterItem = new ListenLaterItem({
       id: pendingMusicItem.id,
-      title: pendingMusicItem.title,
+      title: title,
       releaseDate: pendingMusicItem.releaseDate,
       length: pendingMusicItem.length,
-      artists: [...pendingMusicItem.artists],
-      albumName: pendingMusicItem.albumName,
+      artists: artists,
+      albumName: albumName,
       itemType: itemType,
       coverArt: pendingMusicItem.coverArt,
       hasBeenListened: false,
