@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0](https://github.com/Thomasevano/musickeeper/compare/v0.4.0...v0.5.0) (2026-03-07)
+
+
+### Features
+
+* add PWA with offline support ([c28d3d6](https://github.com/Thomasevano/musickeeper/commit/c28d3d62878f4b2080205247fb3a4d7f035d623f))
+* **ui:** add feature card for PWA and Offline support ([10476c9](https://github.com/Thomasevano/musickeeper/commit/10476c9b48a043703547ae21610269796abacb44))
+* **ui:** add offline indicator with Alert component ([3bcb7c0](https://github.com/Thomasevano/musickeeper/commit/3bcb7c07d266aba35c4c130978286d4a9596277a))
+* **ui:** change source code label to version and link to changelog ([1280c2a](https://github.com/Thomasevano/musickeeper/commit/1280c2a6796f5f1a087f0f0cc52dd7f98f490335))
+
 ## [0.4.0](https://github.com/Thomasevano/musickeeper/compare/v0.3.4...v0.4.0) (2026-01-27)
 
 
