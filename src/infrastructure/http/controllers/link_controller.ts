@@ -12,23 +12,6 @@ export interface OEmbedResponse {
   thumbnail_url?: string
 }
 
-interface AppleMusicMetadata {
-  title: string
-  author_name: string
-  thumbnail_url?: string
-}
-
-interface AppleMusicError {
-  error: string
-  status: number
-}
-
-type AppleMusicResult = AppleMusicMetadata | AppleMusicError
-
-function isAppleMusicError(result: AppleMusicResult): result is AppleMusicError {
-  return 'error' in result && 'status' in result
-}
-
 interface OEmbedError {
   error: string
   status: number
@@ -143,97 +126,13 @@ export default class LinkController {
       })
     }
 
-    const metadataResult = await this.fetchAppleMusicMetadata(originalUrl)
+    const result = await this.linkMetadataService.fetchAppleMusicMetadata(originalUrl)
 
-    if (isAppleMusicError(metadataResult)) {
-      return response.status(metadataResult.status).json({ error: metadataResult.error })
+    if ('error' in result) {
+      return response.status(422).json({ error: result.error })
     }
 
-    return response.status(200).json(metadataResult)
-  }
-
-  private async fetchAppleMusicMetadata(url: string): Promise<AppleMusicResult> {
-    try {
-      const fetchResponse = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      })
-
-      if (!fetchResponse.ok) {
-        if (fetchResponse.status === 404) {
-          return { error: 'Content not found on Apple Music', status: 404 }
-        }
-        return {
-          error: 'Failed to fetch metadata from Apple Music',
-          status: fetchResponse.status,
-        }
-      }
-
-      const html = await fetchResponse.text()
-      return this.parseOpenGraphTags(html)
-    } catch (error) {
-      return {
-        error: 'Failed to connect to Apple Music',
-        status: 502,
-      }
-    }
-  }
-
-  private parseOpenGraphTags(html: string): AppleMusicResult {
-    const getMetaContent = (property: string): string | undefined => {
-      // Match both property="og:..." and name="og:..." patterns
-      const regex = new RegExp(
-        `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
-        'i'
-      )
-      const match = html.match(regex)
-      return match ? match[1] || match[2] : undefined
-    }
-
-    const ogTitle = getMetaContent('og:title')
-    const ogDescription = getMetaContent('og:description')
-    const ogImage = getMetaContent('og:image')
-
-    if (!ogTitle) {
-      return { error: 'Could not extract metadata from Apple Music page', status: 422 }
-    }
-
-    // Apple Music og:title format is typically "Song Title - Artist Name"
-    // or for albums "Album Title by Artist Name"
-    let title = ogTitle
-    let authorName = ''
-
-    // Try to extract artist from title using common patterns
-    if (ogTitle.includes(' - ')) {
-      // Format: "Song Title - Artist Name"
-      const parts = ogTitle.split(' - ')
-      title = parts[0].trim()
-      authorName = parts.slice(1).join(' - ').trim()
-    } else if (ogTitle.includes(' by ')) {
-      // Format: "Album Title by Artist Name"
-      const byIndex = ogTitle.lastIndexOf(' by ')
-      title = ogTitle.substring(0, byIndex).trim()
-      authorName = ogTitle.substring(byIndex + 4).trim()
-    }
-
-    // If we couldn't extract artist from title, try og:description
-    // Apple Music descriptions often contain "Song · Artist · Album" or similar
-    if (!authorName && ogDescription) {
-      // Try to find artist in description (often formatted as "Artist · Album · Year")
-      const descParts = ogDescription.split(' · ')
-      if (descParts.length >= 1) {
-        authorName = descParts[0].trim()
-      }
-    }
-
-    return {
-      title,
-      author_name: authorName,
-      thumbnail_url: ogImage,
-    }
+    return response.status(200).json(result)
   }
 
   async metadata({ request, response }: HttpContext) {

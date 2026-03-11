@@ -264,7 +264,6 @@ test.group('LinkController - oembed', (group) => {
 
 test.group('LinkController - appleMusic', (group) => {
   group.each.teardown(() => {
-    // Restore original fetch after each test
     globalThis.fetch = originalFetch
   })
 
@@ -315,27 +314,20 @@ test.group('LinkController - appleMusic', (group) => {
     )
   })
 
-  test('fetches Apple Music metadata successfully with dash format title', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="og:title" content="Anti-Hero - Taylor Swift">
-        <meta property="og:description" content="Taylor Swift · Midnights · 2022">
-        <meta property="og:image" content="https://is1-ssl.mzstatic.com/image/thumb/Music/v4/abc123.jpg">
-      </head>
-      <body></body>
-      </html>
-    `
-
+  test('returns 200 with metadata when service succeeds', async ({ assert }) => {
     globalThis.fetch = async (url: string | URL | Request) => {
       const urlString = url.toString()
-      assert.include(urlString, 'music.apple.com')
-
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
+      if (urlString.includes('/api/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Anti-Hero',
+            author_name: 'Taylor Swift',
+            thumbnail_url: 'https://is1-ssl.mzstatic.com/image/thumb/Music/v4/abc123.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
     const controller = new LinkController()
@@ -354,79 +346,7 @@ test.group('LinkController - appleMusic', (group) => {
     })
   })
 
-  test('fetches Apple Music album metadata with "by" format title', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="og:title" content="Midnights by Taylor Swift">
-        <meta property="og:description" content="Album · 2022 · 13 songs">
-        <meta property="og:image" content="https://is1-ssl.mzstatic.com/image/thumb/Music/v4/def456.jpg">
-      </head>
-      <body></body>
-      </html>
-    `
-
-    globalThis.fetch = async () => {
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/midnights/1649434004',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
-    assert.equal(result.status, 200)
-    assert.deepEqual(result.body, {
-      title: 'Midnights',
-      author_name: 'Taylor Swift',
-      thumbnail_url: 'https://is1-ssl.mzstatic.com/image/thumb/Music/v4/def456.jpg',
-    })
-  })
-
-  test('extracts artist from description when not in title', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="og:title" content="Some Song Title">
-        <meta property="og:description" content="Artist Name · Album Name · 2023">
-        <meta property="og:image" content="https://is1-ssl.mzstatic.com/image/thumb/Music/v4/ghi789.jpg">
-      </head>
-      <body></body>
-      </html>
-    `
-
-    globalThis.fetch = async () => {
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/some-album/123456?i=654321',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
-    assert.equal(result.status, 200)
-    assert.deepEqual(result.body, {
-      title: 'Some Song Title',
-      author_name: 'Artist Name',
-      thumbnail_url: 'https://is1-ssl.mzstatic.com/image/thumb/Music/v4/ghi789.jpg',
-    })
-  })
-
-  test('handles 404 from Apple Music', async ({ assert }) => {
+  test('returns 422 when service returns an error', async ({ assert }) => {
     globalThis.fetch = async () => {
       return new Response('Not found', { status: 404 })
     }
@@ -439,143 +359,7 @@ test.group('LinkController - appleMusic', (group) => {
     await controller.appleMusic(ctx as never)
     const result = ctx.getMockResponse()
 
-    assert.equal(result.status, 404)
-    assert.include((result.body as { error: string }).error, 'Content not found on Apple Music')
-  })
-
-  test('handles other error status from Apple Music', async ({ assert }) => {
-    globalThis.fetch = async () => {
-      return new Response('Server error', { status: 500 })
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/midnights/1649434004',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
-    assert.equal(result.status, 500)
-    assert.include((result.body as { error: string }).error, 'Failed to fetch metadata')
-  })
-
-  test('handles network error gracefully', async ({ assert }) => {
-    globalThis.fetch = async () => {
-      throw new Error('Network error')
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/midnights/1649434004',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
-    assert.equal(result.status, 502)
-    assert.include((result.body as { error: string }).error, 'Failed to connect to Apple Music')
-  })
-
-  test('returns 422 when og:title is missing', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="og:description" content="Some description">
-        <meta property="og:image" content="https://example.com/image.jpg">
-      </head>
-      <body></body>
-      </html>
-    `
-
-    globalThis.fetch = async () => {
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/midnights/1649434004',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
     assert.equal(result.status, 422)
-    assert.include((result.body as { error: string }).error, 'Could not extract metadata')
-  })
-
-  test('handles missing thumbnail gracefully', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="og:title" content="Anti-Hero - Taylor Swift">
-        <meta property="og:description" content="Taylor Swift · Midnights · 2022">
-      </head>
-      <body></body>
-      </html>
-    `
-
-    globalThis.fetch = async () => {
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/midnights/1649434004?i=1649434012',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
-    assert.equal(result.status, 200)
-    assert.deepEqual(result.body, {
-      title: 'Anti-Hero',
-      author_name: 'Taylor Swift',
-      thumbnail_url: undefined,
-    })
-  })
-
-  test('handles meta tags with content before property attribute', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta content="Shake It Off - Taylor Swift" property="og:title">
-        <meta content="Taylor Swift · 1989 · 2014" property="og:description">
-        <meta content="https://example.com/cover.jpg" property="og:image">
-      </head>
-      <body></body>
-      </html>
-    `
-
-    globalThis.fetch = async () => {
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    }
-
-    const controller = new LinkController()
-    const ctx = createMockContext({
-      url: 'https://music.apple.com/us/album/1989/1440913620?i=1440913650',
-    })
-
-    await controller.appleMusic(ctx as never)
-    const result = ctx.getMockResponse()
-
-    assert.equal(result.status, 200)
-    assert.deepEqual(result.body, {
-      title: 'Shake It Off',
-      author_name: 'Taylor Swift',
-      thumbnail_url: 'https://example.com/cover.jpg',
-    })
+    assert.property(result.body as object, 'error')
   })
 })

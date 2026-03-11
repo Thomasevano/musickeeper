@@ -57,11 +57,17 @@ export class LinkMetadataService {
     soundcloud: 'https://soundcloud.com/oembed',
   }
 
+  private static readonly APPLE_MUSIC_SUFFIX = / on Apple Music$/i
+
   constructor(
     private linkParser: LinkParserService = new LinkParserService(),
     private musicBrainzRepository: MusicBrainzRepository = new MusicBrainzRepository(),
     private serializeSearchResults: SearchResultsSerializer = serializeMusicBrainzSearchResults
   ) {}
+
+  static stripAppleMusicSuffix(value: string): string {
+    return value.replace(LinkMetadataService.APPLE_MUSIC_SUFFIX, '').trim()
+  }
 
   async fetchMetadata(url: string): Promise<LinkMetadataResult> {
     const parseResult = this.linkParser.parseLink(url)
@@ -77,8 +83,8 @@ export class LinkMetadataService {
     }
 
     const linkMetadata: LinkMetadata = {
-      title: oEmbedMetadata.title,
-      artist: oEmbedMetadata.author_name,
+      title: LinkMetadataService.stripAppleMusicSuffix(oEmbedMetadata.title),
+      artist: LinkMetadataService.stripAppleMusicSuffix(oEmbedMetadata.author_name),
       type: parseResult.type,
       thumbnailUrl: oEmbedMetadata.thumbnail_url,
       originalUrl: parseResult.originalUrl,
@@ -153,7 +159,45 @@ export class LinkMetadataService {
     }
   }
 
-  private async fetchAppleMusicMetadata(url: string): Promise<OEmbedMetadata | { error: string }> {
+  async fetchAppleMusicMetadata(url: string): Promise<OEmbedMetadata | { error: string }> {
+    // Primary: use Apple Music's oEmbed API (returns clean, non-localized metadata)
+    const oEmbedResult = await this.fetchAppleMusicOEmbed(url)
+    if (oEmbedResult && !('error' in oEmbedResult)) {
+      return oEmbedResult
+    }
+
+    // Fallback: scrape HTML Open Graph tags
+    return this.fetchAppleMusicHtml(url)
+  }
+
+  private async fetchAppleMusicOEmbed(
+    url: string
+  ): Promise<OEmbedMetadata | { error: string } | null> {
+    try {
+      const oEmbedUrl = new URL('https://music.apple.com/api/oembed')
+      oEmbedUrl.searchParams.set('url', url)
+
+      const response = await fetch(oEmbedUrl.toString())
+
+      if (!response.ok) {
+        // Return null to trigger fallback instead of a hard error
+        return null
+      }
+
+      const data = (await response.json()) as Record<string, unknown>
+
+      return {
+        title: String(data.title || ''),
+        author_name: String(data.author_name || ''),
+        thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
+      }
+    } catch {
+      // oEmbed failed, return null to trigger fallback
+      return null
+    }
+  }
+
+  private async fetchAppleMusicHtml(url: string): Promise<OEmbedMetadata | { error: string }> {
     try {
       const response = await fetch(url, {
         headers: {

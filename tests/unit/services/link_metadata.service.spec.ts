@@ -348,31 +348,23 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
   })
 })
 
-test.group('LinkMetadataService - Apple Music', (group) => {
+test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
 
-  test('fetches Apple Music track metadata from HTML', async ({ assert }) => {
-    const mockHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="og:title" content="Anti-Hero - Taylor Swift">
-        <meta property="og:description" content="Taylor Swift · Midnights · 2022">
-        <meta property="og:image" content="https://is1-ssl.mzstatic.com/image/thumb/Music/v4/abc123.jpg">
-      </head>
-      <body></body>
-      </html>
-    `
-
+  test('fetches Apple Music track metadata via oEmbed API', async ({ assert }) => {
     globalThis.fetch = async (url: string | URL | Request) => {
       const urlString = url.toString()
-      if (urlString.includes('music.apple.com')) {
-        return new Response(mockHtml, {
-          status: 200,
-          headers: { 'Content-Type': 'text/html' },
-        })
+      if (urlString.includes('/api/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Anti-Hero',
+            author_name: 'Taylor Swift',
+            thumbnail_url: 'https://is1-ssl.mzstatic.com/image/thumb/Music/v4/abc123.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
       }
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
@@ -395,7 +387,114 @@ test.group('LinkMetadataService - Apple Music', (group) => {
     }
   })
 
-  test('fetches Apple Music album metadata with "by" format', async ({ assert }) => {
+  test('fetches Apple Music album metadata via oEmbed API', async ({ assert }) => {
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('/api/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Midnights',
+            author_name: 'Taylor Swift',
+            thumbnail_url: 'https://is1-ssl.mzstatic.com/image/thumb/album.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata(
+      'https://music.apple.com/us/album/midnights/1649434004'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.title, 'Midnights')
+      assert.equal(result.linkMetadata.artist, 'Taylor Swift')
+      assert.equal(result.linkMetadata.type, SearchType.album)
+    }
+  })
+
+  test('oEmbed returns clean artist name without localization suffix', async ({ assert }) => {
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('/api/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Save The Day (From "Hoppers") - Single',
+            author_name: 'SZA',
+            thumbnail_url: 'https://is1-ssl.mzstatic.com/image/thumb/cover.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata(
+      'https://music.apple.com/fr/album/save-the-day-from-hoppers/1877213779?i=1877213780&l=en-GB'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.artist, 'SZA')
+      assert.notInclude(result.linkMetadata.artist, 'on Apple Music')
+    }
+  })
+})
+
+test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
+  group.each.teardown(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  test('falls back to HTML scraping when oEmbed returns 404', async ({ assert }) => {
+    const mockHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta property="og:title" content="Anti-Hero - Taylor Swift">
+        <meta property="og:description" content="Taylor Swift · Midnights · 2022">
+        <meta property="og:image" content="https://is1-ssl.mzstatic.com/image/thumb/Music/v4/abc123.jpg">
+      </head>
+      <body></body>
+      </html>
+    `
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('/api/oembed')) {
+        return new Response('Not found', { status: 404 })
+      }
+      if (urlString.includes('music.apple.com')) {
+        return new Response(mockHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata(
+      'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.title, 'Anti-Hero')
+      assert.equal(result.linkMetadata.artist, 'Taylor Swift')
+      assert.equal(result.linkMetadata.type, SearchType.track)
+    }
+  })
+
+  test('falls back to HTML scraping when oEmbed throws network error', async ({ assert }) => {
+    let fetchCallCount = 0
     const mockHtml = `
       <!DOCTYPE html>
       <html>
@@ -409,7 +508,11 @@ test.group('LinkMetadataService - Apple Music', (group) => {
     `
 
     globalThis.fetch = async (url: string | URL | Request) => {
+      fetchCallCount++
       const urlString = url.toString()
+      if (urlString.includes('/api/oembed')) {
+        throw new Error('Network error')
+      }
       if (urlString.includes('music.apple.com')) {
         return new Response(mockHtml, {
           status: 200,
@@ -431,24 +534,60 @@ test.group('LinkMetadataService - Apple Music', (group) => {
       assert.equal(result.linkMetadata.artist, 'Taylor Swift')
       assert.equal(result.linkMetadata.type, SearchType.album)
     }
+    assert.equal(fetchCallCount, 2)
   })
 
-  test('returns error when Apple Music og:title is missing', async ({ assert }) => {
+  test('strips "on Apple Music" suffix from HTML fallback artist', async ({ assert }) => {
     const mockHtml = `
       <!DOCTYPE html>
       <html>
       <head>
-        <meta property="og:description" content="Some description">
+        <meta property="og:title" content="Anti-Hero - Taylor Swift on Apple Music">
+        <meta property="og:description" content="Taylor Swift · Midnights · 2022">
+        <meta property="og:image" content="https://is1-ssl.mzstatic.com/image/thumb/Music/v4/abc123.jpg">
       </head>
       <body></body>
       </html>
     `
 
-    globalThis.fetch = async () => {
-      return new Response(mockHtml, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('/api/oembed')) {
+        return new Response('Not found', { status: 404 })
+      }
+      if (urlString.includes('music.apple.com')) {
+        return new Response(mockHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata(
+      'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.title, 'Anti-Hero')
+      assert.equal(result.linkMetadata.artist, 'Taylor Swift')
+    }
+  })
+
+  test('returns error when both oEmbed and HTML fail', async ({ assert }) => {
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('/api/oembed')) {
+        return new Response('Not found', { status: 404 })
+      }
+      // HTML page has no og:title
+      return new Response(
+        '<html><head><meta property="og:description" content="Some description"></head><body></body></html>',
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
     }
 
     const mockRepo = new MockMusicBrainzRepository()
