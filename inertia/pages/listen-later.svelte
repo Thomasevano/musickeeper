@@ -7,6 +7,7 @@
   import { receive, send } from '$lib/helpers'
   import { Check, Link2, Trash2, X, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
+  import { toast } from 'svelte-sonner'
   import CoverArt from '~/components/CoverArt.svelte'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
   import TrackItem from '~/components/trackItem.svelte'
@@ -198,6 +199,8 @@
       getAllRequest.onsuccess = () => {
         sortListenLaterItems(getAllRequest)
       }
+
+      toast.success(`"${item.title}" removed from your list`)
     }
 
     deleteRequest.onerror = (error) => {
@@ -332,6 +335,8 @@
       isConfirmDialogOpen = false
       resetPendingState()
       linkUrl = ''
+
+      toast.success(`"${title}" added to your list`)
     }
 
     addRequest.onerror = (error) => {
