@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.0](https://github.com/Thomasevano/musickeeper/compare/v0.5.0...v0.6.0) (2026-03-13)
+
+
+### Features
+
+* edit fetch data ([6acc587](https://github.com/Thomasevano/musickeeper/commit/6acc587bdfd3b992eda2513d69b8da21ec49ef6a))
+* **ui:** add toast notification when an item is added/deleted in the list ([332ca87](https://github.com/Thomasevano/musickeeper/commit/332ca878c4e61437bf104a51121f64b24f9fc082))
+* US-001 - Create LinkParserService for URL parsing ([c591634](https://github.com/Thomasevano/musickeeper/commit/c5916345c00b9bc3addffb33b188e0670de40165))
+* US-002 - Add oEmbed proxy endpoint for streaming services ([6fa17be](https://github.com/Thomasevano/musickeeper/commit/6fa17bec9e13f8b173db96cb0d1d30f06bb25a9b))
+* US-003 - Add Apple Music metadata endpoint ([d115348](https://github.com/Thomasevano/musickeeper/commit/d11534847521193209771c14ac1d61fb64736ad6))
+* US-004 - Create LinkMetadataService to fetch and enrich metadata ([c6c0aa5](https://github.com/Thomasevano/musickeeper/commit/c6c0aa50c75600e68a514cbc3c0c65c08569f564))
+* US-005 - Add sourceUrl field to ListenLaterItem data model ([9a573fa](https://github.com/Thomasevano/musickeeper/commit/9a573fa5652b8a0cc169136224010f111d19f1c3))
+* US-006 - Add paste link input to Listen Later page ([61c8eac](https://github.com/Thomasevano/musickeeper/commit/61c8eacf8a9cfd7ac00769e2406144eec0e436ad))
+* US-007 - Create confirmation dialog for pasted link ([ae9f198](https://github.com/Thomasevano/musickeeper/commit/ae9f19803548c6b297ade6f1e2eaff29c0e09e78))
+* US-008 - Implement duplicate detection with user options ([fd6a5d7](https://github.com/Thomasevano/musickeeper/commit/fd6a5d7060fba3fc7ab8e3ef6f76ef8bc14e2bca))
+* US-009 - Add loading and error states for link processing ([6e302f0](https://github.com/Thomasevano/musickeeper/commit/6e302f0e184f7fe4df65772498de8ecd3205506f))
+* US-010 - Wire up save flow with sourceUrl ([e361172](https://github.com/Thomasevano/musickeeper/commit/e361172021845fbef67b40e0a6fc1c1d02705259))
+
+
+### Bug Fixes
+
+* correct title and artist name for Apple Music fetch ([de02b07](https://github.com/Thomasevano/musickeeper/commit/de02b071706a390c3904d8d43e89bb1ea5071b75))
+
 ## [0.5.0](https://github.com/Thomasevano/musickeeper/compare/v0.4.0...v0.5.0) (2026-03-07)
 
 
