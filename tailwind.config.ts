@@ -85,11 +85,31 @@ const config = {
           '0%,70%,100%': { opacity: '1' },
           '20%,50%': { opacity: '0' },
         },
+        'dialog-in': {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        'dialog-out': {
+          from: { opacity: '1', transform: 'scale(1)' },
+          to: { opacity: '0', transform: 'scale(0.95)' },
+        },
+        'overlay-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'overlay-out': {
+          from: { opacity: '1' },
+          to: { opacity: '0' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'caret-blink': 'caret-blink 1.25s ease-out infinite',
+        'dialog-in': 'dialog-in 200ms cubic-bezier(0.23, 1, 0.32, 1) forwards',
+        'dialog-out': 'dialog-out 160ms cubic-bezier(0.23, 1, 0.32, 1) forwards',
+        'overlay-in': 'overlay-in 200ms cubic-bezier(0.23, 1, 0.32, 1) forwards',
+        'overlay-out': 'overlay-out 160ms cubic-bezier(0.23, 1, 0.32, 1) forwards',
       },
     },
   },

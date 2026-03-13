@@ -97,3 +97,10 @@
       'calt' 1;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='dialog-content'],
+  [data-slot='dialog-overlay'] {
+    animation: none;
+  }
+}
