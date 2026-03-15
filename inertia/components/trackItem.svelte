@@ -14,7 +14,7 @@
       hasBeenListened: false,
       addedAt: new Date(),
     }
-    const dbRequest = indexedDB.open('listenLaterDB', 2)
+    const dbRequest = indexedDB.open('listenLaterDB', 3)
 
     dbRequest.onsuccess = (event) => {
       const db = event.target.result
@@ -31,7 +31,7 @@
     }
   }
   function removeFromListenLater(itemId) {
-    const dbRequest = indexedDB.open('listenLaterDB', 2)
+    const dbRequest = indexedDB.open('listenLaterDB', 3)
 
     dbRequest.onsuccess = (event) => {
       const db = event.target.result
