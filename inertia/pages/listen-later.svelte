@@ -92,6 +92,22 @@
     }
   })
 
+  // Scroll to highlighted item and auto-clear after 3s
+  $effect(() => {
+    if (!highlightedItemId) return
+
+    const element = document.getElementById(`item-${highlightedItemId}`)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    const timeout = setTimeout(() => {
+      highlightedItemId = null
+    }, 3000)
+
+    return () => clearTimeout(timeout)
+  })
+
   const request = indexedDB.open('listenLaterDB', 3)
 
   request.onupgradeneeded = (event) => {
@@ -381,18 +397,6 @@
     if (existingDuplicate) {
       isConfirmDialogOpen = false
       highlightedItemId = existingDuplicate.id
-
-      // Scroll to the item
-      const element = document.getElementById(`item-${existingDuplicate.id}`)
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-
-      // Remove highlight after 3 seconds
-      setTimeout(() => {
-        highlightedItemId = null
-      }, 3000)
-
       resetPendingState()
     }
   }
