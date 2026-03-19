@@ -326,3 +326,47 @@ test.describe('paste link - edit fields before saving', () => {
     await expect(page.getByRole('button', { name: 'Add to List' })).toBeEnabled()
   })
 })
+
+test.describe('delete item', () => {
+  test('delete removes the item from the list and shows a toast', async ({ page }) => {
+    await page.route('**/api/link/metadata', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockMetadataResponse),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+
+    // First add an item
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+    await page.getByRole('button', { name: 'Add to List' }).click()
+
+    // Verify item is in the list
+    await expect(
+      page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
+    ).toBeVisible()
+
+    // Click the delete button (trash icon in the row)
+    const deleteButton = page
+      .getByRole('row')
+      .filter({ hasText: 'Never Gonna Give You Up' })
+      .getByRole('button')
+      .last()
+    await deleteButton.click()
+
+    // Item is removed from the list
+    await expect(
+      page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
+    ).not.toBeVisible()
+
+    // Empty state message appears
+    await expect(page.getByText('No items in your listen later list yet')).toBeVisible()
+
+    // Success toast appears
+    await expect(page.getByText('"Never Gonna Give You Up" removed from your list')).toBeVisible()
+  })
+})
