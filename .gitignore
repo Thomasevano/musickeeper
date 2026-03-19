@@ -26,5 +26,9 @@ yarn-error.log
 .idea
 .vscode
 
+# Playwright
+test-results/
+playwright-report/
+
 # Platform specific
 .DS_Store
