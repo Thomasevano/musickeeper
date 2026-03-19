@@ -154,3 +154,94 @@ test.describe('paste link - invalid link errors', () => {
     await expect(page.getByRole('button', { name: 'Add' })).toBeDisabled()
   })
 })
+
+test.describe('paste link - duplicate detection', () => {
+  test.beforeEach(async ({ page }) => {
+    // Mock the metadata API
+    await page.route('**/api/link/metadata', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockMetadataResponse),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+
+    // Add an item first
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+    await page.getByRole('button', { name: 'Add to List' }).click()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+  })
+
+  test('shows duplicate warning when pasting same link again', async ({ page }) => {
+    // Paste the same link again
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    // Dialog shows duplicate state
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+    await expect(page.getByText('already exists in your list')).toBeVisible()
+
+    // Shows existing item info
+    await expect(page.getByText('Existing item in your list')).toBeVisible()
+
+    // Duplicate-specific buttons are present
+    await expect(page.getByRole('button', { name: 'Add Anyway' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'View Existing' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
+  })
+
+  test('add anyway adds a second copy of the item', async ({ page }) => {
+    // Override mock to return a different ID for the second paste
+    let callCount = 0
+    await page.unroute('**/api/link/metadata')
+    await page.route('**/api/link/metadata', (route) => {
+      callCount++
+      const response = {
+        ...mockMetadataResponse,
+        musicItem: {
+          ...mockMetadataResponse.musicItem,
+          id: `test-${callCount + 1}`,
+        },
+      }
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(response),
+      })
+    })
+
+    // Paste the same link again
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    // Wait for duplicate dialog to fully load
+    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+
+    // Click "Add Anyway"
+    await page.getByRole('button', { name: 'Add Anyway' }).click()
+
+    // Two rows now exist with the same title
+    const titleCells = page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
+    await expect(titleCells).toHaveCount(2)
+  })
+
+  test('view existing closes dialog and scrolls to item', async ({ page }) => {
+    // Paste the same link again
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    // Click "View Existing"
+    await page.getByRole('button', { name: 'View Existing' }).click()
+
+    // Dialog closes
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+  })
+})
