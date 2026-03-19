@@ -232,7 +232,7 @@ test.describe('paste link - duplicate detection', () => {
     await expect(titleCells).toHaveCount(2)
   })
 
-  test('view existing closes dialog and scrolls to item', async ({ page }) => {
+  test('view existing closes dialog and scrolls to the item', async ({ page }) => {
     // Paste the same link again
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
@@ -243,5 +243,86 @@ test.describe('paste link - duplicate detection', () => {
 
     // Dialog closes
     await expect(page.getByRole('dialog')).not.toBeVisible()
+  })
+})
+
+test.describe('paste link - edit fields before saving', () => {
+  test('edited title, artists, and album are saved to the list', async ({ page }) => {
+    await page.route('**/api/link/metadata', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockMetadataResponse),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+
+    // Paste a link
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    // Wait for dialog with data
+    await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+
+    // Edit the title
+    const titleInput = page.getByLabel('Title')
+    await titleInput.clear()
+    await titleInput.fill('Together Forever')
+
+    // Edit the artists
+    const artistsInput = page.getByLabel('Artists')
+    await artistsInput.clear()
+    await artistsInput.fill('Rick Astley, Someone Else')
+
+    // Edit the album
+    const albumInput = page.getByLabel('Album')
+    await albumInput.clear()
+    await albumInput.fill('Hold Me in Your Arms')
+
+    // Confirm
+    await page.getByRole('button', { name: 'Add to List' }).click()
+
+    // Edited values appear in the list
+    await expect(page.getByRole('cell', { name: 'Together Forever', exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('cell', { name: 'Rick Astley, Someone Else', exact: true })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('cell', { name: 'Hold Me in Your Arms', exact: true })
+    ).toBeVisible()
+
+    // Toast shows the edited title
+    await expect(page.getByText('"Together Forever" added to your list')).toBeVisible()
+  })
+
+  test('add to list button is disabled when title is cleared', async ({ page }) => {
+    await page.route('**/api/link/metadata', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockMetadataResponse),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+
+    // Clear the title
+    const titleInput = page.getByLabel('Title')
+    await titleInput.clear()
+
+    // Add to List button should be disabled
+    await expect(page.getByRole('button', { name: 'Add to List' })).toBeDisabled()
+
+    // Type something back
+    await titleInput.fill('New Title')
+    await expect(page.getByRole('button', { name: 'Add to List' })).toBeEnabled()
   })
 })
