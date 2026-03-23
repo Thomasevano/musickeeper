@@ -248,6 +248,116 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
   })
 })
 
+test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
+  group.each.teardown(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  test('enriches from HTML when oEmbed returns no author_name', async ({ assert }) => {
+    const spotifyHtml = `
+      <html><head>
+        <meta property="og:description" content="Rick Astley · Whenever You Need Somebody · Song · 1987">
+        <meta property="og:title" content="Never Gonna Give You Up">
+      </head></html>
+    `
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('open.spotify.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Never Gonna Give You Up',
+            thumbnail_url: 'https://i.scdn.co/image/abc123',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('open.spotify.com/track')) {
+        return new Response(spotifyHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata(
+      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.artist, 'Rick Astley')
+      assert.equal(result.linkMetadata.albumName, 'Whenever You Need Somebody')
+      // MusicBrainz enriches since artist is now available
+      assert.equal(result.source, 'musicbrainz')
+      // Album name from Spotify HTML overrides MusicBrainz
+      assert.equal(result.musicItem.albumName, 'Whenever You Need Somebody')
+    }
+  })
+
+  test('falls back gracefully when HTML scraping fails', async ({ assert }) => {
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('open.spotify.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Some Track',
+            thumbnail_url: 'https://i.scdn.co/image/abc123',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('open.spotify.com/track')) {
+        return new Response('', { status: 500 })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const service = new LinkMetadataService(undefined, undefined, mockSerializer)
+    const result = await service.fetchMetadata('https://open.spotify.com/track/abc123')
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      // Falls back to link metadata with empty artist
+      assert.equal(result.source, 'link')
+      assert.equal(result.linkMetadata.artist, '')
+      assert.equal(result.musicItem.title, 'Some Track')
+    }
+  })
+
+  test('skips HTML fallback when oEmbed already has author_name', async ({ assert }) => {
+    let htmlFetchCalled = false
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('open.spotify.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Never Gonna Give You Up',
+            author_name: 'Rick Astley',
+            thumbnail_url: 'https://i.scdn.co/image/abc123',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('open.spotify.com/track')) {
+        htmlFetchCalled = true
+        return new Response('', { status: 200 })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    await service.fetchMetadata('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
+
+    assert.isFalse(htmlFetchCalled, 'Should not fetch HTML when oEmbed has author_name')
+  })
+})
+
 test.group('LinkMetadataService - YouTube oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch

@@ -4,21 +4,24 @@ const SPOTIFY_URL = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
 
 const mockMetadataResponse = {
   musicItem: {
-    id: 'test-123',
+    id: 'mb-track-456',
     title: 'Never Gonna Give You Up',
+    releaseDate: '2023-06-15',
+    length: 180000,
     artists: ['Rick Astley'],
     albumName: 'Whenever You Need Somebody',
-    coverArt: 'https://i.scdn.co/image/abc123',
     itemType: 'track',
-    releaseDate: '1987-07-27',
+    coverArt: 'https://coverartarchive.org/test-cover.jpg',
   },
   source: 'musicbrainz',
   linkMetadata: {
     title: 'Never Gonna Give You Up',
     artist: 'Rick Astley',
     type: 'track',
-    thumbnailUrl: 'https://i.scdn.co/image/abc123',
+    thumbnailUrl:
+      'https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02255e131abc1410833be95673',
     originalUrl: SPOTIFY_URL,
+    albumName: 'Whenever You Need Somebody',
   },
 }
 
@@ -157,7 +160,6 @@ test.describe('paste link - invalid link errors', () => {
 
 test.describe('paste link - duplicate detection', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock the metadata API
     await page.route('**/api/link/metadata', (route) => {
       route.fulfill({
         status: 200,
@@ -206,7 +208,7 @@ test.describe('paste link - duplicate detection', () => {
         ...mockMetadataResponse,
         musicItem: {
           ...mockMetadataResponse.musicItem,
-          id: `test-${callCount + 1}`,
+          id: `link-${callCount + 1}`,
         },
       }
       route.fulfill({

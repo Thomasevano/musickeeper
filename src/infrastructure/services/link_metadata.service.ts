@@ -13,6 +13,7 @@ export interface OEmbedMetadata {
   title: string
   author_name: string
   thumbnail_url?: string
+  album_name?: string
 }
 
 export interface LinkMetadata {
@@ -21,6 +22,7 @@ export interface LinkMetadata {
   type: SearchType
   thumbnailUrl?: string
   originalUrl: string
+  albumName?: string
 }
 
 export interface LinkMetadataSuccess {
@@ -88,6 +90,7 @@ export class LinkMetadataService {
       type: parseResult.type,
       thumbnailUrl: oEmbedMetadata.thumbnail_url,
       originalUrl: parseResult.originalUrl,
+      albumName: oEmbedMetadata.album_name,
     }
 
     // Try to enrich with MusicBrainz data
@@ -99,6 +102,12 @@ export class LinkMetadataService {
       )
 
       if (musicItem) {
+        // Prefer album name from the streaming platform over MusicBrainz
+        // (MusicBrainz may match a compilation instead of the original album)
+        if (linkMetadata.albumName) {
+          musicItem.albumName = linkMetadata.albumName
+        }
+
         return {
           musicItem,
           source: 'musicbrainz',
@@ -149,11 +158,22 @@ export class LinkMetadataService {
 
       const data = (await response.json()) as Record<string, unknown>
 
-      return {
+      const result: OEmbedMetadata = {
         title: String(data.title || ''),
         author_name: String(data.author_name || ''),
         thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
       }
+
+      // Spotify oEmbed doesn't return author_name for tracks — enrich from page HTML
+      if (platform === StreamingPlatform.Spotify && !result.author_name) {
+        const htmlMetadata = await this.fetchSpotifyHtmlMetadata(originalUrl)
+        if (htmlMetadata) {
+          result.author_name = htmlMetadata.artist
+          result.album_name = htmlMetadata.albumName
+        }
+      }
+
+      return result
     } catch {
       return { error: `Failed to connect to ${platform} oEmbed service` }
     }
@@ -219,6 +239,54 @@ export class LinkMetadataService {
     } catch {
       return { error: 'Failed to connect to Apple Music' }
     }
+  }
+
+  private async fetchSpotifyHtmlMetadata(
+    url: string
+  ): Promise<{ artist: string; albumName?: string } | null> {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'Accept': 'text/html',
+        },
+      })
+
+      if (!response.ok) return null
+
+      const html = await response.text()
+      return this.parseSpotifyOgTags(html)
+    } catch {
+      return null
+    }
+  }
+
+  private parseSpotifyOgTags(html: string): { artist: string; albumName?: string } | null {
+    const getMetaContent = (property: string): string | undefined => {
+      const regex = new RegExp(
+        `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
+        'i'
+      )
+      const match = html.match(regex)
+      return match ? match[1] || match[2] : undefined
+    }
+
+    const ogDescription = getMetaContent('og:description')
+    if (!ogDescription) return null
+
+    // Spotify og:description format: "Artist · Album · Song · Year" (tracks)
+    //                             or "Artist · album · Year · N songs" (albums)
+    const parts = ogDescription.split(' \u00B7 ').map((p) => p.trim())
+    if (parts.length < 2) return null
+
+    const artist = parts[0]
+    // For tracks, second part is the album name (skip if it matches a type keyword)
+    const albumName =
+      parts.length >= 3 && !['album', 'single', 'ep'].includes(parts[1].toLowerCase())
+        ? parts[1]
+        : undefined
+
+    return { artist, albumName }
   }
 
   private parseOpenGraphTags(html: string): OEmbedMetadata | { error: string } {
@@ -295,7 +363,8 @@ export class LinkMetadataService {
       artists: metadata.artist ? [metadata.artist] : [],
       itemType: metadata.type,
       coverArt: metadata.thumbnailUrl,
-      albumName: metadata.type === SearchType.album ? metadata.title : undefined,
+      albumName:
+        metadata.albumName || (metadata.type === SearchType.album ? metadata.title : undefined),
     })
   }
 }
