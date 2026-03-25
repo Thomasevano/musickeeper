@@ -108,6 +108,14 @@ export class LinkMetadataService {
           musicItem.albumName = linkMetadata.albumName
         }
 
+        // Use streaming platform cover art when MusicBrainz has none
+        if (
+          linkMetadata.thumbnailUrl &&
+          (!musicItem.coverArt || musicItem.coverArt.includes('Blank_album'))
+        ) {
+          musicItem.coverArt = linkMetadata.thumbnailUrl
+        }
+
         return {
           musicItem,
           source: 'musicbrainz',

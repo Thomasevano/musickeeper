@@ -298,6 +298,59 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
     }
   })
 
+  test('uses link thumbnail when MusicBrainz has no cover art', async ({ assert }) => {
+    const spotifyHtml = `
+      <html><head>
+        <meta property="og:description" content="Rick Astley · Whenever You Need Somebody · Song · 1987">
+      </head></html>
+    `
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('open.spotify.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Never Gonna Give You Up',
+            thumbnail_url: 'https://i.scdn.co/image/abc123',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('open.spotify.com/track')) {
+        return new Response(spotifyHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    // Use a serializer that returns a MusicItem with blank cover art (like real MusicBrainz)
+    const blankCoverSerializer: SearchResultsSerializer = async () => [
+      new MusicItem({
+        id: 'mb-track-456',
+        title: 'Test Track',
+        releaseDate: '2023-06-15',
+        artists: ['Test Artist'],
+        itemType: SearchType.track,
+        coverArt: '../../../../resources/images/Blank_album.svg',
+      }),
+    ]
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, blankCoverSerializer)
+    const result = await service.fetchMetadata(
+      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.source, 'musicbrainz')
+      // Should use Spotify thumbnail instead of Blank_album placeholder
+      assert.equal(result.musicItem.coverArt, 'https://i.scdn.co/image/abc123')
+    }
+  })
+
   test('falls back gracefully when HTML scraping fails', async ({ assert }) => {
     globalThis.fetch = async (url: string | URL | Request) => {
       const urlString = url.toString()
