@@ -1,6 +1,7 @@
 # MusicKeeper
 
-⚠️ THIS PROJECT IS STILL IN DEVELOPMENT ⚠️
+> [!NOTE]
+> THIS PROJECT IS STILL IN DEVELOPMENT
 
 ## Use it on your own
 
@@ -61,15 +62,24 @@ MusicKeeper is a music manager app that help you manage, extract your music betw
 
 ### Features
 
-- [x] Connect your Spotify account
-- [x] Extract your playlists as text files (available in [v0.1.0](https://github.com/Thomasevano/musickeeper/tree/v0.1.0) only)
-- [x] Listen later list (available in v0.2.0 >=)
+#### Since v0.2.0
+
+- [x] Listen later list
   - [x] Tracks
   - [x] Albums
   - [ ] Artists
   - [ ] Playlists
+- [x] Search
+- [x] Local first
+- [x] Offline Support
+- [x] PWA
 - [ ] Sort Listen later list
-- [ ] Do not depend on Spotify API
+- [ ] Sync List with multiple devices
+- [ ] Share list
+
+#### v0.1.0
+
+- [x] Extract your playlists as text files (available in [this version](https://github.com/Thomasevano/musickeeper/tree/v0.1.0) only)
 
 ## 📝 License
 
