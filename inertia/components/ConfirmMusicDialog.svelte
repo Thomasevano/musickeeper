@@ -161,7 +161,9 @@
             <div class="flex flex-col justify-center gap-2 flex-1">
               <Input bind:value={editableTitle} placeholder="Title" />
               <Input bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
-              <Input bind:value={editableAlbumName} placeholder="Album name (optional)" />
+              {#if selectedType !== SearchType.album}
+                <Input bind:value={editableAlbumName} placeholder="Album name (optional)" />
+              {/if}
             </div>
           </div>
         </div>
@@ -191,10 +193,12 @@
           <label for="edit-artists" class="text-sm font-medium">Artists</label>
           <Input id="edit-artists" bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
         </div>
-        <div class="space-y-1">
-          <label for="edit-album" class="text-sm font-medium">Album</label>
-          <Input id="edit-album" bind:value={editableAlbumName} placeholder="Album name (optional)" />
-        </div>
+        {#if selectedType !== SearchType.album}
+          <div class="space-y-1">
+            <label for="edit-album" class="text-sm font-medium">Album</label>
+            <Input id="edit-album" bind:value={editableAlbumName} placeholder="Album name (optional)" />
+          </div>
+        {/if}
       </div>
 
       <div class="flex items-center gap-4">

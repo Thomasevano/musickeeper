@@ -329,6 +329,77 @@ test.describe('paste link - edit fields before saving', () => {
   })
 })
 
+test.describe('paste link - album type hides album field', () => {
+  const mockAlbumResponse = {
+    musicItem: {
+      id: 'mb-album-789',
+      title: 'Discovery',
+      releaseDate: '2001-03-12',
+      artists: ['Daft Punk'],
+      albumName: 'Discovery',
+      itemType: 'album',
+      coverArt: 'https://i.scdn.co/image/discovery.jpg',
+    },
+    source: 'musicbrainz',
+    linkMetadata: {
+      title: 'Discovery',
+      artist: 'Daft Punk',
+      type: 'album',
+      thumbnailUrl: 'https://i.scdn.co/image/discovery.jpg',
+      originalUrl: 'https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc',
+      albumName: 'Discovery',
+    },
+  }
+
+  test('hides album field when type is album', async ({ page }) => {
+    await page.route('**/api/link/metadata', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockAlbumResponse),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill('https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc')
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+
+    // Title and Artists fields are visible
+    await expect(page.getByLabel('Title')).toBeVisible()
+    await expect(page.getByLabel('Artists')).toBeVisible()
+
+    // Album field is NOT shown for album type
+    await expect(page.getByLabel('Album')).not.toBeVisible()
+  })
+
+  test('shows album field when type is track', async ({ page }) => {
+    await page.route('**/api/link/metadata', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockMetadataResponse),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+
+    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+    await linkInput.fill(SPOTIFY_URL)
+    await page.getByRole('button', { name: 'Add' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+
+    // All three fields are visible for track type
+    await expect(page.getByLabel('Title')).toBeVisible()
+    await expect(page.getByLabel('Artists')).toBeVisible()
+    await expect(page.getByLabel('Album')).toBeVisible()
+  })
+})
+
 test.describe('delete item', () => {
   test('delete removes the item from the list and shows a toast', async ({ page }) => {
     await page.route('**/api/link/metadata', (route) => {
