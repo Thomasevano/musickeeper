@@ -13,7 +13,7 @@
   let { src, alt, size = 'md', class: className, ...restProps }: CoverArtProps = $props()
 
   let isLoading = $state(true)
-  let currentSrc = $state(src)
+  let currentSrc = $state(() => src)
 
   const sizeClasses = {
     sm: 'h-16 w-16',
