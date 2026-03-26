@@ -480,19 +480,29 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
     globalThis.fetch = originalFetch
   })
 
-  test('fetches SoundCloud track metadata', async ({ assert }) => {
-    const mockOEmbedResponse = {
-      title: 'Some Track',
-      author_name: 'Some Artist',
-      thumbnail_url: 'https://i1.sndcdn.com/artworks-abc123.jpg',
-    }
+  test('strips "by Author" from title using HTML og:title', async ({ assert }) => {
+    const soundcloudHtml = `
+      <html><head>
+        <meta property="og:title" content="Never Gonna Give You Up">
+      </head></html>
+    `
 
     globalThis.fetch = async (url: string | URL | Request) => {
       const urlString = url.toString()
       if (urlString.includes('soundcloud.com/oembed')) {
-        return new Response(JSON.stringify(mockOEmbedResponse), {
+        return new Response(
+          JSON.stringify({
+            title: 'Never Gonna Give You Up by Rick Astley',
+            author_name: 'Rick Astley',
+            thumbnail_url: 'https://i1.sndcdn.com/artworks-abc123.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('soundcloud.com/rick-astley')) {
+        return new Response(soundcloudHtml, {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/html' },
         })
       }
       throw new Error(`Unexpected fetch: ${urlString}`)
@@ -500,13 +510,43 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
-    const result = await service.fetchMetadata('https://soundcloud.com/artistname/track-title')
+    const result = await service.fetchMetadata(
+      'https://soundcloud.com/rick-astley/never-gonna-give-you-up'
+    )
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
-      assert.equal(result.linkMetadata.title, 'Some Track')
-      assert.equal(result.linkMetadata.artist, 'Some Artist')
-      assert.equal(result.linkMetadata.type, SearchType.track)
+      assert.equal(result.linkMetadata.title, 'Never Gonna Give You Up')
+      assert.equal(result.linkMetadata.artist, 'Rick Astley')
+    }
+  })
+
+  test('keeps oEmbed title when HTML scraping fails', async ({ assert }) => {
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('soundcloud.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Some Track by Some Artist',
+            author_name: 'Some Artist',
+            thumbnail_url: 'https://i1.sndcdn.com/artworks-abc123.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('soundcloud.com/some-artist')) {
+        return new Response('', { status: 500 })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const service = new LinkMetadataService(undefined, undefined, mockSerializer)
+    const result = await service.fetchMetadata('https://soundcloud.com/some-artist/some-track')
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      // Falls back to oEmbed title (with "by" suffix) — still usable
+      assert.equal(result.linkMetadata.title, 'Some Track by Some Artist')
     }
   })
 })

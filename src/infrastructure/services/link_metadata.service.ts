@@ -181,6 +181,14 @@ export class LinkMetadataService {
         }
       }
 
+      // SoundCloud oEmbed appends " by {author}" to the title — get the clean title from HTML
+      if (platform === StreamingPlatform.SoundCloud) {
+        const cleanTitle = await this.fetchSoundCloudCleanTitle(originalUrl)
+        if (cleanTitle) {
+          result.title = cleanTitle
+        }
+      }
+
       return result
     } catch {
       return { error: `Failed to connect to ${platform} oEmbed service` }
@@ -269,17 +277,17 @@ export class LinkMetadataService {
     }
   }
 
-  private parseSpotifyOgTags(html: string): { artist: string; albumName?: string } | null {
-    const getMetaContent = (property: string): string | undefined => {
-      const regex = new RegExp(
-        `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
-        'i'
-      )
-      const match = html.match(regex)
-      return match ? match[1] || match[2] : undefined
-    }
+  private static getMetaContent(html: string, property: string): string | undefined {
+    const regex = new RegExp(
+      `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
+      'i'
+    )
+    const match = html.match(regex)
+    return match ? match[1] || match[2] : undefined
+  }
 
-    const ogDescription = getMetaContent('og:description')
+  private parseSpotifyOgTags(html: string): { artist: string; albumName?: string } | null {
+    const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
     if (!ogDescription) return null
 
     // Spotify og:description format: "Artist · Album · Song · Year" (tracks)
@@ -297,19 +305,29 @@ export class LinkMetadataService {
     return { artist, albumName }
   }
 
-  private parseOpenGraphTags(html: string): OEmbedMetadata | { error: string } {
-    const getMetaContent = (property: string): string | undefined => {
-      const regex = new RegExp(
-        `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
-        'i'
-      )
-      const match = html.match(regex)
-      return match ? match[1] || match[2] : undefined
-    }
+  private async fetchSoundCloudCleanTitle(url: string): Promise<string | null> {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html',
+        },
+      })
 
-    const ogTitle = getMetaContent('og:title')
-    const ogDescription = getMetaContent('og:description')
-    const ogImage = getMetaContent('og:image')
+      if (!response.ok) return null
+
+      const html = await response.text()
+      return LinkMetadataService.getMetaContent(html, 'og:title') || null
+    } catch {
+      return null
+    }
+  }
+
+  private parseOpenGraphTags(html: string): OEmbedMetadata | { error: string } {
+    const ogTitle = LinkMetadataService.getMetaContent(html, 'og:title')
+    const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
+    const ogImage = LinkMetadataService.getMetaContent(html, 'og:image')
 
     if (!ogTitle) {
       return { error: 'Could not extract metadata from Apple Music page' }
