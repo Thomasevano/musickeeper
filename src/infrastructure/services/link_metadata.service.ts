@@ -189,6 +189,14 @@ export class LinkMetadataService {
         }
       }
 
+      // YouTube oEmbed returns "- Topic" suffix on auto-generated channels — get clean artist from YouTube Music HTML
+      if (platform === StreamingPlatform.YouTube && result.author_name.endsWith('- Topic')) {
+        const cleanArtist = await this.fetchYouTubeCleanArtist(originalUrl)
+        if (cleanArtist) {
+          result.author_name = cleanArtist
+        }
+      }
+
       return result
     } catch {
       return { error: `Failed to connect to ${platform} oEmbed service` }
@@ -319,6 +327,30 @@ export class LinkMetadataService {
 
       const html = await response.text()
       return LinkMetadataService.getMetaContent(html, 'og:title') || null
+    } catch {
+      return null
+    }
+  }
+
+  private async fetchYouTubeCleanArtist(originalUrl: string): Promise<string | null> {
+    try {
+      // Convert any youtube.com URL to music.youtube.com for consistent og:description
+      const url = new URL(originalUrl)
+      url.hostname = 'music.youtube.com'
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html',
+        },
+      })
+
+      if (!response.ok) return null
+
+      const html = await response.text()
+      const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
+      return ogDescription?.trim() || null
     } catch {
       return null
     }

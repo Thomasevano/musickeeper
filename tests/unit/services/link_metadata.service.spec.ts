@@ -473,6 +473,71 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       assert.equal(result.source, 'link')
     }
   })
+
+  test('strips "- Topic" from artist using YouTube Music HTML', async ({ assert }) => {
+    const ytMusicHtml = `
+      <html><head>
+        <meta property="og:description" content="Tame Impala">
+      </head></html>
+    `
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('youtube.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'My Old Ways',
+            author_name: 'Tame Impala - Topic',
+            thumbnail_url: 'https://i.ytimg.com/vi/abc123/hqdefault.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('music.youtube.com/watch')) {
+        return new Response(ytMusicHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata('https://music.youtube.com/watch?v=e1N_fJlJaXY')
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.artist, 'Tame Impala')
+    }
+  })
+
+  test('keeps oEmbed artist when no "- Topic" suffix', async ({ assert }) => {
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('youtube.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Never Gonna Give You Up',
+            author_name: 'Rick Astley',
+            thumbnail_url: 'https://i.ytimg.com/vi/abc123/hqdefault.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      // No HTML fetch needed — artist is clean
+      assert.equal(result.linkMetadata.artist, 'Rick Astley')
+    }
+  })
 })
 
 test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
