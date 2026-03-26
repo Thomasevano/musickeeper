@@ -189,11 +189,14 @@ export class LinkMetadataService {
         }
       }
 
-      // YouTube oEmbed returns "- Topic" suffix on auto-generated channels — get clean artist from YouTube Music HTML
+      // YouTube oEmbed returns "- Topic" suffix on auto-generated channels — enrich from page HTML
       if (platform === StreamingPlatform.YouTube && result.author_name.endsWith('- Topic')) {
-        const cleanArtist = await this.fetchYouTubeCleanArtist(originalUrl)
-        if (cleanArtist) {
-          result.author_name = cleanArtist
+        const ytMetadata = await this.fetchYouTubeHtmlMetadata(originalUrl)
+        if (ytMetadata) {
+          result.author_name = ytMetadata.artist
+          if (ytMetadata.albumName) {
+            result.album_name = ytMetadata.albumName
+          }
         }
       }
 
@@ -332,11 +335,13 @@ export class LinkMetadataService {
     }
   }
 
-  private async fetchYouTubeCleanArtist(originalUrl: string): Promise<string | null> {
+  private async fetchYouTubeHtmlMetadata(
+    originalUrl: string
+  ): Promise<{ artist: string; albumName?: string } | null> {
     try {
-      // Convert any youtube.com URL to music.youtube.com for consistent og:description
+      // Fetch the youtube.com page to get ytInitialPlayerResponse with the full description
       const url = new URL(originalUrl)
-      url.hostname = 'music.youtube.com'
+      url.hostname = 'www.youtube.com'
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -349,8 +354,47 @@ export class LinkMetadataService {
       if (!response.ok) return null
 
       const html = await response.text()
+      return this.parseYouTubeDescription(html)
+    } catch {
+      return null
+    }
+  }
+
+  private parseYouTubeDescription(html: string): { artist: string; albumName?: string } | null {
+    // Extract shortDescription from ytInitialPlayerResponse JSON embedded in the page
+    const match = html.match(/var ytInitialPlayerResponse\s*=\s*(\{.+?\});/)
+    if (!match) {
+      // Fall back to og:description for just the artist name
       const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
-      return ogDescription?.trim() || null
+      return ogDescription ? { artist: ogDescription.trim() } : null
+    }
+
+    try {
+      const data = JSON.parse(match[1]) as { videoDetails?: { shortDescription?: string } }
+      const description = data?.videoDetails?.shortDescription
+      if (!description) return null
+
+      // Auto-generated music videos have this format:
+      // "Provided to YouTube by {label}\n\n{title} · {artist}\n\n{album}\n\n℗ ..."
+      const lines = description.split('\n').filter((l) => l.trim())
+
+      if (!lines[0]?.startsWith('Provided to YouTube')) {
+        // Not an auto-generated video — fall back to og:description
+        const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
+        return ogDescription ? { artist: ogDescription.trim() } : null
+      }
+
+      // Line 2: "{title} · {artist}"
+      const titleArtistLine = lines[1]
+      if (!titleArtistLine?.includes(' \u00B7 ')) return null
+
+      const artist = titleArtistLine.split(' \u00B7 ').slice(1).join(' \u00B7 ').trim()
+
+      // Line 3: "{album}"
+      const albumLine = lines[2]
+      const albumName = albumLine && !albumLine.startsWith('\u2117') ? albumLine.trim() : undefined
+
+      return { artist, albumName }
     } catch {
       return null
     }

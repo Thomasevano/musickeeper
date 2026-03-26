@@ -474,12 +474,15 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
     }
   })
 
-  test('strips "- Topic" from artist using YouTube Music HTML', async ({ assert }) => {
-    const ytMusicHtml = `
-      <html><head>
-        <meta property="og:description" content="Tame Impala">
-      </head></html>
-    `
+  test('extracts clean artist and album from YouTube auto-generated description', async ({
+    assert,
+  }) => {
+    // Simulates ytInitialPlayerResponse embedded in YouTube page HTML
+    const ytPageHtml = `<html><head>
+      <meta property="og:description" content="Tame Impala">
+    </head><body>
+      <script>var ytInitialPlayerResponse = {"videoDetails":{"shortDescription":"Provided to YouTube by Columbia\\n\\nMy Old Ways \\u00b7 Tame Impala\\n\\nDeadbeat\\n\\n\\u2117 2025 Columbia Records"}};</script>
+    </body></html>`
 
     globalThis.fetch = async (url: string | URL | Request) => {
       const urlString = url.toString()
@@ -493,8 +496,8 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
       }
-      if (urlString.includes('music.youtube.com/watch')) {
-        return new Response(ytMusicHtml, {
+      if (urlString.includes('www.youtube.com/watch')) {
+        return new Response(ytPageHtml, {
           status: 200,
           headers: { 'Content-Type': 'text/html' },
         })
@@ -509,6 +512,9 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
       assert.equal(result.linkMetadata.artist, 'Tame Impala')
+      assert.equal(result.linkMetadata.albumName, 'Deadbeat')
+      // Album from YouTube overrides MusicBrainz
+      assert.equal(result.musicItem.albumName, 'Deadbeat')
     }
   })
 
