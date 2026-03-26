@@ -31,7 +31,9 @@ export class LinkParserService {
     /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|music\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)/
   private readonly appleMusicPattern =
     /^https?:\/\/music\.apple\.com\/([a-z]{2})\/(album|song)\/[^/]+\/([0-9]+)(?:\?i=([0-9]+))?/
-  private readonly soundcloudPattern = /^https?:\/\/soundcloud\.com\/([^/]+)\/([^/?]+)/
+  private readonly soundcloudTrackPattern =
+    /^https?:\/\/soundcloud\.com\/([^/]+)\/(?!sets\/)([^/?]+)/
+  private readonly soundcloudSetPattern = /^https?:\/\/soundcloud\.com\/([^/]+)\/sets\/([^/?]+)/
 
   parseLink(url: string): LinkParseResult {
     const trimmedUrl = url.trim()
@@ -117,10 +119,21 @@ export class LinkParserService {
   }
 
   private parseSoundCloudUrl(url: string): ParsedLink | null {
-    const match = url.match(this.soundcloudPattern)
-    if (!match) return null
+    const setMatch = url.match(this.soundcloudSetPattern)
+    if (setMatch) {
+      const [, artist, setSlug] = setMatch
+      return {
+        platform: StreamingPlatform.SoundCloud,
+        type: SearchType.album,
+        id: `${artist}/sets/${setSlug}`,
+        originalUrl: url,
+      }
+    }
 
-    const [, artist, trackSlug] = match
+    const trackMatch = url.match(this.soundcloudTrackPattern)
+    if (!trackMatch) return null
+
+    const [, artist, trackSlug] = trackMatch
     return {
       platform: StreamingPlatform.SoundCloud,
       type: SearchType.track,

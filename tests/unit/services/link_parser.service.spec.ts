@@ -174,7 +174,34 @@ test.group('LinkParserService - SoundCloud URLs', () => {
     assert.isFalse(isLinkParseError(result))
     if (!isLinkParseError(result)) {
       assert.equal(result.platform, StreamingPlatform.SoundCloud)
+      assert.equal(result.type, SearchType.track)
       assert.equal(result.id, 'artistname/track-title')
+    }
+  })
+
+  test('parses SoundCloud set/album URL', ({ assert }) => {
+    const url = 'https://soundcloud.com/dvsndvsn/sets/working-on-my-karma'
+    const result = service.parseLink(url)
+
+    assert.isFalse(isLinkParseError(result))
+    if (!isLinkParseError(result)) {
+      assert.equal(result.platform, StreamingPlatform.SoundCloud)
+      assert.equal(result.type, SearchType.album)
+      assert.equal(result.id, 'dvsndvsn/sets/working-on-my-karma')
+      assert.equal(result.originalUrl, url)
+    }
+  })
+
+  test('parses SoundCloud set URL with query parameters', ({ assert }) => {
+    const url =
+      'https://soundcloud.com/dvsndvsn/sets/working-on-my-karma?si=38e77aa9eded4615b24ca64fac6336b8'
+    const result = service.parseLink(url)
+
+    assert.isFalse(isLinkParseError(result))
+    if (!isLinkParseError(result)) {
+      assert.equal(result.platform, StreamingPlatform.SoundCloud)
+      assert.equal(result.type, SearchType.album)
+      assert.equal(result.id, 'dvsndvsn/sets/working-on-my-karma')
     }
   })
 })
