@@ -384,11 +384,11 @@ export class LinkMetadataService {
         return ogDescription ? { artist: ogDescription.trim() } : null
       }
 
-      // Line 2: "{title} · {artist}"
+      // Line 2: "{title} · {artist1} · {artist2} · ..."
       const titleArtistLine = lines[1]
       if (!titleArtistLine?.includes(' \u00B7 ')) return null
 
-      const artist = titleArtistLine.split(' \u00B7 ').slice(1).join(' \u00B7 ').trim()
+      const artist = titleArtistLine.split(' \u00B7 ').slice(1).join(', ').trim()
 
       // Line 3: "{album}"
       const albumLine = lines[2]
@@ -462,7 +462,12 @@ export class LinkMetadataService {
       id: `link-${Date.now()}`,
       title: metadata.title || 'Unknown Title',
       releaseDate: '',
-      artists: metadata.artist ? [metadata.artist] : [],
+      artists: metadata.artist
+        ? metadata.artist
+            .split(',')
+            .map((a) => a.trim())
+            .filter(Boolean)
+        : [],
       itemType: metadata.type,
       coverArt: metadata.thumbnailUrl,
       albumName:

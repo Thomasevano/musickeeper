@@ -544,6 +544,47 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       assert.equal(result.linkMetadata.artist, 'Rick Astley')
     }
   })
+
+  test('handles multiple artists separated by middle dots', async ({ assert }) => {
+    const ytPageHtml = `<html><body>
+      <script>var ytInitialPlayerResponse = {"videoDetails":{"shortDescription":"Provided to YouTube by PIAS\\n\\nLa vie qu\\u2019on m\\u00e8ne \\u00b7 ISHA \\u00b7 Limsa d'Aulnay\\n\\nBitume Caviar (vol.2)\\n\\n\\u2117 2025 Feelsafe"}};</script>
+    </body></html>`
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('youtube.com/oembed')) {
+        return new Response(
+          JSON.stringify({
+            title: "La vie qu'on mène",
+            author_name: 'ISHA - Topic',
+            thumbnail_url: 'https://i.ytimg.com/vi/abc/hqdefault.jpg',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (urlString.includes('www.youtube.com/watch')) {
+        return new Response(ytPageHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${urlString}`)
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    mockRepo.shouldReturnResults = false
+    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const result = await service.fetchMetadata('https://music.youtube.com/watch?v=V0J5U1z2Wu8')
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      // Artists joined with comma, not middle dot
+      assert.equal(result.linkMetadata.artist, "ISHA, Limsa d'Aulnay")
+      // Each artist is a separate entry
+      assert.deepEqual(result.musicItem.artists, ['ISHA', "Limsa d'Aulnay"])
+      assert.equal(result.linkMetadata.albumName, 'Bitume Caviar (vol.2)')
+    }
+  })
 })
 
 test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
