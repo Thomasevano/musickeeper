@@ -71,6 +71,19 @@ export class LinkMetadataService {
     return value.replace(LinkMetadataService.APPLE_MUSIC_SUFFIX, '').trim()
   }
 
+  static decodeHtmlEntities(value: string): string {
+    return value
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x27;/g, "'")
+      .replace(/&#x2F;/g, '/')
+      .replace(/&apos;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+  }
+
   async fetchMetadata(url: string): Promise<LinkMetadataResult> {
     const parseResult = this.linkParser.parseLink(url)
 
@@ -184,8 +197,8 @@ export class LinkMetadataService {
       const data = (await response.json()) as Record<string, unknown>
 
       const result: OEmbedMetadata = {
-        title: String(data.title || ''),
-        author_name: String(data.author_name || ''),
+        title: LinkMetadataService.decodeHtmlEntities(String(data.title || '')),
+        author_name: LinkMetadataService.decodeHtmlEntities(String(data.author_name || '')),
         thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
       }
 
@@ -311,7 +324,8 @@ export class LinkMetadataService {
       'i'
     )
     const match = html.match(regex)
-    return match ? match[1] || match[2] : undefined
+    const value = match ? match[1] || match[2] : undefined
+    return value ? LinkMetadataService.decodeHtmlEntities(value) : undefined
   }
 
   private parseSpotifyOgTags(html: string): { artist: string; albumName?: string } | null {
@@ -504,7 +518,9 @@ export class LinkMetadataService {
     type: SearchType
   ): Promise<MusicItem | null> {
     try {
-      const searchResults = await this.musicBrainzRepository.searchItem(title, type, artist)
+      // Strip feat. annotations before searching — MusicBrainz titles don't include them
+      const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, '').trim()
+      const searchResults = await this.musicBrainzRepository.searchItem(cleanTitle, type, artist)
 
       const musicItems = await this.serializeSearchResults(searchResults)
 
