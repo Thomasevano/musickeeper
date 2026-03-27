@@ -102,6 +102,23 @@ export class LinkMetadataService {
       )
 
       if (musicItem) {
+        // When the platform knows the album name but the recording's linked
+        // release doesn't match (e.g. only linked to a compilation), look up
+        // the album directly in MusicBrainz to get the correct cover art.
+        // Use the primary (first) artist only since albums are credited to
+        // the main artist, not all featured artists.
+        if (linkMetadata.albumName && musicItem.albumName !== linkMetadata.albumName) {
+          const primaryArtist = linkMetadata.artist.split(',')[0].trim()
+          const albumCoverArt = await this.fetchAlbumCoverArt(
+            linkMetadata.albumName,
+            primaryArtist,
+            musicItem.releaseDate
+          )
+          if (albumCoverArt) {
+            musicItem.coverArt = albumCoverArt
+          }
+        }
+
         // Prefer album name from the streaming platform over MusicBrainz
         // (MusicBrainz may match a compilation instead of the original album)
         if (linkMetadata.albumName) {
@@ -433,6 +450,51 @@ export class LinkMetadataService {
       title,
       author_name: authorName,
       thumbnail_url: ogImage,
+    }
+  }
+
+  private async fetchAlbumCoverArt(
+    albumName: string,
+    artist: string,
+    releaseDate?: string
+  ): Promise<string | null> {
+    try {
+      // Search for all matching albums
+      const searchResults = await this.musicBrainzRepository.searchItem(
+        albumName,
+        SearchType.album,
+        artist
+      )
+
+      // @ts-expect-error musicbrainz-api doesn't allow union types
+      const releases: IReleaseList['releases'] = searchResults.releases || []
+      if (!releases.length) return null
+
+      // When we have a release date, prefer the release from the same year
+      const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null
+      const sorted = [...releases].sort((a, b) => {
+        const aYear = a.date?.slice(0, 4)
+        const bYear = b.date?.slice(0, 4)
+        const aMatch = aYear === releaseYear ? 0 : 1
+        const bMatch = bYear === releaseYear ? 0 : 1
+        return aMatch - bMatch
+      })
+
+      // Try each release in order until we find one with cover art
+      for (const release of sorted) {
+        try {
+          const { coverArtArchiveApiClient } = await import('../providers/musicbrainz_provider.js')
+          const coverArt = await coverArtArchiveApiClient.getReleaseCovers(release.id)
+          if (coverArt.images?.length) {
+            return coverArt.images[0].thumbnails.small
+          }
+        } catch {
+          // No cover art for this release, try the next
+        }
+      }
+      return null
+    } catch {
+      return null
     }
   }
 
