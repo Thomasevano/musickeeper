@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.6.0](https://github.com/Thomasevano/musickeeper/compare/v0.5.0...v0.6.0) (2026-03-27)
+
+
+### Features
+
+* edit fetch data ([6acc587](https://github.com/Thomasevano/musickeeper/commit/6acc587bdfd3b992eda2513d69b8da21ec49ef6a))
+* enrich spotify metadata with artist and album from page HTML ([59ce4ef](https://github.com/Thomasevano/musickeeper/commit/59ce4ef08b4a4006706df887a426bf281a65ab44))
+* **ui:** add toast notification when an item is added/deleted in the list ([332ca87](https://github.com/Thomasevano/musickeeper/commit/332ca878c4e61437bf104a51121f64b24f9fc082))
+* US-001 - Create LinkParserService for URL parsing ([c591634](https://github.com/Thomasevano/musickeeper/commit/c5916345c00b9bc3addffb33b188e0670de40165))
+* US-002 - Add oEmbed proxy endpoint for streaming services ([6fa17be](https://github.com/Thomasevano/musickeeper/commit/6fa17bec9e13f8b173db96cb0d1d30f06bb25a9b))
+* US-003 - Add Apple Music metadata endpoint ([d115348](https://github.com/Thomasevano/musickeeper/commit/d11534847521193209771c14ac1d61fb64736ad6))
+* US-004 - Create LinkMetadataService to fetch and enrich metadata ([c6c0aa5](https://github.com/Thomasevano/musickeeper/commit/c6c0aa50c75600e68a514cbc3c0c65c08569f564))
+* US-005 - Add sourceUrl field to ListenLaterItem data model ([9a573fa](https://github.com/Thomasevano/musickeeper/commit/9a573fa5652b8a0cc169136224010f111d19f1c3))
+* US-006 - Add paste link input to Listen Later page ([61c8eac](https://github.com/Thomasevano/musickeeper/commit/61c8eacf8a9cfd7ac00769e2406144eec0e436ad))
+* US-007 - Create confirmation dialog for pasted link ([ae9f198](https://github.com/Thomasevano/musickeeper/commit/ae9f19803548c6b297ade6f1e2eaff29c0e09e78))
+* US-008 - Implement duplicate detection with user options ([fd6a5d7](https://github.com/Thomasevano/musickeeper/commit/fd6a5d7060fba3fc7ab8e3ef6f76ef8bc14e2bca))
+* US-009 - Add loading and error states for link processing ([6e302f0](https://github.com/Thomasevano/musickeeper/commit/6e302f0e184f7fe4df65772498de8ecd3205506f))
+* US-010 - Wire up save flow with sourceUrl ([e361172](https://github.com/Thomasevano/musickeeper/commit/e361172021845fbef67b40e0a6fc1c1d02705259))
+
+
+### Bug Fixes
+
+* align IndexedDB version in trackItem to match listen-later (v3) ([e280049](https://github.com/Thomasevano/musickeeper/commit/e2800492eae55d2a0a497ba21bfe64b9727a9227))
+* correct title and artist name for Apple Music fetch ([de02b07](https://github.com/Thomasevano/musickeeper/commit/de02b071706a390c3904d8d43e89bb1ea5071b75))
+* decode html entities and strip feat. suffix for better musicbrainz matching ([e188ee7](https://github.com/Thomasevano/musickeeper/commit/e188ee79979221efe18344a91c6b33fef3cfd9d7))
+* detect soundcloud sets/playlists as album type ([9ae7f22](https://github.com/Thomasevano/musickeeper/commit/9ae7f2272b6b13e528a0eb9c462acde204300039))
+* extract youtube album from auto-generated video description ([f8dee63](https://github.com/Thomasevano/musickeeper/commit/f8dee633086c422f1429329db18e127e549d9291))
+* handle multiple youtube artists as comma-separated list ([8ec2741](https://github.com/Thomasevano/musickeeper/commit/8ec2741d95e5c3c7eddfa2b84da14e3a1db24a62))
+* look up album cover directly when recording links to wrong release ([750226c](https://github.com/Thomasevano/musickeeper/commit/750226ca9adf043126b9d3640beff4931ef214b2))
+* only show title on confirm dialog when type is an album ([4e85365](https://github.com/Thomasevano/musickeeper/commit/4e85365a171d798fba0b7d460f66b85f0eb4abf2))
+* prefer album-type release for musicbrainz cover art matching ([e474ff8](https://github.com/Thomasevano/musickeeper/commit/e474ff88a92dfd1900ad49c7227bda8b7d0b6737))
+* strip soundcloud 'by author' suffix using page HTML fallback ([66f6c31](https://github.com/Thomasevano/musickeeper/commit/66f6c3175dfc9bce8bfe4fdf9b3ca89e1bc140d6))
+* strip youtube '- Topic' suffix using youtube music page HTML ([dabb713](https://github.com/Thomasevano/musickeeper/commit/dabb71357d19b8e699f4bb1fc9f4a65d2ee70edf))
+* **ui:** hide album field in confirmation dialog for album type ([4e85365](https://github.com/Thomasevano/musickeeper/commit/4e85365a171d798fba0b7d460f66b85f0eb4abf2))
+* use streaming platform cover art when musicbrainz has none ([2a69697](https://github.com/Thomasevano/musickeeper/commit/2a69697e89ae171cee5bdf299ed6f39f3f4c8ac5))
+
 ## [0.5.0](https://github.com/Thomasevano/musickeeper/compare/v0.4.0...v0.5.0) (2026-03-07)
 
 
