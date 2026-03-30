@@ -83,6 +83,24 @@ export class LinkParserService {
   }
 
   private parseYouTubeUrl(url: string): ParsedLink | null {
+    // YouTube Music album playlists: music.youtube.com/playlist?list=...
+    try {
+      const parsed = new URL(url)
+      if (parsed.hostname === 'music.youtube.com' && parsed.pathname === '/playlist') {
+        const listId = parsed.searchParams.get('list')
+        if (listId) {
+          return {
+            platform: StreamingPlatform.YouTube,
+            type: SearchType.album,
+            id: listId,
+            originalUrl: url,
+          }
+        }
+      }
+    } catch {
+      // Fall through to regex match
+    }
+
     const match = url.match(this.youtubePattern)
     if (!match) return null
 

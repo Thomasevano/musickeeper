@@ -98,6 +98,32 @@ test.group('LinkParserService - YouTube URLs', () => {
       assert.equal(result.id, 'dQw4w9WgXcQ')
     }
   })
+
+  test('parses YouTube Music playlist as album type', ({ assert }) => {
+    const url =
+      'https://music.youtube.com/playlist?list=OLAK5uy_lJ0yXPKvCREyQl6Bcxp6I8CAfrD-yX-VA&si=NRjKP_jX3dVTX3xu'
+    const result = service.parseLink(url)
+
+    assert.isFalse(isLinkParseError(result))
+    if (!isLinkParseError(result)) {
+      assert.equal(result.platform, StreamingPlatform.YouTube)
+      assert.equal(result.type, SearchType.album)
+      assert.equal(result.id, 'OLAK5uy_lJ0yXPKvCREyQl6Bcxp6I8CAfrD-yX-VA')
+      assert.equal(result.originalUrl, url)
+    }
+  })
+
+  test('parses YouTube Music playlist URL without extra params', ({ assert }) => {
+    const url = 'https://music.youtube.com/playlist?list=OLAK5uy_lJ0yXPKvCREyQl6Bcxp6I8CAfrD-yX-VA'
+    const result = service.parseLink(url)
+
+    assert.isFalse(isLinkParseError(result))
+    if (!isLinkParseError(result)) {
+      assert.equal(result.platform, StreamingPlatform.YouTube)
+      assert.equal(result.type, SearchType.album)
+      assert.equal(result.id, 'OLAK5uy_lJ0yXPKvCREyQl6Bcxp6I8CAfrD-yX-VA')
+    }
+  })
 })
 
 // Apple Music URL tests

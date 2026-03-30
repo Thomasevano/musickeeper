@@ -55,6 +55,11 @@ export class PlatformMetadataService {
       return this.fetchAppleMusicMetadata(originalUrl)
     }
 
+    // YouTube Music playlists — oEmbed only supports video URLs, not playlists
+    if (platform === StreamingPlatform.YouTube && originalUrl.includes('/playlist?')) {
+      return this.fetchYouTubeMusicPlaylistMetadata(originalUrl)
+    }
+
     const baseEndpoint = OEMBED_ENDPOINTS[platform]
 
     if (!baseEndpoint) {
@@ -211,6 +216,58 @@ export class PlatformMetadataService {
     } catch {
       return null
     }
+  }
+
+  private async fetchYouTubeMusicPlaylistMetadata(
+    url: string
+  ): Promise<OEmbedMetadata | { error: string }> {
+    try {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': GOOGLEBOT_UA, 'Accept': 'text/html' },
+      })
+
+      if (!response.ok) {
+        if (response.status === 404) return { error: 'Content not found on YouTube Music' }
+        return { error: 'Failed to fetch metadata from YouTube Music' }
+      }
+
+      const html = await response.text()
+      return this.parseYouTubeMusicPlaylistOGTags(html)
+    } catch {
+      return { error: 'Failed to connect to YouTube Music' }
+    }
+  }
+
+  private parseYouTubeMusicPlaylistOGTags(html: string): OEmbedMetadata | { error: string } {
+    const ogTitle = PlatformMetadataService.getMetaContent(html, 'og:title')
+    const ogImage = PlatformMetadataService.getMetaContent(html, 'og:image')
+
+    if (!ogTitle) {
+      return { error: 'Could not extract metadata from YouTube Music' }
+    }
+
+    // Normalize non-breaking spaces (\u00a0) to regular spaces before parsing
+    const normalizedTitle = ogTitle.replace(/\u00a0/g, ' ')
+
+    // og:title format: "{Album} - Album by/de/von/di {Artist}" (localized)
+    // Split on the last " - " to separate title from the "Album {prep} {Artist}" part
+    const dashIdx = normalizedTitle.lastIndexOf(' - ')
+    let title = normalizedTitle
+    let artist = ''
+
+    if (dashIdx !== -1) {
+      const beforeDash = normalizedTitle.substring(0, dashIdx).trim()
+      const afterDash = normalizedTitle.substring(dashIdx + 3).trim()
+
+      // Match "Album by {Artist}", "Album de {Artist}", "Álbum de {Artist}", etc.
+      const artistMatch = afterDash.match(/^[ÁA]lbum \S+ (.+)$/i)
+      if (artistMatch) {
+        title = beforeDash
+        artist = artistMatch[1].trim()
+      }
+    }
+
+    return { title, author_name: artist, thumbnail_url: ogImage }
   }
 
   private async fetchYouTubeHtmlMetadata(

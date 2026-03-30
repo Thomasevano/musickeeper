@@ -590,6 +590,74 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
   })
 })
 
+test.group('LinkMetadataService - YouTube Music playlist', (group) => {
+  group.each.teardown(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  test('fetches album metadata from YouTube Music playlist URL', async ({ assert }) => {
+    const playlistHtml = `<html><head>
+      <meta property="og:title" content="Yeezus - Album de Kanye West">
+      <meta property="og:image" content="https://yt3.googleusercontent.com/abc123=w544-h544-l90-rj">
+      <meta property="og:type" content="music.album">
+    </head></html>`
+
+    globalThis.fetch = async (_url: string | URL | Request) => {
+      return new Response(playlistHtml, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      })
+    }
+
+    const mockRepo = new MockMusicBrainzRepository()
+    mockRepo.shouldReturnResults = false
+    const service = new LinkMetadataService(
+      undefined,
+      undefined,
+      new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer)
+    )
+    const result = await service.fetchMetadata(
+      'https://music.youtube.com/playlist?list=OLAK5uy_lJ0yXPKvCREyQl6Bcxp6I8CAfrD-yX-VA'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.title, 'Yeezus')
+      assert.equal(result.linkMetadata.artist, 'Kanye West')
+      assert.equal(result.linkMetadata.type, SearchType.album)
+      assert.equal(
+        result.musicItem.coverArt,
+        'https://yt3.googleusercontent.com/abc123=w544-h544-l90-rj'
+      )
+    }
+  })
+
+  test('handles localized "Album by" variants in og:title', async ({ assert }) => {
+    // Test English format
+    const playlistHtmlEn = `<html><head>
+      <meta property="og:title" content="USB - Album by Fred again..">
+      <meta property="og:image" content="https://yt3.googleusercontent.com/usb.jpg">
+    </head></html>`
+
+    globalThis.fetch = async () =>
+      new Response(playlistHtmlEn, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      })
+
+    const service = new LinkMetadataService()
+    const result = await service.fetchMetadata(
+      'https://music.youtube.com/playlist?list=OLAK5uy_test'
+    )
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.linkMetadata.title, 'USB')
+      assert.equal(result.linkMetadata.artist, 'Fred again..')
+    }
+  })
+})
+
 test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
