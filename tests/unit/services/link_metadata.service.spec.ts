@@ -2,8 +2,11 @@ import { test } from '@japa/runner'
 import {
   LinkMetadataService,
   isLinkMetadataError,
-  type SearchResultsSerializer,
 } from '../../../src/infrastructure/services/link_metadata.service.js'
+import {
+  MusicBrainzEnrichmentService,
+  type SearchResultsSerializer,
+} from '../../../src/infrastructure/services/musicbrainz_enrichment.service.js'
 import { MusicItem, SearchType } from '../../../src/domain/music_item.js'
 
 // Store original fetch
@@ -90,7 +93,7 @@ test.group('LinkMetadataService - URL parsing errors', (group) => {
   })
 
   test('returns error for invalid URL format', async ({ assert }) => {
-    const service = new LinkMetadataService(undefined, undefined, mockSerializer)
+    const service = new LinkMetadataService()
     const result = await service.fetchMetadata('not-a-valid-url')
 
     assert.isTrue(isLinkMetadataError(result))
@@ -101,7 +104,7 @@ test.group('LinkMetadataService - URL parsing errors', (group) => {
   })
 
   test('returns error for unsupported platform', async ({ assert }) => {
-    const service = new LinkMetadataService(undefined, undefined, mockSerializer)
+    const service = new LinkMetadataService()
     const result = await service.fetchMetadata('https://tidal.com/browse/track/12345')
 
     assert.isTrue(isLinkMetadataError(result))
@@ -135,7 +138,7 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -171,7 +174,7 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -205,7 +208,7 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldThrowError = true
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -236,7 +239,7 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3'
     )
@@ -282,7 +285,7 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -338,7 +341,7 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
     ]
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, blankCoverSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, blankCoverSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -369,7 +372,7 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const service = new LinkMetadataService(undefined, undefined, mockSerializer)
+    const service = new LinkMetadataService()
     const result = await service.fetchMetadata('https://open.spotify.com/track/abc123')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -404,7 +407,7 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     await service.fetchMetadata('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(htmlFetchCalled, 'Should not fetch HTML when oEmbed has author_name')
@@ -435,7 +438,7 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -465,7 +468,7 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata('https://music.youtube.com/watch?v=abc123')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -506,7 +509,7 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata('https://music.youtube.com/watch?v=e1N_fJlJaXY')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -535,7 +538,7 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -573,7 +576,7 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata('https://music.youtube.com/watch?v=V0J5U1z2Wu8')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -621,7 +624,7 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://soundcloud.com/rick-astley/never-gonna-give-you-up'
     )
@@ -652,7 +655,7 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const service = new LinkMetadataService(undefined, undefined, mockSerializer)
+    const service = new LinkMetadataService()
     const result = await service.fetchMetadata('https://soundcloud.com/some-artist/some-track')
 
     assert.isFalse(isLinkMetadataError(result))
@@ -685,7 +688,7 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
     )
@@ -719,7 +722,7 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/us/album/midnights/1649434004'
     )
@@ -749,7 +752,7 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/fr/album/save-the-day-from-hoppers/1877213779?i=1877213780&l=en-GB'
     )
@@ -795,7 +798,7 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
     )
@@ -838,7 +841,7 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/us/album/midnights/1649434004'
     )
@@ -880,7 +883,7 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
     )
@@ -906,7 +909,7 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://music.apple.com/us/album/midnights/1649434004'
     )
@@ -929,7 +932,7 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata('https://open.spotify.com/track/nonexistent123')
 
     assert.isTrue(isLinkMetadataError(result))
@@ -944,7 +947,7 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -961,7 +964,7 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
     }
 
     const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -993,7 +996,7 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -1022,7 +1025,7 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
@@ -1049,7 +1052,7 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
 
     const mockRepo = new MockMusicBrainzRepository()
     mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, mockRepo as never, mockSerializer)
+    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
     const result = await service.fetchMetadata(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )

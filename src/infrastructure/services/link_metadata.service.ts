@@ -1,20 +1,9 @@
-import { IRecordingList, IReleaseList } from 'musicbrainz-api'
 import { MusicItem, SearchType } from '../../domain/music_item.js'
-import {
-  LinkParserService,
-  StreamingPlatform,
-  isLinkParseError,
-  type ParsedLink,
-} from './link_parser.service.js'
-import { MusicBrainzRepository } from '../repositories/musicbrainz_search.repository.js'
-import { serializeMusicBrainzSearchResults } from '../serializers/musicbrainz/search_results_serializer.js'
+import { LinkParserService, isLinkParseError } from './link_parser.service.js'
+import { PlatformMetadataService, type OEmbedMetadata } from './platform_metadata.service.js'
+import { MusicBrainzEnrichmentService } from './musicbrainz_enrichment.service.js'
 
-export interface OEmbedMetadata {
-  title: string
-  author_name: string
-  thumbnail_url?: string
-  album_name?: string
-}
+export type { OEmbedMetadata }
 
 export interface LinkMetadata {
   title: string
@@ -42,47 +31,12 @@ export function isLinkMetadataError(result: LinkMetadataResult): result is LinkM
   return 'error' in result
 }
 
-interface OEmbedEndpoints {
-  spotify: string
-  youtube: string
-  soundcloud: string
-}
-
-export type SearchResultsSerializer = (
-  searchResults: IReleaseList | IRecordingList
-) => Promise<MusicItem[]>
-
 export class LinkMetadataService {
-  private readonly oEmbedEndpoints: OEmbedEndpoints = {
-    spotify: 'https://open.spotify.com/oembed',
-    youtube: 'https://www.youtube.com/oembed',
-    soundcloud: 'https://soundcloud.com/oembed',
-  }
-
-  private static readonly APPLE_MUSIC_SUFFIX = / on Apple Music$/i
-
   constructor(
     private linkParser: LinkParserService = new LinkParserService(),
-    private musicBrainzRepository: MusicBrainzRepository = new MusicBrainzRepository(),
-    private serializeSearchResults: SearchResultsSerializer = serializeMusicBrainzSearchResults
+    private platformMetadata: PlatformMetadataService = new PlatformMetadataService(),
+    private musicBrainzEnrichment: MusicBrainzEnrichmentService = new MusicBrainzEnrichmentService()
   ) {}
-
-  static stripAppleMusicSuffix(value: string): string {
-    return value.replace(LinkMetadataService.APPLE_MUSIC_SUFFIX, '').trim()
-  }
-
-  static decodeHtmlEntities(value: string): string {
-    return value
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&#x27;/g, "'")
-      .replace(/&#x2F;/g, '/')
-      .replace(/&apos;/g, "'")
-      .replace(/&nbsp;/g, ' ')
-  }
 
   async fetchMetadata(url: string): Promise<LinkMetadataResult> {
     const parseResult = this.linkParser.parseLink(url)
@@ -91,47 +45,30 @@ export class LinkMetadataService {
       return { error: parseResult.error, originalUrl: parseResult.originalUrl }
     }
 
-    const oEmbedMetadata = await this.fetchOEmbedMetadata(parseResult)
+    const oEmbedMetadata = await this.platformMetadata.fetch(parseResult)
 
     if ('error' in oEmbedMetadata) {
       return { error: oEmbedMetadata.error, originalUrl: parseResult.originalUrl }
     }
 
     const linkMetadata: LinkMetadata = {
-      title: LinkMetadataService.stripAppleMusicSuffix(oEmbedMetadata.title),
-      artist: LinkMetadataService.stripAppleMusicSuffix(oEmbedMetadata.author_name),
+      title: oEmbedMetadata.title,
+      artist: oEmbedMetadata.author_name,
       type: parseResult.type,
       thumbnailUrl: oEmbedMetadata.thumbnail_url,
       originalUrl: parseResult.originalUrl,
       albumName: oEmbedMetadata.album_name,
     }
 
-    // Try to enrich with MusicBrainz data
     if (linkMetadata.title && linkMetadata.artist) {
-      const musicItem = await this.searchMusicBrainz(
+      const musicItem = await this.musicBrainzEnrichment.enrich(
         linkMetadata.title,
         linkMetadata.artist,
-        linkMetadata.type
+        linkMetadata.type,
+        linkMetadata.albumName
       )
 
       if (musicItem) {
-        // When the platform knows the album name but the recording's linked
-        // release doesn't match (e.g. only linked to a compilation), look up
-        // the album directly in MusicBrainz to get the correct cover art.
-        // Use the primary (first) artist only since albums are credited to
-        // the main artist, not all featured artists.
-        if (linkMetadata.albumName && musicItem.albumName !== linkMetadata.albumName) {
-          const primaryArtist = linkMetadata.artist.split(',')[0].trim()
-          const albumCoverArt = await this.fetchAlbumCoverArt(
-            linkMetadata.albumName,
-            primaryArtist,
-            musicItem.releaseDate
-          )
-          if (albumCoverArt) {
-            musicItem.coverArt = albumCoverArt
-          }
-        }
-
         // Prefer album name from the streaming platform over MusicBrainz
         // (MusicBrainz may match a compilation instead of the original album)
         if (linkMetadata.albumName) {
@@ -146,392 +83,14 @@ export class LinkMetadataService {
           musicItem.coverArt = linkMetadata.thumbnailUrl
         }
 
-        return {
-          musicItem,
-          source: 'musicbrainz',
-          linkMetadata,
-        }
+        return { musicItem, source: 'musicbrainz', linkMetadata }
       }
     }
 
-    // Fall back to creating a MusicItem from link metadata
-    const fallbackMusicItem = this.createMusicItemFromLinkMetadata(linkMetadata)
-
     return {
-      musicItem: fallbackMusicItem,
+      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),
       source: 'link',
       linkMetadata,
-    }
-  }
-
-  private async fetchOEmbedMetadata(
-    parsedLink: ParsedLink
-  ): Promise<OEmbedMetadata | { error: string }> {
-    const { platform, originalUrl } = parsedLink
-
-    if (platform === StreamingPlatform.AppleMusic) {
-      return this.fetchAppleMusicMetadata(originalUrl)
-    }
-
-    const endpointKey = platform as keyof OEmbedEndpoints
-    const baseEndpoint = this.oEmbedEndpoints[endpointKey]
-
-    if (!baseEndpoint) {
-      return { error: `oEmbed not supported for platform: ${platform}` }
-    }
-
-    const oEmbedUrl = new URL(baseEndpoint)
-    oEmbedUrl.searchParams.set('url', originalUrl)
-    oEmbedUrl.searchParams.set('format', 'json')
-
-    try {
-      const response = await fetch(oEmbedUrl.toString())
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { error: 'Content not found on the streaming platform' }
-        }
-        return { error: `Failed to fetch metadata from ${platform}` }
-      }
-
-      const data = (await response.json()) as Record<string, unknown>
-
-      const result: OEmbedMetadata = {
-        title: LinkMetadataService.decodeHtmlEntities(String(data.title || '')),
-        author_name: LinkMetadataService.decodeHtmlEntities(String(data.author_name || '')),
-        thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
-      }
-
-      // Spotify oEmbed doesn't return author_name for tracks — enrich from page HTML
-      if (platform === StreamingPlatform.Spotify && !result.author_name) {
-        const htmlMetadata = await this.fetchSpotifyHtmlMetadata(originalUrl)
-        if (htmlMetadata) {
-          result.author_name = htmlMetadata.artist
-          result.album_name = htmlMetadata.albumName
-        }
-      }
-
-      // SoundCloud oEmbed appends " by {author}" to the title — get the clean title from HTML
-      if (platform === StreamingPlatform.SoundCloud) {
-        const cleanTitle = await this.fetchSoundCloudCleanTitle(originalUrl)
-        if (cleanTitle) {
-          result.title = cleanTitle
-        }
-      }
-
-      // YouTube oEmbed returns "- Topic" suffix on auto-generated channels — enrich from page HTML
-      if (platform === StreamingPlatform.YouTube && result.author_name.endsWith('- Topic')) {
-        const ytMetadata = await this.fetchYouTubeHtmlMetadata(originalUrl)
-        if (ytMetadata) {
-          result.author_name = ytMetadata.artist
-          if (ytMetadata.albumName) {
-            result.album_name = ytMetadata.albumName
-          }
-        }
-      }
-
-      return result
-    } catch {
-      return { error: `Failed to connect to ${platform} oEmbed service` }
-    }
-  }
-
-  async fetchAppleMusicMetadata(url: string): Promise<OEmbedMetadata | { error: string }> {
-    // Primary: use Apple Music's oEmbed API (returns clean, non-localized metadata)
-    const oEmbedResult = await this.fetchAppleMusicOEmbed(url)
-    if (oEmbedResult && !('error' in oEmbedResult)) {
-      return oEmbedResult
-    }
-
-    // Fallback: scrape HTML Open Graph tags
-    return this.fetchAppleMusicHtml(url)
-  }
-
-  private async fetchAppleMusicOEmbed(
-    url: string
-  ): Promise<OEmbedMetadata | { error: string } | null> {
-    try {
-      const oEmbedUrl = new URL('https://music.apple.com/api/oembed')
-      oEmbedUrl.searchParams.set('url', url)
-
-      const response = await fetch(oEmbedUrl.toString())
-
-      if (!response.ok) {
-        // Return null to trigger fallback instead of a hard error
-        return null
-      }
-
-      const data = (await response.json()) as Record<string, unknown>
-
-      return {
-        title: String(data.title || ''),
-        author_name: String(data.author_name || ''),
-        thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
-      }
-    } catch {
-      // oEmbed failed, return null to trigger fallback
-      return null
-    }
-  }
-
-  private async fetchAppleMusicHtml(url: string): Promise<OEmbedMetadata | { error: string }> {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      })
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { error: 'Content not found on Apple Music' }
-        }
-        return { error: 'Failed to fetch metadata from Apple Music' }
-      }
-
-      const html = await response.text()
-      return this.parseOpenGraphTags(html)
-    } catch {
-      return { error: 'Failed to connect to Apple Music' }
-    }
-  }
-
-  private async fetchSpotifyHtmlMetadata(
-    url: string
-  ): Promise<{ artist: string; albumName?: string } | null> {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-          'Accept': 'text/html',
-        },
-      })
-
-      if (!response.ok) return null
-
-      const html = await response.text()
-      return this.parseSpotifyOgTags(html)
-    } catch {
-      return null
-    }
-  }
-
-  private static getMetaContent(html: string, property: string): string | undefined {
-    const regex = new RegExp(
-      `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
-      'i'
-    )
-    const match = html.match(regex)
-    const value = match ? match[1] || match[2] : undefined
-    return value ? LinkMetadataService.decodeHtmlEntities(value) : undefined
-  }
-
-  private parseSpotifyOgTags(html: string): { artist: string; albumName?: string } | null {
-    const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
-    if (!ogDescription) return null
-
-    // Spotify og:description format: "Artist · Album · Song · Year" (tracks)
-    //                             or "Artist · album · Year · N songs" (albums)
-    const parts = ogDescription.split(' \u00B7 ').map((p) => p.trim())
-    if (parts.length < 2) return null
-
-    const artist = parts[0]
-    // For tracks, second part is the album name (skip if it matches a type keyword)
-    const albumName =
-      parts.length >= 3 && !['album', 'single', 'ep'].includes(parts[1].toLowerCase())
-        ? parts[1]
-        : undefined
-
-    return { artist, albumName }
-  }
-
-  private async fetchSoundCloudCleanTitle(url: string): Promise<string | null> {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html',
-        },
-      })
-
-      if (!response.ok) return null
-
-      const html = await response.text()
-      return LinkMetadataService.getMetaContent(html, 'og:title') || null
-    } catch {
-      return null
-    }
-  }
-
-  private async fetchYouTubeHtmlMetadata(
-    originalUrl: string
-  ): Promise<{ artist: string; albumName?: string } | null> {
-    try {
-      // Fetch the youtube.com page to get ytInitialPlayerResponse with the full description
-      const url = new URL(originalUrl)
-      url.hostname = 'www.youtube.com'
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html',
-        },
-      })
-
-      if (!response.ok) return null
-
-      const html = await response.text()
-      return this.parseYouTubeDescription(html)
-    } catch {
-      return null
-    }
-  }
-
-  private parseYouTubeDescription(html: string): { artist: string; albumName?: string } | null {
-    // Extract shortDescription from ytInitialPlayerResponse JSON embedded in the page
-    const match = html.match(/var ytInitialPlayerResponse\s*=\s*(\{.+?\});/)
-    if (!match) {
-      // Fall back to og:description for just the artist name
-      const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
-      return ogDescription ? { artist: ogDescription.trim() } : null
-    }
-
-    try {
-      const data = JSON.parse(match[1]) as { videoDetails?: { shortDescription?: string } }
-      const description = data?.videoDetails?.shortDescription
-      if (!description) return null
-
-      // Auto-generated music videos have this format:
-      // "Provided to YouTube by {label}\n\n{title} · {artist}\n\n{album}\n\n℗ ..."
-      const lines = description.split('\n').filter((l) => l.trim())
-
-      if (!lines[0]?.startsWith('Provided to YouTube')) {
-        // Not an auto-generated video — fall back to og:description
-        const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
-        return ogDescription ? { artist: ogDescription.trim() } : null
-      }
-
-      // Line 2: "{title} · {artist1} · {artist2} · ..."
-      const titleArtistLine = lines[1]
-      if (!titleArtistLine?.includes(' \u00B7 ')) return null
-
-      const artist = titleArtistLine.split(' \u00B7 ').slice(1).join(', ').trim()
-
-      // Line 3: "{album}"
-      const albumLine = lines[2]
-      const albumName = albumLine && !albumLine.startsWith('\u2117') ? albumLine.trim() : undefined
-
-      return { artist, albumName }
-    } catch {
-      return null
-    }
-  }
-
-  private parseOpenGraphTags(html: string): OEmbedMetadata | { error: string } {
-    const ogTitle = LinkMetadataService.getMetaContent(html, 'og:title')
-    const ogDescription = LinkMetadataService.getMetaContent(html, 'og:description')
-    const ogImage = LinkMetadataService.getMetaContent(html, 'og:image')
-
-    if (!ogTitle) {
-      return { error: 'Could not extract metadata from Apple Music page' }
-    }
-
-    let title = ogTitle
-    let authorName = ''
-
-    if (ogTitle.includes(' - ')) {
-      const parts = ogTitle.split(' - ')
-      title = parts[0].trim()
-      authorName = parts.slice(1).join(' - ').trim()
-    } else if (ogTitle.includes(' by ')) {
-      const byIndex = ogTitle.lastIndexOf(' by ')
-      title = ogTitle.substring(0, byIndex).trim()
-      authorName = ogTitle.substring(byIndex + 4).trim()
-    }
-
-    if (!authorName && ogDescription) {
-      const descParts = ogDescription.split(' · ')
-      if (descParts.length >= 1) {
-        authorName = descParts[0].trim()
-      }
-    }
-
-    return {
-      title,
-      author_name: authorName,
-      thumbnail_url: ogImage,
-    }
-  }
-
-  private async fetchAlbumCoverArt(
-    albumName: string,
-    artist: string,
-    releaseDate?: string
-  ): Promise<string | null> {
-    try {
-      // Search for all matching albums
-      const searchResults = await this.musicBrainzRepository.searchItem(
-        albumName,
-        SearchType.album,
-        artist
-      )
-
-      // @ts-expect-error musicbrainz-api doesn't allow union types
-      const releases: IReleaseList['releases'] = searchResults.releases || []
-      if (!releases.length) return null
-
-      // When we have a release date, prefer the release from the same year
-      const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null
-      const sorted = [...releases].sort((a, b) => {
-        const aYear = a.date?.slice(0, 4)
-        const bYear = b.date?.slice(0, 4)
-        const aMatch = aYear === releaseYear ? 0 : 1
-        const bMatch = bYear === releaseYear ? 0 : 1
-        return aMatch - bMatch
-      })
-
-      // Try each release in order until we find one with cover art
-      for (const release of sorted) {
-        try {
-          const { coverArtArchiveApiClient } = await import('../providers/musicbrainz_provider.js')
-          const coverArt = await coverArtArchiveApiClient.getReleaseCovers(release.id)
-          if (coverArt.images?.length) {
-            return coverArt.images[0].thumbnails.small
-          }
-        } catch {
-          // No cover art for this release, try the next
-        }
-      }
-      return null
-    } catch {
-      return null
-    }
-  }
-
-  private async searchMusicBrainz(
-    title: string,
-    artist: string,
-    type: SearchType
-  ): Promise<MusicItem | null> {
-    try {
-      // Strip feat. annotations before searching — MusicBrainz titles don't include them
-      const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, '').trim()
-      const searchResults = await this.musicBrainzRepository.searchItem(cleanTitle, type, artist)
-
-      const musicItems = await this.serializeSearchResults(searchResults)
-
-      if (musicItems.length > 0) {
-        return musicItems[0]
-      }
-
-      return null
-    } catch {
-      // If MusicBrainz search fails, return null to fall back to link metadata
-      return null
     }
   }
 
