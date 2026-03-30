@@ -211,7 +211,8 @@ test.group('LinkController - oembed', (group) => {
     await controller.oembed(ctx as never)
     const result = ctx.getMockResponse()
 
-    assert.equal(result.status, 500)
+    // Upstream 5xx does not leak through — the API boundary returns 400
+    assert.equal(result.status, 400)
     assert.include((result.body as { error: string }).error, 'Failed to fetch metadata')
   })
 

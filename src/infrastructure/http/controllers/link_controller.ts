@@ -5,6 +5,7 @@ import {
   isLinkParseError,
 } from '../../services/link_parser.service.js'
 import { LinkMetadataService, isLinkMetadataError } from '../../services/link_metadata.service.js'
+import { PlatformMetadataService } from '../../services/platform_metadata.service.js'
 
 export interface OEmbedResponse {
   title: string
@@ -12,27 +13,11 @@ export interface OEmbedResponse {
   thumbnail_url?: string
 }
 
-interface OEmbedError {
-  error: string
-  status: number
-}
-
-type OEmbedResult = OEmbedResponse | OEmbedError
-
-function isOEmbedError(result: OEmbedResult): result is OEmbedError {
-  return 'error' in result && 'status' in result
-}
-
 export default class LinkController {
-  private readonly oEmbedEndpoints: Record<string, string> = {
-    [StreamingPlatform.Spotify]: 'https://open.spotify.com/oembed',
-    [StreamingPlatform.YouTube]: 'https://www.youtube.com/oembed',
-    [StreamingPlatform.SoundCloud]: 'https://soundcloud.com/oembed',
-  }
-
   constructor(
     private linkParser: LinkParserService = new LinkParserService(),
-    private linkMetadataService: LinkMetadataService = new LinkMetadataService()
+    private linkMetadataService: LinkMetadataService = new LinkMetadataService(),
+    private platformMetadataService: PlatformMetadataService = new PlatformMetadataService()
   ) {}
 
   async oembed({ request, response }: HttpContext) {
@@ -48,60 +33,24 @@ export default class LinkController {
       return response.status(400).json({ error: parseResult.error })
     }
 
-    const { platform, originalUrl } = parseResult
-
-    if (platform === StreamingPlatform.AppleMusic) {
+    if (parseResult.platform === StreamingPlatform.AppleMusic) {
       return response.status(400).json({
         error: 'Apple Music does not support oEmbed. Use /api/link/apple-music instead.',
       })
     }
 
-    const oEmbedResult = await this.fetchOEmbed(platform, originalUrl)
+    const result = await this.platformMetadataService.fetch(parseResult)
 
-    if (isOEmbedError(oEmbedResult)) {
-      return response.status(oEmbedResult.status).json({ error: oEmbedResult.error })
+    if ('error' in result) {
+      const status = result.error.includes('not found')
+        ? 404
+        : result.error.includes('Failed to connect')
+          ? 502
+          : 400
+      return response.status(status).json({ error: result.error })
     }
 
-    return response.status(200).json(oEmbedResult)
-  }
-
-  private async fetchOEmbed(platform: StreamingPlatform, url: string): Promise<OEmbedResult> {
-    const baseEndpoint = this.oEmbedEndpoints[platform]
-
-    if (!baseEndpoint) {
-      return { error: `oEmbed not supported for platform: ${platform}`, status: 400 }
-    }
-
-    const oEmbedUrl = new URL(baseEndpoint)
-    oEmbedUrl.searchParams.set('url', url)
-    oEmbedUrl.searchParams.set('format', 'json')
-
-    try {
-      const fetchResponse = await fetch(oEmbedUrl.toString())
-
-      if (!fetchResponse.ok) {
-        if (fetchResponse.status === 404) {
-          return { error: 'Content not found on the streaming platform', status: 404 }
-        }
-        return {
-          error: `Failed to fetch metadata from ${platform}`,
-          status: fetchResponse.status,
-        }
-      }
-
-      const data = (await fetchResponse.json()) as Record<string, unknown>
-
-      return {
-        title: String(data.title || ''),
-        author_name: String(data.author_name || ''),
-        thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
-      }
-    } catch (error) {
-      return {
-        error: `Failed to connect to ${platform} oEmbed service`,
-        status: 502,
-      }
-    }
+    return response.status(200).json(result)
   }
 
   async appleMusic({ request, response }: HttpContext) {
@@ -117,16 +66,16 @@ export default class LinkController {
       return response.status(400).json({ error: parseResult.error })
     }
 
-    const { platform, originalUrl } = parseResult
-
-    if (platform !== StreamingPlatform.AppleMusic) {
+    if (parseResult.platform !== StreamingPlatform.AppleMusic) {
       return response.status(400).json({
         error:
           'This endpoint only accepts Apple Music URLs. Use /api/link/oembed for other platforms.',
       })
     }
 
-    const result = await this.linkMetadataService.fetchAppleMusicMetadata(originalUrl)
+    const result = await this.platformMetadataService.fetchAppleMusicMetadata(
+      parseResult.originalUrl
+    )
 
     if ('error' in result) {
       return response.status(422).json({ error: result.error })
