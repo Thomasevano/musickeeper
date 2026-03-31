@@ -11,4 +11,5 @@
     }
   },
   "exclude": ["./inertia/**/*", "node_modules", "build"],
+  "references": [{ "path": "./tsconfig.inertia.json" }]
 }

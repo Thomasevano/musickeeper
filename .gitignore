@@ -32,3 +32,4 @@ playwright-report/
 
 # Platform specific
 .DS_Store
+/ralph

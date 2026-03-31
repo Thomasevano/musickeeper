@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
-import { getDirname } from '@adonisjs/core/helpers'
-import inertia from '@adonisjs/inertia/client'
+import inertia from '@adonisjs/inertia/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import adonisjs from '@adonisjs/vite/client'
 import path from 'node:path'
@@ -14,11 +13,11 @@ export default defineConfig({
     inertia({
       ssr: {
         enabled: true,
-        entrypoint: 'inertia/app/ssr.ts',
+        entrypoint: 'inertia/ssr.ts',
       },
     }),
     svelte(),
-    adonisjs({ entrypoints: ['inertia/app/app.ts'], reload: ['resources/views/**/*.edge'] }),
+    adonisjs({ entrypoints: ['inertia/app.ts'], reload: ['resources/views/**/*.edge'] }),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -48,7 +47,7 @@ export default defineConfig({
    */
   resolve: {
     alias: {
-      '~/': `${getDirname(import.meta.url)}/inertia/`,
+      '~/': `${import.meta.dirname}/inertia/`,
       '$lib': path.resolve('./inertia/lib'),
       '$components': path.resolve('./inertia/components'),
       '$helpers': path.resolve('./inertia/lib/helpers'),
