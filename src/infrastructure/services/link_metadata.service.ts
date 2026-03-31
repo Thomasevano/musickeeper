@@ -75,11 +75,8 @@ export class LinkMetadataService {
           musicItem.albumName = linkMetadata.albumName
         }
 
-        // Use streaming platform cover art when MusicBrainz has none
-        if (
-          linkMetadata.thumbnailUrl &&
-          (!musicItem.coverArt || musicItem.coverArt.includes('Blank_album'))
-        ) {
+        // Prefer platform cover art; use MusicBrainz cover only as fallback
+        if (linkMetadata.thumbnailUrl) {
           musicItem.coverArt = linkMetadata.thumbnailUrl
         }
 
