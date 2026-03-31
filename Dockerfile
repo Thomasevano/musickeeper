@@ -1,4 +1,4 @@
-FROM node:jod-alpine3.23 AS base
+FROM node:krypton-alpine3.23 AS base
 ENV PNPM_HOME="/pnpm"
 RUN corepack enable
 
