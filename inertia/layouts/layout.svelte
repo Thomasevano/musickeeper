@@ -5,7 +5,7 @@
   let { children } = $props()
 </script>
 
-<div class="flex min-h-screen flex-col">
+<div class="flex min-h-dvh flex-col">
   <Navigation />
   <main class="flex-1">
     {@render children()}
