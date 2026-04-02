@@ -18,12 +18,12 @@
     </a>
 
     <h1
-      class="font-heading text-balance text-4xl font-bold leading-[1.1]! sm:text-5xl md:text-6xl lg:text-7xl"
+      class="font-heading text-balance text-4xl font-bold leading-tight sm:text-5xl md:text-6xl lg:text-7xl"
     >
       Keep track of music recommendations
     </h1>
 
-    <p class="text-muted-foreground max-w-2xl text-balance leading-normal sm:text-xl sm:leading-8">
+    <p class="text-muted-foreground max-w-2xl text-pretty leading-normal sm:text-xl sm:leading-8">
       A simple app to keep track on music you want or have been recommanded to listen to.
     </p>
     <div class="flex justify-center space-x-2 md:space-x-4">
