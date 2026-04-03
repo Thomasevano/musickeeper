@@ -288,7 +288,7 @@
     </Table.Root>
   </div>
   <div class="flex items-center justify-end space-x-2 pt-4">
-    <div class="text-muted-foreground flex-1 text-sm">
+    <div class="text-muted-foreground flex-1 text-sm tabular-nums">
       {table.getFilteredSelectedRowModel().rows.length} of
       {table.getFilteredRowModel().rows.length} row(s) selected.
     </div>
