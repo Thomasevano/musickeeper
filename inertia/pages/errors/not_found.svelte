@@ -1,6 +1,6 @@
 <div>
   <div class="container">
-    <div class="title">Page not found</div>
+    <h1 class="title">Page not found</h1>
 
     <span>This page does not exist.</span>
   </div>

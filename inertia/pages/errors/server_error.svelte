@@ -4,7 +4,7 @@ export let error
 
 <div>
   <div class="container">
-    <div class="title">Server Error</div>
+    <h1 class="title">Server Error</h1>
 
     <span>{error.message}</span>
   </div>
