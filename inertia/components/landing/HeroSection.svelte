@@ -12,9 +12,11 @@
       href={`https://github.com/Thomasevano/musickeeper/releases/tag/v${appVersion}`}
       class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
       target="_blank"
+      rel="noopener noreferrer"
     >
       v{appVersion} &mdash; See what's new 🎉
       <span aria-hidden="true">&rarr;</span>
+      <span class="sr-only">(opens in new tab)</span>
     </a>
 
     <h1

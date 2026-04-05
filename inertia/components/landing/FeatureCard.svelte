@@ -8,14 +8,14 @@
 <div class="bg-background relative overflow-hidden rounded-lg border p-2">
   <div class="flex h-[180px] flex-col justify-between rounded-md p-5">
     {#if feature.icon === 'connect'}
-      <div class="flex justify-between">
+      <div class="flex justify-between" aria-hidden="true">
         <i class="si si-spotify mr-2 text-4xl"></i>
         <i class="si si-applemusic mr-2 text-4xl"></i>
         <i class="si si-soundcloud mr-2 text-4xl"></i>
         <i class="si si-youtubemusic mr-2 text-4xl"></i>
       </div>
     {:else if typeof feature.icon !== 'string'}
-      <div class="rounded-full w-12 h-12 flex items-center justify-center bg-primary/10 mb-4">
+      <div class="rounded-full w-12 h-12 flex items-center justify-center bg-primary/10 mb-4" aria-hidden="true">
         <svelte:component this={feature.icon} class="size-8" />
       </div>
     {/if}
