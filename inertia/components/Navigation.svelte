@@ -26,7 +26,7 @@
       <NavigationMenu.Link>
         {#snippet child()}
           <a href="https://thomasevano.fr/en/tags/musickeeper/" class={navigationMenuTriggerStyle()}
-            >Blog</a
+            rel="noopener noreferrer" target="_blank">Blog<span class="sr-only"> (opens in new tab)</span></a
           >
         {/snippet}
       </NavigationMenu.Link>
