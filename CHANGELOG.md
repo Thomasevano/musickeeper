@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.7.0](https://github.com/Thomasevano/musickeeper/compare/v0.6.0...v0.7.0) (2026-04-05)
+
+
+### Features
+
+* **ux:** confirm delete dialog ([9932ac8](https://github.com/Thomasevano/musickeeper/commit/9932ac8efa04160aa88f637171b8ff8b5b965450))
+
+
+### Bug Fixes
+
+* **a11y:** error pages ([cdd8925](https://github.com/Thomasevano/musickeeper/commit/cdd89255e54e49ed86b83422d37f4ba71f4914b3))
+* **a11y:** landing components ([d1816af](https://github.com/Thomasevano/musickeeper/commit/d1816af9bdab7ffd38302d0fe890ed19f7056187))
+* **a11y:** listen-later and confirm dialog component ([f6803ac](https://github.com/Thomasevano/musickeeper/commit/f6803acb734ee6111db3545f94ebab54c76f8ad9))
+* **a11y:** navigation ([8fc9859](https://github.com/Thomasevano/musickeeper/commit/8fc98591c470ac6c7d6bc08caac7119f7d9da59c))
+* **a11y:** trackItem ([0e483ea](https://github.com/Thomasevano/musickeeper/commit/0e483ea334411814ff065852454e2bf712d31963))
+* **ui:** text spaces on landing page ([158c390](https://github.com/Thomasevano/musickeeper/commit/158c39042a5596ddae19aa44da5939b5377089f2))
+* **ui:** toggleTheme animation ([0bd73c6](https://github.com/Thomasevano/musickeeper/commit/0bd73c658f0885113f414799a92129e9f0639322))
+* **ui:** use dynamic viewport to avoid glitch on mobile ([1b75bd0](https://github.com/Thomasevano/musickeeper/commit/1b75bd0b0ff40021afa4c6b2e6ccc2a655317b27))
+* **ui:** use tabular-nums for cells containing dates and numbers ([af72a06](https://github.com/Thomasevano/musickeeper/commit/af72a06e620509bc06ac281761618026c40fce22))
+
 ## [0.6.0](https://github.com/Thomasevano/musickeeper/compare/v0.5.0...v0.6.0) (2026-04-01)
 
 
