@@ -44,6 +44,9 @@
     --ring: 240 5% 64.9%;
     --radius: 0.5rem;
 
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 15%;
+
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -74,6 +77,9 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 85.7% 97.3%;
     --ring: 240 3.7% 48%;
+
+    --warning: 38 90% 45%;
+    --warning-foreground: 38 92% 95%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

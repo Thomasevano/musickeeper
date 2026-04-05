@@ -107,13 +107,17 @@
           <Skeleton class="h-5 w-20" />
         </div>
       </div>
-      <div class="flex items-center justify-center py-2">
-        <Loader2 class="h-5 w-5 animate-spin text-muted-foreground" />
+      <div class="flex items-center justify-center py-2" aria-busy="true" aria-live="polite">
+        <Loader2 class="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
         <span class="ml-2 text-sm text-muted-foreground">Loading metadata...</span>
       </div>
     {:else if error}
-      <div class="flex items-center gap-2 rounded-md border border-destructive bg-destructive/10 p-4">
-        <AlertTriangle class="h-5 w-5 text-destructive shrink-0" />
+      <div
+        class="flex items-center gap-2 rounded-md border border-destructive bg-destructive/10 p-4"
+        role="alert"
+        aria-live="assertive"
+      >
+        <AlertTriangle class="h-5 w-5 text-destructive shrink-0" aria-hidden="true" />
         <div class="flex flex-col gap-1">
           <p class="text-sm font-medium text-destructive">
             {error}
@@ -126,9 +130,9 @@
         </div>
       </div>
     {:else if existingItem}
-      <div class="flex items-center gap-2 rounded-md border border-yellow-500 bg-yellow-50 p-3 dark:bg-yellow-950 mb-4">
-        <Copy class="h-5 w-5 text-yellow-500" />
-        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+      <div class="flex items-center gap-2 rounded-md border border-warning bg-warning/10 p-3 mb-4">
+        <Copy class="h-5 w-5 text-warning" aria-hidden="true" />
+        <p class="text-sm text-warning-foreground">
           An item with the same title and artist already exists in your list.
         </p>
       </div>
@@ -159,10 +163,13 @@
               size="md"
             />
             <div class="flex flex-col justify-center gap-2 flex-1">
-              <Input bind:value={editableTitle} placeholder="Title" />
-              <Input bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
+              <label for="dup-title" class="sr-only">Title</label>
+              <Input id="dup-title" bind:value={editableTitle} placeholder="Title" />
+              <label for="dup-artists" class="sr-only">Artists</label>
+              <Input id="dup-artists" bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
               {#if selectedType !== SearchType.album}
-                <Input bind:value={editableAlbumName} placeholder="Album name (optional)" />
+                <label for="dup-album" class="sr-only">Album name</label>
+                <Input id="dup-album" bind:value={editableAlbumName} placeholder="Album name (optional)" />
               {/if}
             </div>
           </div>
@@ -202,9 +209,9 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <label for="item-type" class="text-sm font-medium">Item Type:</label>
+        <span id="item-type-label" class="text-sm font-medium">Item Type:</span>
         <Select.Root type="single" bind:value={selectedType}>
-          <Select.Trigger class="w-[140px]">{triggerContent}</Select.Trigger>
+          <Select.Trigger class="w-[140px]" aria-labelledby="item-type-label">{triggerContent}</Select.Trigger>
           <Select.Content>
             <Select.Group>
               {#each types as type (type.value)}

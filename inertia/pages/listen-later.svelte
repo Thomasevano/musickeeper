@@ -55,6 +55,7 @@
   let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
   let existingDuplicate = $state<ListenLaterItem | null>(null)
   let highlightedItemId = $state<string | null>(null)
+  let deleteTarget = $state<ListenLaterItem | null>(null)
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -320,7 +321,12 @@
     fetchLinkMetadata()
   }
 
-  function handleConfirmDialogConfirm(itemType: SearchType, title: string, artists: string[], albumName: string) {
+  function handleConfirmDialogConfirm(
+    itemType: SearchType,
+    title: string,
+    artists: string[],
+    albumName: string
+  ) {
     if (!pendingMusicItem) return
 
     // Create ListenLaterItem from confirmed (and possibly edited) data
@@ -417,7 +423,7 @@
     <div class="flex flex-col justify-between md:flex-row">
       <div class="flex flex-row">
         <div class="mb-4 space-y-2 md:mb-0">
-          <h2 class="text-2xl font-semibold tracking-tight">Listen Later</h2>
+          <h2 class="text-2xl font-semibold">Listen Later</h2>
           <p class="text-muted-foreground text-sm">
             Listen later is a list of albums, artists and tracks you want to listen to later.
           </p>
@@ -430,20 +436,24 @@
     <div class="mb-6">
       <h3 class="text-lg font-medium mb-2">Add from Link</h3>
       <div class="flex gap-2">
+        <label for="link-url" class="sr-only">Music link URL</label>
         <Input
+          id="link-url"
           type="url"
           bind:value={linkUrl}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
           disabled={isProcessingLink}
+          aria-describedby={linkError ? 'link-url-error' : undefined}
+          aria-invalid={linkError ? 'true' : undefined}
         />
         <Button onclick={handlePasteLink} disabled={isProcessingLink || !linkUrl.trim()}>
-          <Link2 class="mr-2 h-4 w-4" />
+          <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
           {isProcessingLink ? 'Processing...' : 'Add'}
         </Button>
       </div>
       {#if linkError}
-        <p class="text-destructive text-sm mt-2">{linkError}</p>
+        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkError}</p>
       {/if}
     </div>
 
@@ -452,7 +462,7 @@
     <div class="mb-4 flex items-center gap-4" class:opacity-50={isOffline}>
       <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
-        <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
+        <Select.Trigger id="search-type" class="w-[180px]">{triggerContent}</Select.Trigger>
 
         <Select.Content>
           <Select.Group>
@@ -543,25 +553,29 @@
                 id={`item-${item.id}`}
                 in:receive={{ key: item.id }}
                 out:send={{ key: item.id }}
-                class="text-center transition-colors duration-500 {highlightedItemId === item.id
-                  ? 'bg-yellow-100 dark:bg-yellow-900'
-                  : ''}"
+                class="text-center {highlightedItemId === item.id ? 'bg-warning/20' : ''}"
               >
                 <td class="px-4 py-2">
                   <Tooltip.Provider>
                     <Tooltip.Root>
                       <Tooltip.Trigger>
-                        <Button
-                          variant="ghost"
-                          class="cursor-pointer"
-                          onclick={() => handleListen(item)}
-                        >
-                          {#if item.hasBeenListened}
-                            <Check color="green" />
-                          {:else}
-                            <X color="red" />
-                          {/if}
-                        </Button>
+                        {#snippet child({ props })}
+                          <Button
+                            {...props}
+                            variant="ghost"
+                            class="cursor-pointer"
+                            aria-label={item.hasBeenListened
+                              ? 'Mark as not listened'
+                              : 'Mark as listened'}
+                            onclick={() => handleListen(item)}
+                          >
+                            {#if item.hasBeenListened}
+                              <Check class="text-green-600 dark:text-green-400" aria-hidden="true" />
+                            {:else}
+                              <X class="text-destructive" aria-hidden="true" />
+                            {/if}
+                          </Button>
+                        {/snippet}
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         {#if item.hasBeenListened}
@@ -589,14 +603,18 @@
                   <Tooltip.Provider>
                     <Tooltip.Root>
                       <Tooltip.Trigger>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          class="cursor-pointer"
-                          onclick={() => handleDelete(item)}
-                        >
-                          <Trash2 color="red" />
-                        </Button>
+                        {#snippet child({ props })}
+                          <Button
+                            {...props}
+                            variant="ghost"
+                            size="icon"
+                            class="cursor-pointer"
+                            aria-label="Delete from list"
+                            onclick={() => (deleteTarget = item)}
+                          >
+                            <Trash2 class="text-destructive" aria-hidden="true" />
+                          </Button>
+                        {/snippet}
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         <p>Delete from list</p>
@@ -609,8 +627,12 @@
           </tbody>
         </table>
       {:else}
-        <div class="flex items-center justify-center h-64">
+        <div class="flex flex-col items-center justify-center gap-4 h-64">
           <p class="text-muted-foreground text-sm">No items in your listen later list yet.</p>
+          <p class="text-muted-foreground text-sm text-pretty text-center">
+            Search for a track or album above, or paste a link from Spotify, YouTube, Apple Music,
+            or SoundCloud to add your first item.
+          </p>
         </div>
       {/if}
     </div>
