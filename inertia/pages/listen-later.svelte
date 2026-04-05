@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as Alert from '$lib/components/ui/alert/index.js'
+  import * as Dialog from '$lib/components/ui/dialog/index.js'
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
@@ -629,3 +630,36 @@
   onViewExisting={handleViewExisting}
   onRetry={handleRetry}
 />
+
+<Dialog.Root
+  open={!!deleteTarget}
+  onOpenChange={(open) => {
+    if (!open) deleteTarget = null
+  }}
+>
+  <Dialog.Content interactOutsideBehavior="close" showCloseButton={false}>
+    <Dialog.Header>
+      <Dialog.Title>Are you sure?</Dialog.Title>
+      <Dialog.Description>
+        "{deleteTarget?.title}" will be permanently removed from your listen later list.
+      </Dialog.Description>
+    </Dialog.Header>
+    <Dialog.Footer>
+      <Button variant="outline" style="cursor: pointer;" onclick={() => (deleteTarget = null)}
+        >Cancel</Button
+      >
+      <Button
+        variant="destructive"
+        style="cursor: pointer;"
+        onclick={() => {
+          if (deleteTarget) {
+            handleDelete(deleteTarget)
+            deleteTarget = null
+          }
+        }}
+      >
+        Confirm
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
