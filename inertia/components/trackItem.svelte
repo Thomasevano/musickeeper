@@ -85,28 +85,37 @@
   <Tooltip.Provider>
     <Tooltip.Root>
       <Tooltip.Trigger class="w-full">
-        <Command.Item class="cursor-pointer flex p-2" onclick={() => toggleListenLater(item)}>
-          <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
-          <div class="flex items-center gap-4">
-            <div class="flex flex-col justify-between text-left">
-              <p class="px-4 py-2">Title: {item.title}</p>
-              <p class="px-4 py-2">
-                Artists: {item.artists.map((artist: string) => artist).join(', ')}
-              </p>
-              {#if type === 'track'}
-                <p class="px-4 py-2">Album: {item.albumName}</p>
-              {:else}{/if}
-              <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
+        {#snippet child({ props })}
+          <Command.Item
+            {...props}
+            class="cursor-pointer flex p-2"
+            aria-label={isInListenLaterList
+              ? `Remove ${item.title} from listen later`
+              : `Add ${item.title} to listen later`}
+            onclick={() => toggleListenLater(item)}
+          >
+            <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
+            <div class="flex items-center gap-4">
+              <div class="flex flex-col justify-between text-left">
+                <p class="px-4 py-2">Title: {item.title}</p>
+                <p class="px-4 py-2">
+                  Artists: {item.artists.map((artist: string) => artist).join(', ')}
+                </p>
+                {#if type === 'track'}
+                  <p class="px-4 py-2">Album: {item.albumName}</p>
+                {:else}{/if}
+                <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
+              </div>
             </div>
-          </div>
-          <div class="ml-auto">
-            {#if isInListenLaterList}
-              <Check class="size-icon" />
-            {:else}
-              <Plus class="size-icon" />
-            {/if}
-          </div>
-        </Command.Item>
+            <div class="ml-auto" aria-hidden="true">
+              {#if isInListenLaterList}
+                <Check class="size-4" />
+              {:else}
+                <Plus class="size-4" />
+              {/if}
+            </div>
+          </Command.Item>
+        {/snippet}
       </Tooltip.Trigger>
       {#if isInListenLaterList}
         <Tooltip.Content>Delete from list</Tooltip.Content>
