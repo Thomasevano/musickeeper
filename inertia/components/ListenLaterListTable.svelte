@@ -4,7 +4,6 @@
     type ColumnDef,
     type ColumnFiltersState,
     type PaginationState,
-    type RowSelectionState,
     type SortingState,
     type VisibilityState,
     getCoreRowModel,
@@ -12,154 +11,108 @@
     getPaginationRowModel,
     getSortedRowModel,
   } from '@tanstack/table-core'
-  import { createRawSnippet } from 'svelte'
-  import DataTableCheckbox from './data-table/data-table-checkbox.svelte'
-  import DataTableEmailButton from './data-table/data-table-email-button.svelte'
   import DataTableActions from './data-table/data-table-actions.svelte'
+  import DataTableStatusBadge from './data-table/data-table-status-badge.svelte'
+  import CoverArt from './CoverArt.svelte'
   import * as Table from '$lib/components/ui/table/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js'
-  import { Input } from '$lib/components/ui/input/index.js'
+  import * as Select from '$lib/components/ui/select/index.js'
   import {
     FlexRender,
     createSvelteTable,
     renderComponent,
-    renderSnippet,
   } from '$lib/components/ui/data-table/index.js'
+  import type { ListenLaterItem } from '../../src/domain/music_item'
 
-  type Payment = {
-    id: string
-    amount: number
-    status: 'Pending' | 'Processing' | 'Success' | 'Failed'
-    email: string
-  }
+  let {
+    items,
+    onDelete,
+    onToggleListen,
+    highlightedItemId,
+  }: {
+    items: ListenLaterItem[]
+    onDelete: (item: ListenLaterItem) => void
+    onToggleListen: (item: ListenLaterItem) => void
+    highlightedItemId: string | null
+  } = $props()
 
-  const data: Payment[] = [
-    {
-      id: 'm5gr84i9',
-      amount: 316,
-      status: 'Success',
-      email: 'ken99@yahoo.com',
-    },
-    {
-      id: '3u1reuv4',
-      amount: 242,
-      status: 'Success',
-      email: 'Abe45@gmail.com',
-    },
-    {
-      id: 'derv1ws0',
-      amount: 837,
-      status: 'Processing',
-      email: 'Monserrat44@gmail.com',
-    },
-    {
-      id: '5kma53ae',
-      amount: 874,
-      status: 'Success',
-      email: 'Silas22@gmail.com',
-    },
-    {
-      id: 'bhqecj4p',
-      amount: 721,
-      status: 'Failed',
-      email: 'carmella@hotmail.com',
-    },
+  const statusFilterOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'listened', label: 'Listened' },
+    { value: 'not_listened', label: 'Not listened' },
   ]
 
-  const columns: ColumnDef<Payment>[] = [
+  let statusFilter = $state<string>('all')
+
+  const columns: ColumnDef<ListenLaterItem>[] = [
     {
-      id: 'select',
-      header: ({ table }) =>
-        renderComponent(DataTableCheckbox, {
-          'checked': table.getIsAllPageRowsSelected(),
-          'indeterminate': table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
-          'onCheckedChange': (value) => table.toggleAllPageRowsSelected(!!value),
-          'aria-label': 'Select all',
-        }),
-      cell: ({ row }) =>
-        renderComponent(DataTableCheckbox, {
-          'checked': row.getIsSelected(),
-          'onCheckedChange': (value) => row.toggleSelected(!!value),
-          'aria-label': 'Select row',
-        }),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
-      accessorKey: 'status',
+      accessorKey: 'hasBeenListened',
       header: 'Status',
-      cell: ({ row }) => {
-        const statusSnippet = createRawSnippet<[string]>((getStatus) => {
-          const status = getStatus()
-          return {
-            render: () => `<div class="capitalize">${status}</div>`,
-          }
-        })
-        return renderSnippet(statusSnippet, row.getValue('status'))
+      enableHiding: false,
+      filterFn: (row, _columnId, filterValue) => {
+        if (filterValue === 'all') return true
+        if (filterValue === 'listened') return row.original.hasBeenListened === true
+        if (filterValue === 'not_listened') return row.original.hasBeenListened === false
+        return true
       },
-    },
-    {
-      accessorKey: 'email',
-      header: ({ column }) =>
-        renderComponent(DataTableEmailButton, {
-          onclick: column.getToggleSortingHandler(),
+      cell: ({ row }) =>
+        renderComponent(DataTableStatusBadge, {
+          hasBeenListened: row.original.hasBeenListened,
         }),
-      cell: ({ row }) => {
-        const emailSnippet = createRawSnippet<[string]>((getEmail) => {
-          const email = getEmail()
-          return {
-            render: () => `<div class="lowercase">${email}</div>`,
-          }
-        })
-
-        return renderSnippet(emailSnippet, row.getValue('email'))
-      },
     },
     {
-      accessorKey: 'amount',
-      header: () => {
-        const amountHeaderSnippet = createRawSnippet(() => {
-          return {
-            render: () => `<div class="text-right">Amount</div>`,
-          }
-        })
-        return renderSnippet(amountHeaderSnippet, '')
-      },
-      cell: ({ row }) => {
-        const amountCellSnippet = createRawSnippet<[string]>((getAmount) => {
-          const amount = getAmount()
-          return {
-            render: () => `<div class="text-right font-medium">${amount}</div>`,
-          }
-        })
-        const formatter = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-        })
-
-        return renderSnippet(
-          amountCellSnippet,
-          formatter.format(Number.parseFloat(row.getValue('amount')))
-        )
-      },
+      id: 'cover',
+      header: 'Cover',
+      enableSorting: false,
+      enableHiding: true,
+      cell: ({ row }) =>
+        renderComponent(CoverArt, {
+          src: row.original.coverArt,
+          alt: `Cover of ${row.original.title}`,
+          size: 'sm',
+          class: 'mx-auto',
+        }),
+    },
+    {
+      accessorKey: 'itemType',
+      header: 'Type',
+      cell: ({ row }) => row.original.itemType ?? '',
+    },
+    {
+      accessorKey: 'title',
+      header: 'Title',
+    },
+    {
+      id: 'artists',
+      header: 'Artists',
+      cell: ({ row }) => row.original.artists?.join(', ') ?? '',
+    },
+    {
+      accessorKey: 'albumName',
+      header: 'Album',
+      cell: ({ row }) => row.original.albumName ?? '-',
     },
     {
       id: 'actions',
       enableHiding: false,
-      cell: ({ row }) => renderComponent(DataTableActions, { id: row.original.id }),
+      cell: ({ row }) =>
+        renderComponent(DataTableActions, {
+          item: row.original,
+          onDelete,
+          onToggleListen,
+        }),
     },
   ]
 
-  let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 20 })
   let sorting = $state<SortingState>([])
   let columnFilters = $state<ColumnFiltersState>([])
-  let rowSelection = $state<RowSelectionState>({})
   let columnVisibility = $state<VisibilityState>({})
 
   const table = createSvelteTable({
     get data() {
-      return data
+      return items
     },
     columns,
     state: {
@@ -171,9 +124,6 @@
       },
       get columnVisibility() {
         return columnVisibility
-      },
-      get rowSelection() {
-        return rowSelection
       },
       get columnFilters() {
         return columnFilters
@@ -211,27 +161,39 @@
         columnVisibility = updater
       }
     },
-    onRowSelectionChange: (updater) => {
-      if (typeof updater === 'function') {
-        rowSelection = updater(rowSelection)
-      } else {
-        rowSelection = updater
-      }
-    },
   })
+
+  function handleStatusFilterChange(value: string) {
+    statusFilter = value
+    if (value === 'all') {
+      table.getColumn('hasBeenListened')?.setFilterValue(undefined)
+    } else {
+      table.getColumn('hasBeenListened')?.setFilterValue(value)
+    }
+  }
+
+  const statusFilterLabel = $derived(
+    statusFilterOptions.find((o) => o.value === statusFilter)?.label ?? 'All'
+  )
 </script>
 
 <div class="w-full">
-  <div class="flex items-center py-4">
-    <Input
-      placeholder="Filter emails..."
-      value={(table.getColumn('email')?.getFilterValue() as string) ?? ''}
-      oninput={(e) => table.getColumn('email')?.setFilterValue(e.currentTarget.value)}
-      onchange={(e) => {
-        table.getColumn('email')?.setFilterValue(e.currentTarget.value)
-      }}
-      class="max-w-sm"
-    />
+  <div class="flex items-center gap-2 py-4">
+    <!-- Status filter -->
+    <Select.Root type="single" value={statusFilter} onValueChange={handleStatusFilterChange}>
+      <Select.Trigger class="w-[160px]">
+        <span>Status: {statusFilterLabel}</span>
+      </Select.Trigger>
+      <Select.Content>
+        <Select.Group>
+          {#each statusFilterOptions as option (option.value)}
+            <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
+          {/each}
+        </Select.Group>
+      </Select.Content>
+    </Select.Root>
+
+    <!-- Column visibility toggle -->
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
@@ -241,7 +203,7 @@
         {/snippet}
       </DropdownMenu.Trigger>
       <DropdownMenu.Content align="end">
-        {#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column)}
+        {#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column.id)}
           <DropdownMenu.CheckboxItem
             class="capitalize"
             bind:checked={() => column.getIsVisible(), (v) => column.toggleVisibility(!!v)}
@@ -252,13 +214,14 @@
       </DropdownMenu.Content>
     </DropdownMenu.Root>
   </div>
+
   <div class="rounded-md border">
     <Table.Root>
       <Table.Header>
         {#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
           <Table.Row>
             {#each headerGroup.headers as header (header.id)}
-              <Table.Head class="[&:has([role=checkbox])]:pl-3">
+              <Table.Head>
                 {#if !header.isPlaceholder}
                   <FlexRender
                     content={header.column.columnDef.header}
@@ -272,9 +235,13 @@
       </Table.Header>
       <Table.Body>
         {#each table.getRowModel().rows as row (row.id)}
-          <Table.Row data-state={row.getIsSelected() && 'selected'}>
+          <Table.Row
+            id={`item-${row.original.id}`}
+            data-state={highlightedItemId === row.original.id ? 'highlighted' : undefined}
+            class={highlightedItemId === row.original.id ? 'bg-warning/20' : ''}
+          >
             {#each row.getVisibleCells() as cell (cell.id)}
-              <Table.Cell class="[&:has([role=checkbox])]:pl-3">
+              <Table.Cell>
                 <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
               </Table.Cell>
             {/each}
@@ -287,10 +254,10 @@
       </Table.Body>
     </Table.Root>
   </div>
+
   <div class="flex items-center justify-end space-x-2 pt-4">
     <div class="text-muted-foreground flex-1 text-sm tabular-nums">
-      {table.getFilteredSelectedRowModel().rows.length} of
-      {table.getFilteredRowModel().rows.length} row(s) selected.
+      {table.getFilteredRowModel().rows.length} item(s)
     </div>
     <div class="space-x-2">
       <Button

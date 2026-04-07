@@ -79,6 +79,7 @@
     "@inertiajs/core": "^2.3.18",
     "@inertiajs/svelte": "^2.3.18",
     "@tailwindcss/vite": "^4.2.2",
+    "@tanstack/table-core": "^8.21.3",
     "@vinejs/vine": "^4.3.0",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",

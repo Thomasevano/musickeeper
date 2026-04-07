@@ -4,13 +4,11 @@
   import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
-  import * as Tooltip from '$lib/components/ui/tooltip/index.js'
-  import { receive, send } from '$lib/helpers'
-  import { Check, Link2, Trash2, X, WifiOff } from '@lucide/svelte'
+  import { Link2, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import { toast } from 'svelte-sonner'
-  import CoverArt from '~/components/CoverArt.svelte'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
+  import ListenLaterListTable from '~/components/ListenLaterListTable.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
@@ -535,97 +533,12 @@
     </div>
     <div>
       {#if listenLaterItems.length > 0}
-        <table class="w-full">
-          <thead>
-            <tr>
-              <th class="px-4 py-2">Listened</th>
-              <th class="px-4 py-2">Cover</th>
-              <th class="px-4 py-2">Type</th>
-              <th class="px-4 py-2">Title</th>
-              <th class="px-4 py-2">Artists</th>
-              <th class="px-4 py-2">Album</th>
-              <th class="px-4 py-2">Delete</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each listenLaterItems as item (item.id)}
-              <tr
-                id={`item-${item.id}`}
-                in:receive={{ key: item.id }}
-                out:send={{ key: item.id }}
-                class="text-center {highlightedItemId === item.id ? 'bg-warning/20' : ''}"
-              >
-                <td class="px-4 py-2">
-                  <Tooltip.Provider>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            variant="ghost"
-                            class="cursor-pointer"
-                            aria-label={item.hasBeenListened
-                              ? 'Mark as not listened'
-                              : 'Mark as listened'}
-                            onclick={() => handleListen(item)}
-                          >
-                            {#if item.hasBeenListened}
-                              <Check class="text-green-600 dark:text-green-400" aria-hidden="true" />
-                            {:else}
-                              <X class="text-destructive" aria-hidden="true" />
-                            {/if}
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>
-                        {#if item.hasBeenListened}
-                          <p>Mark as not listened</p>
-                        {:else}
-                          <p>Mark as listened</p>
-                        {/if}
-                      </Tooltip.Content>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                </td>
-                <td class="px-4 py-2">
-                  <CoverArt
-                    src={item.coverArt}
-                    alt={`Cover of ${item.title}`}
-                    size="md"
-                    class="mx-auto"
-                  />
-                </td>
-                <td class="px-4 py-2 capitalize">{item.itemType}</td>
-                <td class="px-4 py-2">{item.title}</td>
-                <td class="px-4 py-2">{item.artists.join(', ')}</td>
-                <td class="px-4 py-2">{item.albumName || '-'}</td>
-                <td class="px-4 py-2">
-                  <Tooltip.Provider>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            variant="ghost"
-                            size="icon"
-                            class="cursor-pointer"
-                            aria-label="Delete from list"
-                            onclick={() => (deleteTarget = item)}
-                          >
-                            <Trash2 class="text-destructive" aria-hidden="true" />
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>
-                        <p>Delete from list</p>
-                      </Tooltip.Content>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+        <ListenLaterListTable
+          items={listenLaterItems}
+          onDelete={(item) => (deleteTarget = item)}
+          onToggleListen={handleListen}
+          {highlightedItemId}
+        />
       {:else}
         <div class="flex flex-col items-center justify-center gap-4 h-64">
           <p class="text-muted-foreground text-sm">No items in your listen later list yet.</p>
