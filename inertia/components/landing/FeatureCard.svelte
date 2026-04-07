@@ -6,7 +6,7 @@
 </script>
 
 <div class="bg-background relative overflow-hidden rounded-lg border p-2">
-  <div class="flex h-[180px] flex-col justify-between rounded-md p-5">
+  <div class="flex min-h-[180px] flex-col justify-between rounded-md p-5">
     {#if feature.icon === 'connect'}
       <div class="flex justify-between" aria-hidden="true">
         <i class="si si-spotify mr-2 text-4xl"></i>

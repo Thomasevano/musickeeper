@@ -7,7 +7,7 @@ export default class HomeController {
       {
         title: 'MusicKeeper',
         description:
-          'A simple app to keep track on music you want or have been recommanded to listen to',
+          'A simple app to keep track of music you want or have been recommended to listen to',
       }
     )
   }

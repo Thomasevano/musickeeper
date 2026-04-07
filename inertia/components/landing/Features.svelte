@@ -50,12 +50,9 @@
   ]
 </script>
 
-<section
-  id="features"
-  class="container space-y-6 py-8 md:py-12 lg:pt-0 lg:py-12 dark:bg-transparent"
->
-  <div class="mx-auto flex max-w-232 flex-col items-center space-y-4 text-center">
-    <h2 class="font-heading text-balance text-3xl leading-tight sm:text-3xl md:text-6xl">Features</h2>
+<section id="features" class="container space-y-6 py-8 md:py-12 lg:py-16 dark:bg-transparent">
+  <div class="mx-auto flex max-w-5xl flex-col items-center space-y-4 text-center">
+    <h2 class="font-heading text-balance text-3xl leading-tight md:text-6xl">Features</h2>
   </div>
   <div class="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-5xl md:grid-cols-3">
     {#each features as feature (feature.icon)}
