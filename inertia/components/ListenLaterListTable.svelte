@@ -1,5 +1,6 @@
 <script lang="ts">
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
+  import DataTableSortHeader from './data-table/data-table-sort-header.svelte'
   import {
     type ColumnDef,
     type ColumnFiltersState,
@@ -11,6 +12,8 @@
     getPaginationRowModel,
     getSortedRowModel,
   } from '@tanstack/table-core'
+  import { fly } from 'svelte/transition'
+  import { cubicOut, cubicIn } from 'svelte/easing'
   import DataTableActions from './data-table/data-table-actions.svelte'
   import DataTableStatusBadge from './data-table/data-table-status-badge.svelte'
   import CoverArt from './CoverArt.svelte'
@@ -24,6 +27,40 @@
     renderComponent,
   } from '$lib/components/ui/data-table/index.js'
   import type { ListenLaterItem } from '../../src/domain/music_item'
+
+  /**
+   * Custom transition that collapses height on exit so the table reflows
+   * smoothly instead of leaving a blank gap.
+   *
+   * Enter: fade + slide down from -6px  (ease-out, 250ms)
+   * Exit:  fade + slide right + height collapse (ease-in, 200ms — slightly
+   *        faster than entrance per web-animation-design guidelines)
+   *
+   * Both transitions are disabled when the user prefers reduced motion.
+   */
+  function rowIn(node: Element) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return { duration: 0 }
+    }
+    return fly(node, { y: -6, opacity: 0, duration: 250, easing: cubicOut })
+  }
+
+  function rowOut(node: Element) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return { duration: 0 }
+    }
+    const height = (node as HTMLElement).offsetHeight
+    return {
+      duration: 200,
+      easing: cubicIn,
+      css: (t: number) => `
+        opacity: ${t};
+        transform: translateX(${(1 - t) * 14}px);
+        height: ${t * height}px;
+        overflow: hidden;
+      `,
+    }
+  }
 
   let {
     items,
@@ -235,17 +272,23 @@
       </Table.Header>
       <Table.Body>
         {#each table.getRowModel().rows as row (row.id)}
-          <Table.Row
+          <tr
             id={`item-${row.original.id}`}
+            data-slot="table-row"
             data-state={highlightedItemId === row.original.id ? 'highlighted' : undefined}
-            class={highlightedItemId === row.original.id ? 'bg-warning/20' : ''}
+            class={[
+              'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors',
+              highlightedItemId === row.original.id ? 'bg-warning/20' : '',
+            ].join(' ')}
+            in:rowIn
+            out:rowOut
           >
             {#each row.getVisibleCells() as cell (cell.id)}
               <Table.Cell>
                 <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
               </Table.Cell>
             {/each}
-          </Table.Row>
+          </tr>
         {:else}
           <Table.Row>
             <Table.Cell colspan={columns.length} class="h-24 text-center">No results.</Table.Cell>
