@@ -215,7 +215,7 @@
     </DropdownMenu.Root>
   </div>
 
-  <div class="rounded-md border">
+  <div class="overflow-x-auto rounded-md border">
     <Table.Root>
       <Table.Header>
         {#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
@@ -259,23 +259,28 @@
     <div class="text-muted-foreground flex-1 text-sm tabular-nums">
       {table.getFilteredRowModel().rows.length} item(s)
     </div>
-    <div class="space-x-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => table.previousPage()}
-        disabled={!table.getCanPreviousPage()}
-      >
-        Previous
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => table.nextPage()}
-        disabled={!table.getCanNextPage()}
-      >
-        Next
-      </Button>
+    <div class="flex items-center gap-3">
+      <span class="text-muted-foreground text-sm tabular-nums">
+        Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+      </span>
+      <div class="space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   </div>
 </div>

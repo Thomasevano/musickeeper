@@ -237,9 +237,9 @@
     // TODO: remove this condition when I can export and import the list
     // this condition exists only for legacy reasons, I should remove it later
     listenLaterItems = getAllRequest.result.sort((a: ListenLaterItem, b: ListenLaterItem) =>
-      (typeof a.addedAt && typeof b.addedAt) === typeof Date
-        ? a.addedAt.getDate() - b.addedAt.getDate()
-        : (a.addedAt || 0) - (b.addedAt || 0)
+      a.addedAt instanceof Date && b.addedAt instanceof Date
+        ? a.addedAt.getTime() - b.addedAt.getTime()
+        : ((a.addedAt as unknown as number) || 0) - ((b.addedAt as unknown as number) || 0)
     )
   }
 
@@ -423,7 +423,7 @@
         <div class="mb-4 space-y-2 md:mb-0">
           <h2 class="text-2xl font-semibold">Listen Later</h2>
           <p class="text-muted-foreground text-sm">
-            Listen later is a list of albums, artists and tracks you want to listen to later.
+            Tracks and albums you want to listen to.
           </p>
         </div>
       </div>
@@ -476,61 +476,63 @@
       </Select.Root>
 
       <div class="flex gap-2 w-full">
-        <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
-          <Command.Input
+        <div class="flex flex-col gap-1 flex-1">
+          <label for="search-title" class="sr-only">Song or album title</label>
+          <Input
+            id="search-title"
             bind:value={searchTerm}
-            placeholder={isOffline
-              ? 'Search disabled while offline'
-              : 'Search a song or album title...'}
+            placeholder={isOffline ? 'Search disabled while offline' : 'Search a song or album title...'}
             disabled={isOffline}
           />
-        </Command.Root>
+        </div>
 
-        <Command.Root class="rounded-lg border shadow-md flex-1" shouldFilter={false}>
-          <Command.Input
+        <div class="flex flex-col gap-1 flex-1">
+          <label for="search-artist" class="sr-only">Artist name</label>
+          <Input
+            id="search-artist"
             bind:value={artistName}
-            placeholder={isOffline
-              ? 'Search disabled while offline'
-              : 'Artist name (optional for more precise results)...'}
+            placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional)...'}
             disabled={isOffline}
           />
-        </Command.Root>
+        </div>
       </div>
     </div>
 
-    <div class="mb-4">
-      <Command.Root class="rounded-lg border shadow-md" shouldFilter={false}>
-        {#if isSearching}
-          <Command.List>
-            <Command.Group heading={searchType === 'track' ? 'Tracks' : 'Albums'}>
-              <TrackItem loading={true} type={searchType} />
-            </Command.Group>
-          </Command.List>
-        {:else if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
-          <Command.List>
-            <Command.Empty class="text-muted-foreground"
-              >No results found for your search.</Command.Empty
-            >
-
-            {#if searchType === 'track'}
-              <Command.Group heading="Tracks">
-                {#each serializedItems as track (track.id)}
-                  <TrackItem bind:listenLaterItems item={track} type="track" />
-                {/each}
+    {#if hasSearchTerm || hasArtist || isSearching}
+      <div class="mb-4">
+        <Command.Root class="rounded-lg border shadow-md" shouldFilter={false}>
+          {#if isSearching}
+            <Command.List>
+              <Command.Group heading={searchType === 'track' ? 'Tracks' : 'Albums'}>
+                <TrackItem loading={true} type={searchType} />
               </Command.Group>
-            {/if}
+            </Command.List>
+          {:else if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
+            <Command.List>
+              <Command.Empty class="text-muted-foreground"
+                >No results found for your search.</Command.Empty
+              >
 
-            {#if searchType === 'album'}
-              <Command.Group heading="Albums">
-                {#each serializedItems as album (album.id)}
-                  <TrackItem bind:listenLaterItems item={album} type="album" />
-                {/each}
-              </Command.Group>
-            {/if}
-          </Command.List>
-        {/if}
-      </Command.Root>
-    </div>
+              {#if searchType === 'track'}
+                <Command.Group heading="Tracks">
+                  {#each serializedItems as track (track.id)}
+                    <TrackItem bind:listenLaterItems item={track} type="track" />
+                  {/each}
+                </Command.Group>
+              {/if}
+
+              {#if searchType === 'album'}
+                <Command.Group heading="Albums">
+                  {#each serializedItems as album (album.id)}
+                    <TrackItem bind:listenLaterItems item={album} type="album" />
+                  {/each}
+                </Command.Group>
+              {/if}
+            </Command.List>
+          {/if}
+        </Command.Root>
+      </div>
+    {/if}
     <div>
       {#if listenLaterItems.length > 0}
         <ListenLaterListTable
@@ -541,10 +543,9 @@
         />
       {:else}
         <div class="flex flex-col items-center justify-center gap-4 h-64">
-          <p class="text-muted-foreground text-sm">No items in your listen later list yet.</p>
           <p class="text-muted-foreground text-sm text-pretty text-center">
-            Search for a track or album above, or paste a link from Spotify, YouTube, Apple Music,
-            or SoundCloud to add your first item.
+            Add your first item by searching above or pasting a link from Spotify, YouTube, Apple
+            Music, or SoundCloud.
           </p>
         </div>
       {/if}
@@ -580,12 +581,12 @@
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer>
-      <Button variant="outline" style="cursor: pointer;" onclick={() => (deleteTarget = null)}
+      <Button variant="outline" class="cursor-pointer" onclick={() => (deleteTarget = null)}
         >Cancel</Button
       >
       <Button
         variant="destructive"
-        style="cursor: pointer;"
+        class="cursor-pointer"
         onclick={() => {
           if (deleteTarget) {
             handleDelete(deleteTarget)
