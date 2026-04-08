@@ -1,10 +1,9 @@
 <script lang="ts">
   import * as Alert from '$lib/components/ui/alert/index.js'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
-  import * as Command from '$lib/components/ui/command/index.js'
   import * as Select from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
-  import { Link2, WifiOff } from '@lucide/svelte'
+  import { Link2, Search, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import { toast } from 'svelte-sonner'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
@@ -54,6 +53,9 @@
   let existingDuplicate = $state<ListenLaterItem | null>(null)
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
+  let focusedResultIndex = $state<number>(-1)
+  let resultsListEl = $state<HTMLUListElement | null>(null)
+  let titleInputEl = $state<HTMLInputElement | null>(null)
 
   const debouncedSearch = new Debounced(() => searchTerm, 350)
   const debouncedArtist = new Debounced(() => artistName, 350)
@@ -63,6 +65,7 @@
 
   async function handleSearch() {
     isSearching = true
+    focusedResultIndex = -1
     try {
       const params = new URLSearchParams({
         q: debouncedSearch.current,
@@ -81,6 +84,43 @@
       serializedItems = []
     } finally {
       isSearching = false
+    }
+  }
+
+  function handleInputKeydown(e: KeyboardEvent) {
+    if (!resultsListEl) return
+    const items = Array.from(resultsListEl.querySelectorAll<HTMLElement>('[role="option"]'))
+    if (!items.length) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      focusedResultIndex = 0
+      items[0]?.focus()
+    }
+  }
+
+  function handleListKeydown(e: KeyboardEvent) {
+    if (!resultsListEl) return
+    const items = Array.from(resultsListEl.querySelectorAll<HTMLElement>('[role="option"]'))
+    const count = items.length
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      focusedResultIndex = Math.min(focusedResultIndex + 1, count - 1)
+      items[focusedResultIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (focusedResultIndex <= 0) {
+        focusedResultIndex = -1
+        titleInputEl?.focus()
+      } else {
+        focusedResultIndex -= 1
+        items[focusedResultIndex]?.focus()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      focusedResultIndex = -1
+      titleInputEl?.focus()
     }
   }
 
@@ -474,65 +514,72 @@
           </Select.Group>
         </Select.Content>
       </Select.Root>
+    </div>
 
-      <div class="flex gap-2 w-full">
-        <div class="flex flex-col gap-1 flex-1">
+    <div class="rounded-lg border shadow-md mb-4" class:opacity-50={isOffline}>
+      <div class="flex gap-2 w-full border-b">
+        <div class="flex flex-1 items-center gap-2 ps-3 pe-8 h-9">
+          <Search class="size-4 shrink-0 opacity-50" aria-hidden="true" />
           <label for="search-title" class="sr-only">Song or album title</label>
-          <Input
+          <input
             id="search-title"
+            bind:this={titleInputEl}
             bind:value={searchTerm}
             placeholder={isOffline ? 'Search disabled while offline' : 'Search a song or album title...'}
             disabled={isOffline}
+            role="combobox"
+            aria-expanded={!!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
+            aria-controls="search-results-list"
+            aria-autocomplete="list"
+            onkeydown={handleInputKeydown}
+            class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
-        <div class="flex flex-col gap-1 flex-1">
+        <div class="flex flex-1 items-center gap-2 ps-3 pe-3 h-9 border-l">
           <label for="search-artist" class="sr-only">Artist name</label>
-          <Input
+          <input
             id="search-artist"
             bind:value={artistName}
             placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional)...'}
             disabled={isOffline}
+            class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       </div>
-    </div>
 
-    {#if hasSearchTerm || hasArtist || isSearching}
-      <div class="mb-4">
-        <Command.Root class="rounded-lg border shadow-md" shouldFilter={false}>
+      {#if hasSearchTerm || hasArtist || isSearching}
+        <div class="max-h-[300px] overflow-y-auto overflow-x-hidden scroll-py-1">
           {#if isSearching}
-            <Command.List>
-              <Command.Group heading={searchType === 'track' ? 'Tracks' : 'Albums'}>
-                <TrackItem loading={true} type={searchType} />
-              </Command.Group>
-            </Command.List>
-          {:else if serializedItems && serializedItems.length > 0 && (searchType === 'track' || searchType === 'album')}
-            <Command.List>
-              <Command.Empty class="text-muted-foreground"
-                >No results found for your search.</Command.Empty
-              >
-
-              {#if searchType === 'track'}
-                <Command.Group heading="Tracks">
-                  {#each serializedItems as track (track.id)}
-                    <TrackItem bind:listenLaterItems item={track} type="track" />
-                  {/each}
-                </Command.Group>
-              {/if}
-
-              {#if searchType === 'album'}
-                <Command.Group heading="Albums">
-                  {#each serializedItems as album (album.id)}
-                    <TrackItem bind:listenLaterItems item={album} type="album" />
-                  {/each}
-                </Command.Group>
-              {/if}
-            </Command.List>
+            <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+              {searchType === 'track' ? 'Tracks' : 'Albums'}
+            </div>
+            <ul role="listbox" aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}>
+              <TrackItem loading={true} type={searchType} />
+            </ul>
+          {:else if serializedItems && serializedItems.length > 0}
+            <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+              {searchType === 'track' ? 'Tracks' : 'Albums'}
+            </div>
+            <ul
+              id="search-results-list"
+              role="listbox"
+              aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}
+              bind:this={resultsListEl}
+              onkeydown={handleListKeydown}
+            >
+              {#each serializedItems as item, i (item.id)}
+                <TrackItem bind:listenLaterItems {item} type={searchType} focused={i === focusedResultIndex} />
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-muted-foreground py-6 text-center text-sm">
+              No results found for your search.
+            </p>
           {/if}
-        </Command.Root>
-      </div>
-    {/if}
+        </div>
+      {/if}
+    </div>
     <div>
       {#if listenLaterItems.length > 0}
         <ListenLaterListTable
