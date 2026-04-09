@@ -165,6 +165,22 @@
       },
     },
     {
+      accessorKey: 'releaseDate',
+      header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Released' }),
+      enableHiding: true,
+      sortingFn: (a, b) => {
+        const aDate = a.original.releaseDate ? new Date(a.original.releaseDate).getTime() : 0
+        const bDate = b.original.releaseDate ? new Date(b.original.releaseDate).getTime() : 0
+        return aDate - bDate
+      },
+      cell: ({ row }) => {
+        const d = row.original.releaseDate
+        if (!d) return '-'
+        const date = new Date(d)
+        return isNaN(date.getTime()) ? '-' : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      },
+    },
+    {
       id: 'actions',
       enableHiding: false,
       enableSorting: false,
@@ -180,7 +196,7 @@
   let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 20 })
   let sorting = $state<SortingState>([])
   let columnFilters = $state<ColumnFiltersState>([])
-  let columnVisibility = $state<VisibilityState>({})
+  let columnVisibility = $state<VisibilityState>({ releaseDate: false })
 
   const table = createSvelteTable({
     get data() {
@@ -253,6 +269,15 @@
     }
   }
 
+  const columnLabels: Record<string, string> = {
+    cover: 'Cover',
+    itemType: 'Type',
+    title: 'Title',
+    artists: 'Artists',
+    addedAt: 'Added',
+    releaseDate: 'Released',
+  }
+
   const statusFilterLabel = $derived(
     statusFilterOptions.find((o) => o.value === statusFilter)?.label ?? 'All'
   )
@@ -307,7 +332,7 @@
             class="capitalize"
             bind:checked={() => column.getIsVisible(), (v) => column.toggleVisibility(!!v)}
           >
-            {column.id}
+            {columnLabels[column.id] ?? column.id}
           </DropdownMenu.CheckboxItem>
         {/each}
       </DropdownMenu.Content>
