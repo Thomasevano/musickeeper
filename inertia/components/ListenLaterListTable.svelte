@@ -17,6 +17,7 @@
   import DataTableActions from './data-table/data-table-actions.svelte'
   import DataTableStatusBadge from './data-table/data-table-status-badge.svelte'
   import DataTableTypeBadge from './data-table/data-table-type-badge.svelte'
+  import DataTableTitleCell from './data-table/data-table-title-cell.svelte'
   import CoverArt from './CoverArt.svelte'
   import * as Table from '$lib/components/ui/table/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
@@ -136,18 +137,17 @@
     {
       accessorKey: 'title',
       header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Title' }),
+      cell: ({ row }) =>
+        renderComponent(DataTableTitleCell, {
+          title: row.original.title,
+          albumName: row.original.itemType === 'track' ? (row.original.albumName ?? null) : null,
+        }),
     },
     {
       id: 'artists',
       header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Artists' }),
       accessorFn: (row) => row.artists?.join(', ') ?? '',
       cell: ({ row }) => row.original.artists?.join(', ') ?? '',
-    },
-    {
-      accessorKey: 'albumName',
-      header: 'Album',
-      enableSorting: false,
-      cell: ({ row }) => row.original.albumName ?? '-',
     },
     {
       accessorKey: 'addedAt',
