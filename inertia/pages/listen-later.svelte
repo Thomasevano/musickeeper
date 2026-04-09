@@ -57,13 +57,21 @@
   let resultsListEl = $state<HTMLUListElement | null>(null)
   let titleInputEl = $state<HTMLInputElement | null>(null)
 
-  const debouncedSearch = new Debounced(() => searchTerm, 350)
-  const debouncedArtist = new Debounced(() => artistName, 350)
+  const debouncedSearch = new Debounced(() => searchTerm, 300)
+  const debouncedArtist = new Debounced(() => artistName, 300)
 
-  const hasSearchTerm = $derived(debouncedSearch.current && debouncedSearch.current.trim() !== '')
-  const hasArtist = $derived(debouncedArtist.current && debouncedArtist.current.trim() !== '')
+  const hasSearchTerm = $derived(debouncedSearch.current.trim().length >= 3)
+  const hasArtist = $derived(debouncedArtist.current.trim().length >= 3)
+  const isAboveThreshold = $derived(
+    searchTerm.trim().length >= 3 || artistName.trim().length >= 3
+  )
+
+  let searchAbortController: AbortController | null = null
 
   async function handleSearch() {
+    searchAbortController?.abort()
+    const controller = new AbortController()
+    searchAbortController = controller
     isSearching = true
     focusedResultIndex = -1
     try {
@@ -76,14 +84,18 @@
         params.append('artist', debouncedArtist.current)
       }
 
-      const response = await fetch(`/library/listen-later?${params.toString()}`)
+      const response = await fetch(`/library/listen-later?${params.toString()}`, {
+        signal: controller.signal,
+      })
       const data = await response.json()
       serializedItems = data.serializedItems
     } catch (error) {
+      if ((error as Error).name === 'AbortError') return
       console.error('Error fetching data from music provider:', error)
-      serializedItems = []
     } finally {
-      isSearching = false
+      if (!controller.signal.aborted) {
+        isSearching = false
+      }
     }
   }
 
@@ -548,9 +560,9 @@
         </div>
       </div>
 
-      {#if hasSearchTerm || hasArtist || isSearching}
+      {#if isAboveThreshold || isSearching}
         <div class="max-h-[300px] overflow-y-auto overflow-x-hidden scroll-py-1">
-          {#if isSearching}
+          {#if isSearching || (isAboveThreshold && !serializedItems.length && !hasSearchTerm && !hasArtist)}
             <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
               {searchType === 'track' ? 'Tracks' : 'Albums'}
             </div>
