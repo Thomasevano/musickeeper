@@ -80,7 +80,14 @@
     { value: 'not_listened', label: 'Not listened' },
   ]
 
+  const typeFilterOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'track', label: 'Tracks' },
+    { value: 'album', label: 'Albums' },
+  ]
+
   let statusFilter = $state<string>('all')
+  let typeFilter = $state<string>('all')
 
   const columns: ColumnDef<ListenLaterItem>[] = [
     {
@@ -114,6 +121,11 @@
     {
       accessorKey: 'itemType',
       header: 'Type',
+      enableSorting: false,
+      filterFn: (row, _columnId, filterValue) => {
+        if (filterValue === 'all') return true
+        return row.original.itemType === filterValue
+      },
       cell: ({ row }) => row.original.itemType ?? '',
     },
     {
@@ -209,8 +221,21 @@
     }
   }
 
+  function handleTypeFilterChange(value: string) {
+    typeFilter = value
+    if (value === 'all') {
+      table.getColumn('itemType')?.setFilterValue(undefined)
+    } else {
+      table.getColumn('itemType')?.setFilterValue(value)
+    }
+  }
+
   const statusFilterLabel = $derived(
     statusFilterOptions.find((o) => o.value === statusFilter)?.label ?? 'All'
+  )
+
+  const typeFilterLabel = $derived(
+    typeFilterOptions.find((o) => o.value === typeFilter)?.label ?? 'All'
   )
 </script>
 
@@ -224,6 +249,20 @@
       <Select.Content>
         <Select.Group>
           {#each statusFilterOptions as option (option.value)}
+            <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
+          {/each}
+        </Select.Group>
+      </Select.Content>
+    </Select.Root>
+
+    <!-- Type filter -->
+    <Select.Root type="single" value={typeFilter} onValueChange={handleTypeFilterChange}>
+      <Select.Trigger class="w-[150px]">
+        <span>Type: {typeFilterLabel}</span>
+      </Select.Trigger>
+      <Select.Content>
+        <Select.Group>
+          {#each typeFilterOptions as option (option.value)}
             <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
           {/each}
         </Select.Group>
