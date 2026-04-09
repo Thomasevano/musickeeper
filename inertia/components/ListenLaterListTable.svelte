@@ -358,7 +358,7 @@
         {/each}
       </Table.Header>
       <Table.Body>
-        {#each table.getRowModel().rows as row (row.id)}
+        {#each table.getRowModel().rows as row (row.original.id)}
           <tr
             id={`item-${row.original.id}`}
             data-slot="table-row"
