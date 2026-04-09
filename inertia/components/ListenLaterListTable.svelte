@@ -94,6 +94,7 @@
       accessorKey: 'hasBeenListened',
       header: 'Status',
       enableHiding: false,
+      enableSorting: false,
       filterFn: (row, _columnId, filterValue) => {
         if (filterValue === 'all') return true
         if (filterValue === 'listened') return row.original.hasBeenListened === true
@@ -130,21 +131,39 @@
     },
     {
       accessorKey: 'title',
-      header: 'Title',
+      header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Title' }),
     },
     {
       id: 'artists',
-      header: 'Artists',
+      header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Artists' }),
+      accessorFn: (row) => row.artists?.join(', ') ?? '',
       cell: ({ row }) => row.original.artists?.join(', ') ?? '',
     },
     {
       accessorKey: 'albumName',
       header: 'Album',
+      enableSorting: false,
       cell: ({ row }) => row.original.albumName ?? '-',
+    },
+    {
+      accessorKey: 'addedAt',
+      header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Added' }),
+      sortingFn: (a, b) => {
+        const aDate = a.original.addedAt instanceof Date ? a.original.addedAt.getTime() : Number(a.original.addedAt)
+        const bDate = b.original.addedAt instanceof Date ? b.original.addedAt.getTime() : Number(b.original.addedAt)
+        return aDate - bDate
+      },
+      cell: ({ row }) => {
+        const d = row.original.addedAt
+        if (!d) return '-'
+        const date = d instanceof Date ? d : new Date(d)
+        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      },
     },
     {
       id: 'actions',
       enableHiding: false,
+      enableSorting: false,
       cell: ({ row }) =>
         renderComponent(DataTableActions, {
           item: row.original,
