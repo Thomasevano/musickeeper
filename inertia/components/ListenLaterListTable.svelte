@@ -16,6 +16,7 @@
   import { cubicOut, cubicIn } from 'svelte/easing'
   import DataTableActions from './data-table/data-table-actions.svelte'
   import DataTableStatusBadge from './data-table/data-table-status-badge.svelte'
+  import DataTableTypeBadge from './data-table/data-table-type-badge.svelte'
   import CoverArt from './CoverArt.svelte'
   import * as Table from '$lib/components/ui/table/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
@@ -127,7 +128,10 @@
         if (filterValue === 'all') return true
         return row.original.itemType === filterValue
       },
-      cell: ({ row }) => row.original.itemType ?? '',
+      cell: ({ row }) =>
+        renderComponent(DataTableTypeBadge, {
+          type: row.original.itemType,
+        }),
     },
     {
       accessorKey: 'title',
