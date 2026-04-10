@@ -1,3 +1,4 @@
+import { SearchType } from '../../domain/music_item.js'
 import { StreamingPlatform, type ParsedLink } from './link_parser.service.js'
 
 export interface OEmbedMetadata {
@@ -52,7 +53,7 @@ export class PlatformMetadataService {
     const { platform, originalUrl } = parsedLink
 
     if (platform === StreamingPlatform.AppleMusic) {
-      return this.fetchAppleMusicMetadata(originalUrl)
+      return this.fetchAppleMusicMetadata(parsedLink)
     }
 
     // YouTube Music playlists — oEmbed only supports video URLs, not playlists
@@ -122,8 +123,13 @@ export class PlatformMetadataService {
     }
   }
 
-  async fetchAppleMusicMetadata(url: string): Promise<OEmbedMetadata | { error: string }> {
-    const oEmbedResult = await this.fetchAppleMusicOEmbed(url)
+  async fetchAppleMusicMetadata(parsedLink: ParsedLink): Promise<OEmbedMetadata | { error: string }> {
+    // iTunes Lookup API returns structured data — language-independent, includes album name
+    const itunesResult = await this.fetchAppleMusicItunesMetadata(parsedLink.id, parsedLink.type)
+    if (itunesResult) return itunesResult
+
+    // Fallback: oEmbed (localized — strip language-specific suffix best-effort)
+    const oEmbedResult = await this.fetchAppleMusicOEmbed(parsedLink.originalUrl)
     if (oEmbedResult && !('error' in oEmbedResult)) {
       return {
         title: PlatformMetadataService.stripAppleMusicSuffix(oEmbedResult.title),
@@ -132,14 +138,55 @@ export class PlatformMetadataService {
       }
     }
 
-    // Fallback: scrape HTML Open Graph tags
-    const htmlResult = await this.fetchAppleMusicHtml(url)
+    // Last fallback: scrape HTML Open Graph tags
+    const htmlResult = await this.fetchAppleMusicHtml(parsedLink.originalUrl)
     if ('error' in htmlResult) return htmlResult
 
     return {
       title: PlatformMetadataService.stripAppleMusicSuffix(htmlResult.title),
       author_name: PlatformMetadataService.stripAppleMusicSuffix(htmlResult.author_name),
       thumbnail_url: htmlResult.thumbnail_url,
+    }
+  }
+
+  private async fetchAppleMusicItunesMetadata(
+    id: string,
+    type: SearchType
+  ): Promise<OEmbedMetadata | null> {
+    try {
+      const url = new URL('https://itunes.apple.com/lookup')
+      url.searchParams.set('id', id)
+
+      const response = await fetch(url.toString())
+      if (!response.ok) return null
+
+      const data = (await response.json()) as {
+        resultCount: number
+        results: Record<string, unknown>[]
+      }
+      if (!data.resultCount || !data.results[0]) return null
+
+      const item = data.results[0]
+      const artistName = String(item.artistName || '').trim()
+      const title =
+        type === SearchType.track
+          ? String(item.trackName || '').trim()
+          : String(item.collectionName || '').trim()
+      const albumName =
+        type === SearchType.track && item.collectionName
+          ? String(item.collectionName).trim()
+          : undefined
+
+      if (!title || !artistName) return null
+
+      // Replace the small thumbnail size with a larger one
+      const thumbnailUrl = item.artworkUrl100
+        ? String(item.artworkUrl100).replace('100x100bb', '600x600bb')
+        : undefined
+
+      return { title, author_name: artistName, thumbnail_url: thumbnailUrl, album_name: albumName }
+    } catch {
+      return null
     }
   }
 

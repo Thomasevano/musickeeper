@@ -896,6 +896,12 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
     globalThis.fetch = async (url: string | URL | Request) => {
       fetchCallCount++
       const urlString = url.toString()
+      if (urlString.includes('itunes.apple.com')) {
+        return new Response(JSON.stringify({ resultCount: 0, results: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
       if (urlString.includes('/api/oembed')) {
         throw new Error('Network error')
       }
@@ -920,7 +926,7 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
       assert.equal(result.linkMetadata.artist, 'Taylor Swift')
       assert.equal(result.linkMetadata.type, SearchType.album)
     }
-    assert.equal(fetchCallCount, 2)
+    assert.equal(fetchCallCount, 3)
   })
 
   test('strips "on Apple Music" suffix from HTML fallback artist', async ({ assert }) => {

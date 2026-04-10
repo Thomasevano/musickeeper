@@ -73,9 +73,7 @@ export default class LinkController {
       })
     }
 
-    const result = await this.platformMetadataService.fetchAppleMusicMetadata(
-      parseResult.originalUrl
-    )
+    const result = await this.platformMetadataService.fetchAppleMusicMetadata(parseResult)
 
     if ('error' in result) {
       return response.status(422).json({ error: result.error })
