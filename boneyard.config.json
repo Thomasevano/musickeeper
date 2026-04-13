@@ -1,0 +1,7 @@
+{
+  "out": "./inertia/bones",
+  "animate": "shimmer",
+  "color": "#f0f0f0",
+  "darkColor": "#222222",
+  "wait": 800
+}

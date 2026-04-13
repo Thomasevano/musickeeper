@@ -6,6 +6,7 @@ import adonisjs from '@adonisjs/vite/client'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { boneyardPlugin } from 'boneyard-js/vite'
 
 export default defineConfig({
   build: {},
@@ -40,6 +41,7 @@ export default defineConfig({
         enabled: true,
       },
     }),
+    boneyardPlugin(),
   ],
 
   /**

@@ -4,7 +4,7 @@
   import { Badge } from '$lib/components/ui/badge/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import Skeleton from '~/lib/components/ui/skeleton/skeleton.svelte'
+  import Skeleton from 'boneyard-js/svelte'
   import CoverArt from '~/components/CoverArt.svelte'
   import { AlertTriangle, Copy, RefreshCw, Loader2 } from '@lucide/svelte'
   import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
@@ -24,7 +24,19 @@
     onRetry: () => void
   }
 
-  let { open = $bindable(), isLoading, error, musicItem, linkMetadata, source, existingItem, onConfirm, onCancel, onViewExisting, onRetry }: Props = $props()
+  let {
+    open = $bindable(),
+    isLoading,
+    error,
+    musicItem,
+    linkMetadata,
+    source,
+    existingItem,
+    onConfirm,
+    onCancel,
+    onViewExisting,
+    onRetry,
+  }: Props = $props()
 
   const supportedPlatforms = ['Spotify', 'YouTube', 'Apple Music', 'SoundCloud']
 
@@ -59,7 +71,10 @@
   )
 
   function handleConfirm() {
-    const parsedArtists = editableArtists.split(',').map(a => a.trim()).filter(Boolean)
+    const parsedArtists = editableArtists
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean)
     onConfirm(selectedType, editableTitle.trim(), parsedArtists, editableAlbumName.trim())
   }
 
@@ -99,14 +114,28 @@
     </Dialog.Header>
 
     {#if isLoading}
-      <div class="flex gap-4">
-        <Skeleton class="h-24 w-24 rounded-md" />
-        <div class="flex flex-col justify-center gap-2 flex-1">
-          <Skeleton class="h-6 w-3/4" />
-          <Skeleton class="h-4 w-1/2" />
-          <Skeleton class="h-5 w-20" />
-        </div>
-      </div>
+      <Skeleton name="confirm-dialog" loading={true}>
+        {#snippet fixture()}
+          <div class="flex gap-4">
+            <div class="h-24 w-24 rounded-md bg-muted"></div>
+            <div class="flex flex-col justify-center gap-1">
+              <p class="text-lg font-medium">Never Gonna Give You Up</p>
+              <p class="text-sm text-muted-foreground">Rick Astley</p>
+              <span class="text-xs">track</span>
+            </div>
+          </div>
+        {/snippet}
+        {#snippet fallback()}
+          <div class="flex gap-4">
+            <div class="h-24 w-24 rounded-md bg-muted animate-pulse"></div>
+            <div class="flex flex-col justify-center gap-2 flex-1">
+              <div class="h-6 w-3/4 rounded bg-muted animate-pulse"></div>
+              <div class="h-4 w-1/2 rounded bg-muted animate-pulse"></div>
+              <div class="h-5 w-20 rounded bg-muted animate-pulse"></div>
+            </div>
+          </div>
+        {/snippet}
+      </Skeleton>
       <div class="flex items-center justify-center py-2" aria-busy="true" aria-live="polite">
         <Loader2 class="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
         <span class="ml-2 text-sm text-muted-foreground">Loading metadata...</span>
@@ -157,19 +186,23 @@
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-2">New item from link:</p>
           <div class="flex gap-4 p-3 rounded-md border">
-            <CoverArt
-              src={musicItem?.coverArt}
-              alt={`Cover of ${editableTitle}`}
-              size="md"
-            />
+            <CoverArt src={musicItem?.coverArt} alt={`Cover of ${editableTitle}`} size="md" />
             <div class="flex flex-col justify-center gap-2 flex-1">
               <label for="dup-title" class="sr-only">Title</label>
               <Input id="dup-title" bind:value={editableTitle} placeholder="Title" />
               <label for="dup-artists" class="sr-only">Artists</label>
-              <Input id="dup-artists" bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
+              <Input
+                id="dup-artists"
+                bind:value={editableArtists}
+                placeholder="Artist(s), comma-separated"
+              />
               {#if selectedType !== SearchType.album}
                 <label for="dup-album" class="sr-only">Album name</label>
-                <Input id="dup-album" bind:value={editableAlbumName} placeholder="Album name (optional)" />
+                <Input
+                  id="dup-album"
+                  bind:value={editableAlbumName}
+                  placeholder="Album name (optional)"
+                />
               {/if}
             </div>
           </div>
@@ -177,11 +210,7 @@
       </div>
     {:else if musicItem}
       <div class="flex gap-4">
-        <CoverArt
-          src={musicItem.coverArt}
-          alt={`Cover of ${editableTitle}`}
-          size="lg"
-        />
+        <CoverArt src={musicItem.coverArt} alt={`Cover of ${editableTitle}`} size="lg" />
         <div class="flex flex-col justify-center gap-1">
           {#if source === 'musicbrainz'}
             <Badge variant="secondary" class="w-fit">MusicBrainz Match</Badge>
@@ -198,12 +227,20 @@
         </div>
         <div class="space-y-1">
           <label for="edit-artists" class="text-sm font-medium">Artists</label>
-          <Input id="edit-artists" bind:value={editableArtists} placeholder="Artist(s), comma-separated" />
+          <Input
+            id="edit-artists"
+            bind:value={editableArtists}
+            placeholder="Artist(s), comma-separated"
+          />
         </div>
         {#if selectedType !== SearchType.album}
           <div class="space-y-1">
             <label for="edit-album" class="text-sm font-medium">Album</label>
-            <Input id="edit-album" bind:value={editableAlbumName} placeholder="Album name (optional)" />
+            <Input
+              id="edit-album"
+              bind:value={editableAlbumName}
+              placeholder="Album name (optional)"
+            />
           </div>
         {/if}
       </div>
@@ -211,7 +248,9 @@
       <div class="flex items-center gap-4">
         <span id="item-type-label" class="text-sm font-medium">Item Type:</span>
         <Select.Root type="single" bind:value={selectedType}>
-          <Select.Trigger class="w-[140px]" aria-labelledby="item-type-label">{triggerContent}</Select.Trigger>
+          <Select.Trigger class="w-[140px]" aria-labelledby="item-type-label"
+            >{triggerContent}</Select.Trigger
+          >
           <Select.Content>
             <Select.Group>
               {#each types as type (type.value)}
@@ -237,10 +276,14 @@
       {:else if existingItem}
         <Button variant="outline" onclick={onCancel}>Cancel</Button>
         <Button variant="secondary" onclick={onViewExisting}>View Existing</Button>
-        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}>Add Anyway</Button>
+        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}
+          >Add Anyway</Button
+        >
       {:else}
         <Button variant="outline" onclick={onCancel}>Cancel</Button>
-        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}>Add to List</Button>
+        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}
+          >Add to List</Button
+        >
       {/if}
     </Dialog.Footer>
   </Dialog.Content>
