@@ -1,0 +1,19 @@
+<!--
+  Derived from Lucide icons (bookmark, music-2) — ISC License
+  Copyright (c) for portions held by Cole Bemis 2013-2022 (Feather, MIT).
+  All other copyright (c) Lucide Contributors 2022.
+  Permission granted to use, copy, modify, and distribute with this notice intact.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+  <!-- bookmark body -->
+  <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+
+  <!-- music-2 at checkmark scale: x=9→15, y=6→14, centered at (12,10) -->
+  <g transform="translate(7.4, 5.2) scale(0.4)" stroke-width="3.5">
+    <circle cx="8" cy="18" r="3"/>
+    <path d="M12 18V2l7 4"/>
+  </g>
+
+</svg>
