@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Check, Plus } from '@lucide/svelte'
-  import { ListenLaterItem, MusicItem } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import type { ExternalLink } from '../../src/domain/music_item'
   import CoverArt from '~/components/CoverArt.svelte'
   import Skeleton from 'boneyard-js/svelte'
 
@@ -12,11 +13,31 @@
     focused = false,
   } = $props()
 
-  function addToListenLater(item: MusicItem) {
+  async function fetchExternalLinks(item: MusicItem): Promise<ExternalLink[]> {
+    try {
+      const params = new URLSearchParams({
+        mbid: item.id,
+        type: item.itemType === SearchType.album ? 'album' : 'track',
+        locale: navigator.language || 'fr-FR',
+      })
+      if (item.artists?.length) params.set('artists', item.artists.join(','))
+      if (item.title) params.set('title', item.title)
+      const response = await fetch(`/api/links?${params.toString()}`)
+      if (!response.ok) return []
+      const data = await response.json()
+      return data.externalLinks ?? []
+    } catch {
+      return []
+    }
+  }
+
+  async function addToListenLater(item: MusicItem) {
+    const externalLinks = await fetchExternalLinks(item)
     const itemTolistenLater: ListenLaterItem = {
       ...item,
       hasBeenListened: false,
       addedAt: new Date(),
+      externalLinks,
     }
     const dbRequest = indexedDB.open('listenLaterDB', 3)
 

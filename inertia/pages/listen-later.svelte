@@ -12,6 +12,7 @@
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
   import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import type { ExternalLink } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
@@ -198,9 +199,23 @@
       }
     }
 
-    // Migration from version 2 to 3: add optional sourceUrl field
-    // No data transformation needed - sourceUrl is optional and existing items
-    // will simply not have it, which is valid for the new schema
+    // Migration from version 2 to 3: add externalLinks field to existing items
+    if (oldVersion < 3) {
+      const transaction = event.target.transaction
+      const objectStore = transaction.objectStore('listenLaterList')
+
+      objectStore.openCursor().onsuccess = (cursorEvent: IDBCursor) => {
+        const cursor = cursorEvent.target.result
+        if (cursor) {
+          const item = cursor.value
+          if (!item.externalLinks) {
+            item.externalLinks = []
+            cursor.update(item)
+          }
+          cursor.continue()
+        }
+      }
+    }
   }
 
   request.onsuccess = (event) => {
@@ -371,13 +386,40 @@
     fetchLinkMetadata()
   }
 
-  function handleConfirmDialogConfirm(
+  async function fetchExternalLinks(
+    mbid: string,
+    itemType: SearchType,
+    sourceUrl?: string
+  ): Promise<ExternalLink[]> {
+    try {
+      const params = new URLSearchParams({
+        mbid,
+        type: itemType === SearchType.album ? 'album' : 'track',
+        locale: navigator.language || 'fr-FR',
+      })
+      if (sourceUrl) params.set('sourceUrl', sourceUrl)
+      if (pendingMusicItem) {
+        if (pendingMusicItem.artists?.length) params.set('artists', pendingMusicItem.artists.join(','))
+        if (pendingMusicItem.title) params.set('title', pendingMusicItem.title)
+      }
+      const response = await fetch(`/api/links?${params.toString()}`)
+      if (!response.ok) return []
+      const data = await response.json()
+      return data.externalLinks ?? []
+    } catch {
+      return []
+    }
+  }
+
+  async function handleConfirmDialogConfirm(
     itemType: SearchType,
     title: string,
     artists: string[],
     albumName: string
   ) {
     if (!pendingMusicItem) return
+
+    const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
 
     // Create ListenLaterItem from confirmed (and possibly edited) data
     const newItem: ListenLaterItem = new ListenLaterItem({
@@ -391,7 +433,8 @@
       coverArt: pendingMusicItem.coverArt,
       hasBeenListened: false,
       addedAt: new Date(),
-      sourceUrl: linkUrl,
+      sourceUrl: linkUrl || undefined,
+      externalLinks,
     })
 
     // Save to IndexedDB
