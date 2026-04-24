@@ -3,6 +3,16 @@ export enum SearchType {
   track = 'track',
 }
 
+export type LinkCategory = 'stream' | 'buy'
+
+export interface ExternalLink {
+  platform: string
+  label: string
+  url: string
+  category: LinkCategory
+  source: 'musicbrainz' | 'source-url'
+}
+
 interface MusicItemProperties {
   id: string
   title: string
@@ -39,16 +49,19 @@ interface ListenLaterItemProperties extends MusicItemProperties {
   hasBeenListened: boolean
   addedAt: Date
   sourceUrl?: string
+  externalLinks?: ExternalLink[]
 }
 
 export class ListenLaterItem extends MusicItem {
   public hasBeenListened: boolean
   public addedAt: Date
   public sourceUrl?: string
+  public externalLinks?: ExternalLink[]
   public constructor(props: ListenLaterItemProperties) {
     super(props)
     this.hasBeenListened = props.hasBeenListened
     this.addedAt = props.addedAt
     this.sourceUrl = props.sourceUrl
+    this.externalLinks = props.externalLinks
   }
 }
