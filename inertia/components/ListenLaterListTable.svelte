@@ -18,6 +18,7 @@
   import DataTableStatusBadge from './data-table/data-table-status-badge.svelte'
   import DataTableTypeBadge from './data-table/data-table-type-badge.svelte'
   import DataTableTitleCell from './data-table/data-table-title-cell.svelte'
+  import DataTableLinksCell from './data-table/data-table-links-cell.svelte'
   import CoverArt from './CoverArt.svelte'
   import * as Table from '$lib/components/ui/table/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
@@ -181,6 +182,13 @@
       },
     },
     {
+      id: 'links',
+      header: 'Links',
+      enableHiding: true,
+      enableSorting: false,
+      cell: ({ row }) => renderComponent(DataTableLinksCell, { item: row.original }),
+    },
+    {
       id: 'actions',
       enableHiding: false,
       enableSorting: false,
@@ -276,6 +284,7 @@
     artists: 'Artists',
     addedAt: 'Added',
     releaseDate: 'Released',
+    links: 'Links',
   }
 
   const statusFilterLabel = $derived(
