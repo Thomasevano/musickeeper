@@ -10,7 +10,7 @@ export interface ExternalLink {
   label: string
   url: string
   category: LinkCategory
-  source: 'musicbrainz' | 'source-url'
+  source: 'musicbrainz' | 'source-url' | 'platform-search'
 }
 
 interface MusicItemProperties {
