@@ -2,7 +2,7 @@
 import { ListenLaterItem, MusicItem } from '../../domain/music_item.js'
 
 const DB_NAME = 'listenLaterDB'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_NAME = 'listenLaterList'
 
 export interface ListenLaterStorage {
@@ -79,6 +79,26 @@ export function openDatabase(indexedDBInstance: IDBFactory = indexedDB): Promise
                 item.addedAt = counter++
               }
               cursor.update(item)
+              cursor.continue()
+            }
+          }
+        }
+      }
+
+      // Migration from version 2 to 3: backfill externalLinks = [] on existing items
+      if (oldVersion < 3 && oldVersion >= 2) {
+        const transaction = (event.target as IDBOpenDBRequest).transaction
+        if (transaction) {
+          const objectStore = transaction.objectStore(STORE_NAME)
+
+          objectStore.openCursor().onsuccess = (cursorEvent) => {
+            const cursor = (cursorEvent.target as IDBRequest<IDBCursorWithValue>).result
+            if (cursor) {
+              const item = cursor.value
+              if (!item.externalLinks) {
+                item.externalLinks = []
+                cursor.update(item)
+              }
               cursor.continue()
             }
           }
