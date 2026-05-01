@@ -297,10 +297,23 @@ export class PlatformSearchService {
         const albumFromHrefs = this.extractQobuzAlbumFromHrefs(html)
         if (albumFromHrefs) return [albumFromHrefs]
 
+        console.warn(
+          '[PlatformSearchService] Qobuz album scraping yielded no results for query=%s (htmlLength=%d)',
+          query,
+          html.length
+        )
         return []
       }
 
-      return this.extractQobuzTracksFromHrefs(html, query)
+      const tracks = this.extractQobuzTracksFromHrefs(html, query)
+      if (tracks.length === 0) {
+        console.warn(
+          '[PlatformSearchService] Qobuz track scraping yielded no results for query=%s (htmlLength=%d)',
+          query,
+          html.length
+        )
+      }
+      return tracks
     } catch {
       return []
     }
@@ -420,7 +433,15 @@ export class PlatformSearchService {
         matches.add(cleanUrl)
       }
 
-      if (matches.size === 0) return []
+if (matches.size === 0) {
+        console.warn(
+          '[PlatformSearchService] Bandcamp scraping yielded no results for query=%s type=%s (htmlLength=%d)',
+          query,
+          itemType,
+          html.length
+        )
+        return []
+      }
 
       const primaryArtist = query.split(' ')[0].toLowerCase()
       const links = [...matches]
