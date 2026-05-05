@@ -368,6 +368,8 @@
       </Table.Header>
       <Table.Body>
         {#each table.getRowModel().rows as row (row.original.id)}
+          <!-- Raw <tr> instead of <Table.Row>: Svelte transition directives (in:/out:) only work on
+               HTML elements, not components. Classes mirror table-row.svelte exactly. -->
           <tr
             id={`item-${row.original.id}`}
             data-slot="table-row"
