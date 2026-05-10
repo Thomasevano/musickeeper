@@ -83,6 +83,7 @@ export function normalizeLinkUrl(url: string, locale: string): string {
     }
 
     if (parsed.hostname.endsWith('qobuz.com')) {
+      // Force fr-fr: other Qobuz locales break navigation.
       const parts = parsed.pathname.split('/')
       if (parts.length > 1 && /^[a-z]{2}-[a-z]{2}$/.test(parts[1])) {
         parts[1] = 'fr-fr'
