@@ -2,6 +2,11 @@ import { SearchType } from '../../domain/music_item.js'
 import { detectPlatform, PLATFORMS } from '../../shared/platform_registry.js'
 import type { ExternalLink } from '../../domain/music_item.js'
 
+export function matchesArtist(artistName: string, artists: string[]): boolean {
+  const lower = artistName.toLowerCase()
+  return artists.some((a) => lower.includes(a.toLowerCase()))
+}
+
 interface DeezerSearchResult {
   data?: Array<{
     id: number
@@ -85,8 +90,7 @@ export class PlatformSearchService {
   }
 
   private matchesArtist(artistName: string, artists: string[]): boolean {
-    const lower = artistName.toLowerCase()
-    return artists.some((a) => lower.includes(a.toLowerCase()))
+    return matchesArtist(artistName, artists)
   }
 
   private async searchDeezer(
