@@ -29,7 +29,7 @@ interface EntityWithRelations {
   'release-group'?: { id: string }
 }
 
-function extractLinksFromRelations(
+export function extractLinksFromRelations(
   relations: Array<{ type: string; url?: { resource: string } }>,
   seen: Set<string>
 ): ExternalLink[] {
