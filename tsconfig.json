@@ -8,6 +8,13 @@
       // This is needed for shadcn-svelte CLI to add components
       "$lib": ["./inertia/lib"],
       "$lib/*": ["./inertia/lib/*"],
+      "#domain/*": ["./src/domain/*"],
+      "#application/*": ["./src/application/*"],
+      "#infrastructure/*": ["./src/infrastructure/*"],
+      "#shared/*": ["./src/shared/*"],
+      "#config/*": ["./src/infrastructure/config/*"],
+      "#middleware/*": ["./src/infrastructure/http/middleware/*"],
+      "#tests/*": ["./tests/*"],
     }
   },
   "exclude": ["./inertia/**/*", "node_modules", "build"],

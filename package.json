@@ -19,6 +19,10 @@
     "#tests/*": "./tests/*.js",
     "#config/*": "./src/infrastructure/config/*.js",
     "#middleware/*": "./src/infrastructure/http/middleware/*.js",
+    "#domain/*": "./src/domain/*",
+    "#application/*": "./src/application/*",
+    "#infrastructure/*": "./src/infrastructure/*",
+    "#shared/*": "./src/shared/*",
     "#node_modules/*": "./node_modules/*"
   },
   "devDependencies": {
