@@ -1,12 +1,9 @@
-import { SearchType } from '../../domain/music_item.js'
-import { StreamingPlatform, type ParsedLink } from './link_parser.service.js'
-
-export interface OEmbedMetadata {
-  title: string
-  author_name: string
-  thumbnail_url?: string
-  album_name?: string
-}
+import { SearchType } from '#domain/music_item.js'
+import { StreamingPlatform, type ParsedLink } from '#domain/link.js'
+import {
+  PlatformMetadataPort,
+  type OEmbedMetadata,
+} from '#application/ports/platform_metadata.port.js'
 
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -19,11 +16,11 @@ const OEMBED_ENDPOINTS: Partial<Record<StreamingPlatform, string>> = {
   [StreamingPlatform.SoundCloud]: 'https://soundcloud.com/oembed',
 }
 
-export class PlatformMetadataService {
+export class PlatformMetadataAdapter extends PlatformMetadataPort {
   private static readonly APPLE_MUSIC_SUFFIX = / on Apple Music$/i
 
   static stripAppleMusicSuffix(value: string): string {
-    return value.replace(PlatformMetadataService.APPLE_MUSIC_SUFFIX, '').trim()
+    return value.replace(PlatformMetadataAdapter.APPLE_MUSIC_SUFFIX, '').trim()
   }
 
   static decodeHtmlEntities(value: string): string {
@@ -46,7 +43,7 @@ export class PlatformMetadataService {
     )
     const match = html.match(regex)
     const value = match ? match[1] || match[2] : undefined
-    return value ? PlatformMetadataService.decodeHtmlEntities(value) : undefined
+    return value ? PlatformMetadataAdapter.decodeHtmlEntities(value) : undefined
   }
 
   async fetch(parsedLink: ParsedLink): Promise<OEmbedMetadata | { error: string }> {
@@ -84,8 +81,8 @@ export class PlatformMetadataService {
       const data = (await response.json()) as Record<string, unknown>
 
       const result: OEmbedMetadata = {
-        title: PlatformMetadataService.decodeHtmlEntities(String(data.title || '')),
-        author_name: PlatformMetadataService.decodeHtmlEntities(String(data.author_name || '')),
+        title: PlatformMetadataAdapter.decodeHtmlEntities(String(data.title || '')),
+        author_name: PlatformMetadataAdapter.decodeHtmlEntities(String(data.author_name || '')),
         thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
       }
 
@@ -132,8 +129,8 @@ export class PlatformMetadataService {
     const oEmbedResult = await this.fetchAppleMusicOEmbed(parsedLink.originalUrl)
     if (oEmbedResult && !('error' in oEmbedResult)) {
       return {
-        title: PlatformMetadataService.stripAppleMusicSuffix(oEmbedResult.title),
-        author_name: PlatformMetadataService.stripAppleMusicSuffix(oEmbedResult.author_name),
+        title: PlatformMetadataAdapter.stripAppleMusicSuffix(oEmbedResult.title),
+        author_name: PlatformMetadataAdapter.stripAppleMusicSuffix(oEmbedResult.author_name),
         thumbnail_url: oEmbedResult.thumbnail_url,
       }
     }
@@ -143,8 +140,8 @@ export class PlatformMetadataService {
     if ('error' in htmlResult) return htmlResult
 
     return {
-      title: PlatformMetadataService.stripAppleMusicSuffix(htmlResult.title),
-      author_name: PlatformMetadataService.stripAppleMusicSuffix(htmlResult.author_name),
+      title: PlatformMetadataAdapter.stripAppleMusicSuffix(htmlResult.title),
+      author_name: PlatformMetadataAdapter.stripAppleMusicSuffix(htmlResult.author_name),
       thumbnail_url: htmlResult.thumbnail_url,
     }
   }
@@ -203,8 +200,8 @@ export class PlatformMetadataService {
       const data = (await response.json()) as Record<string, unknown>
 
       return {
-        title: PlatformMetadataService.decodeHtmlEntities(String(data.title || '')),
-        author_name: PlatformMetadataService.decodeHtmlEntities(String(data.author_name || '')),
+        title: PlatformMetadataAdapter.decodeHtmlEntities(String(data.title || '')),
+        author_name: PlatformMetadataAdapter.decodeHtmlEntities(String(data.author_name || '')),
         thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
       }
     } catch {
@@ -259,7 +256,7 @@ export class PlatformMetadataService {
       if (!response.ok) return null
 
       const html = await response.text()
-      return PlatformMetadataService.getMetaContent(html, 'og:title') || null
+      return PlatformMetadataAdapter.getMetaContent(html, 'og:title') || null
     } catch {
       return null
     }
@@ -286,8 +283,8 @@ export class PlatformMetadataService {
   }
 
   private parseYouTubeMusicPlaylistOGTags(html: string): OEmbedMetadata | { error: string } {
-    const ogTitle = PlatformMetadataService.getMetaContent(html, 'og:title')
-    const ogImage = PlatformMetadataService.getMetaContent(html, 'og:image')
+    const ogTitle = PlatformMetadataAdapter.getMetaContent(html, 'og:title')
+    const ogImage = PlatformMetadataAdapter.getMetaContent(html, 'og:image')
 
     if (!ogTitle) {
       return { error: 'Could not extract metadata from YouTube Music' }
@@ -337,9 +334,9 @@ export class PlatformMetadataService {
   }
 
   private parseAppleMusicOGTags(html: string): OEmbedMetadata | { error: string } {
-    const ogTitle = PlatformMetadataService.getMetaContent(html, 'og:title')
-    const ogDescription = PlatformMetadataService.getMetaContent(html, 'og:description')
-    const ogImage = PlatformMetadataService.getMetaContent(html, 'og:image')
+    const ogTitle = PlatformMetadataAdapter.getMetaContent(html, 'og:title')
+    const ogDescription = PlatformMetadataAdapter.getMetaContent(html, 'og:description')
+    const ogImage = PlatformMetadataAdapter.getMetaContent(html, 'og:image')
 
     if (!ogTitle) {
       return { error: 'Could not extract metadata from Apple Music page' }
@@ -369,7 +366,7 @@ export class PlatformMetadataService {
   }
 
   private parseSpotifyOgTags(html: string): { artist: string; albumName?: string } | null {
-    const ogDescription = PlatformMetadataService.getMetaContent(html, 'og:description')
+    const ogDescription = PlatformMetadataAdapter.getMetaContent(html, 'og:description')
     if (!ogDescription) return null
 
     // Spotify og:description format: "Artist · Album · Song · Year" (tracks)
@@ -389,7 +386,7 @@ export class PlatformMetadataService {
   private parseYouTubeDescription(html: string): { artist: string; albumName?: string } | null {
     const match = html.match(/var ytInitialPlayerResponse\s*=\s*(\{.+?\});/)
     if (!match) {
-      const ogDescription = PlatformMetadataService.getMetaContent(html, 'og:description')
+      const ogDescription = PlatformMetadataAdapter.getMetaContent(html, 'og:description')
       return ogDescription ? { artist: ogDescription.trim() } : null
     }
 
@@ -403,7 +400,7 @@ export class PlatformMetadataService {
       const lines = description.split('\n').filter((l) => l.trim())
 
       if (!lines[0]?.startsWith('Provided to YouTube')) {
-        const ogDescription = PlatformMetadataService.getMetaContent(html, 'og:description')
+        const ogDescription = PlatformMetadataAdapter.getMetaContent(html, 'og:description')
         return ogDescription ? { artist: ogDescription.trim() } : null
       }
 

@@ -1,11 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import {
-  LinkParserService,
-  StreamingPlatform,
-  isLinkParseError,
-} from '../../services/link_parser.service.js'
-import { LinkMetadataService, isLinkMetadataError } from '../../services/link_metadata.service.js'
-import { PlatformMetadataService } from '../../services/platform_metadata.service.js'
+import { StreamingPlatform, isLinkParseError } from '#domain/link.js'
+import { isLinkMetadataError } from '#domain/link.js'
+import { LinkParserPort } from '#application/ports/link_parser.port.js'
+import { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
 
 export interface OEmbedResponse {
   title: string
@@ -15,9 +13,9 @@ export interface OEmbedResponse {
 
 export default class LinkController {
   constructor(
-    private linkParser: LinkParserService = new LinkParserService(),
-    private linkMetadataService: LinkMetadataService = new LinkMetadataService(),
-    private platformMetadataService: PlatformMetadataService = new PlatformMetadataService()
+    private linkParser: LinkParserPort,
+    private platformMetadata: PlatformMetadataPort,
+    private extractLinkMetadata: ExtractLinkMetadataUseCase
   ) {}
 
   async oembed({ request, response }: HttpContext) {
@@ -39,7 +37,7 @@ export default class LinkController {
       })
     }
 
-    const result = await this.platformMetadataService.fetch(parseResult)
+    const result = await this.platformMetadata.fetch(parseResult)
 
     if ('error' in result) {
       const status = result.error.includes('not found')
@@ -73,7 +71,7 @@ export default class LinkController {
       })
     }
 
-    const result = await this.platformMetadataService.fetchAppleMusicMetadata(parseResult)
+    const result = await this.platformMetadata.fetchAppleMusicMetadata(parseResult)
 
     if ('error' in result) {
       return response.status(422).json({ error: result.error })
@@ -89,7 +87,7 @@ export default class LinkController {
       return response.status(400).json({ error: 'URL is required' })
     }
 
-    const result = await this.linkMetadataService.fetchMetadata(url)
+    const result = await this.extractLinkMetadata.execute(url)
 
     if (isLinkMetadataError(result)) {
       return response.status(400).json({ error: result.error, originalUrl: result.originalUrl })

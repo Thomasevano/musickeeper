@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { matchesArtist } from '../../../src/infrastructure/services/platform_search.service.js'
+import { matchesArtist } from '#infrastructure/adapters/platform_search/match.js'
 
 test.group('platform_search — matchesArtist', () => {
   test('returns true when artist name matches case-insensitively', ({ assert }) => {

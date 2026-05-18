@@ -1,11 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { SearchRepository } from '../../../application/repositories/search.repository.js'
-import { MusicBrainzRepository } from '../../repositories/musicbrainz_search.repository.js'
-import { serializeMusicBrainzSearchResults } from '../../serializers/musicbrainz/search_results_serializer.js'
+import { SearchGateway } from '#application/ports/search.gateway.js'
+import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
 
 export default class ListenLaterListController {
   constructor(
-    private searchRepository: SearchRepository = new MusicBrainzRepository(),
+    private searchGateway: SearchGateway,
     private serializeSearchResults = serializeMusicBrainzSearchResults
   ) {}
   async index({ inertia, request, response }: HttpContext) {
@@ -17,7 +16,7 @@ export default class ListenLaterListController {
       (searchItem && searchItem.length >= 3) || (artistName && artistName.trim().length >= 3)
 
     if (hasValidSearch) {
-      const matchingItems = await this.searchRepository.searchItem(
+      const matchingItems = await this.searchGateway.searchItem(
         searchItem || '',
         searchType,
         artistName

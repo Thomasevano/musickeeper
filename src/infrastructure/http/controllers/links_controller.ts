@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 import type { HttpContext } from '@adonisjs/core/http'
-import { MusicBrainzExternalLinksService } from '../../services/musicbrainz_external_links.service.js'
-import { SearchType } from '../../../domain/music_item.js'
+import { GetExternalLinksUseCase } from '#application/use-cases/get_external_links.use_case.js'
+import { SearchType } from '#domain/music_item.js'
 
 const indexQueryValidator = vine.compile(
   vine.object({
@@ -15,7 +15,7 @@ const indexQueryValidator = vine.compile(
 )
 
 export default class LinksController {
-  private linksService = new MusicBrainzExternalLinksService()
+  constructor(private getExternalLinks: GetExternalLinksUseCase) {}
 
   async index({ request, response }: HttpContext) {
     const payload = await request.validateUsing(indexQueryValidator)
@@ -25,7 +25,7 @@ export default class LinksController {
     const titleStr = payload.title ?? ''
     const locale = payload.locale ?? 'fr-FR'
 
-    const externalLinks = await this.linksService.enrichLinks(
+    const externalLinks = await this.getExternalLinks.execute(
       payload.mbid,
       itemType,
       artistsArray,

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { extractLinksFromRelations } from '../../../src/infrastructure/services/musicbrainz_external_links.service.js'
+import { extractLinksFromRelations } from '#infrastructure/adapters/musicbrainz/musicbrainz_external_links.adapter.js'
 
 test.group('musicbrainz_external_links — extractLinksFromRelations', () => {
   test('keeps relations matching streaming/buy types', ({ assert }) => {

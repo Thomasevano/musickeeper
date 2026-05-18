@@ -1,25 +1,41 @@
 import type { ApplicationService } from '@adonisjs/core/types'
-import { CoverArtArchiveApi, MusicBrainzApi } from 'musicbrainz-api'
-import { SearchRepository } from '../../application/repositories/search.repository.js'
-import { MusicBrainzRepository } from '../repositories/musicbrainz_search.repository.js'
-import { readFileSync } from 'node:fs'
+import { SearchGateway } from '#application/ports/search.gateway.js'
+import { CoverArtGateway } from '#application/ports/cover_art.gateway.js'
+import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
+import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
+import { MusicBrainzGateway } from '#infrastructure/adapters/musicbrainz/musicbrainz.gateway.js'
+import { CoverArtArchiveGateway } from '#infrastructure/adapters/musicbrainz/cover_art.gateway.js'
+import { MusicBrainzExternalLinksAdapter } from '#infrastructure/adapters/musicbrainz/musicbrainz_external_links.adapter.js'
+import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
+import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
+import { GetExternalLinksUseCase } from '#application/use-cases/get_external_links.use_case.js'
 
 export default class MusicBrainzProvider {
   constructor(protected app: ApplicationService) {}
+
   async boot() {
-    this.app.container.bind(SearchRepository, () => {
-      return this.app.container.make(MusicBrainzRepository)
+    this.app.container.bind(SearchGateway, () => {
+      return this.app.container.make(MusicBrainzGateway)
+    })
+
+    this.app.container.bind(CoverArtGateway, () => {
+      return this.app.container.make(CoverArtArchiveGateway)
+    })
+
+    this.app.container.bind(MusicBrainzExternalLinksPort, () => {
+      return this.app.container.make(MusicBrainzExternalLinksAdapter)
+    })
+
+    this.app.container.bind(EnrichMusicItemUseCase, async () => {
+      const search = await this.app.container.make(SearchGateway)
+      const coverArt = await this.app.container.make(CoverArtGateway)
+      return new EnrichMusicItemUseCase(search, coverArt, serializeMusicBrainzSearchResults)
+    })
+
+    this.app.container.bind(GetExternalLinksUseCase, async () => {
+      const mbLinks = await this.app.container.make(MusicBrainzExternalLinksPort)
+      const platformSearch = await this.app.container.make(PlatformSearchPort)
+      return new GetExternalLinksUseCase(mbLinks, platformSearch)
     })
   }
 }
-const packageJson = JSON.parse(
-  readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')
-)
-
-export const musicbrainzApi = new MusicBrainzApi({
-  appName: packageJson.name,
-  appVersion: packageJson.version,
-  appContactInfo: process.env.MB_APP_CONTACT_EMAIL,
-})
-
-export const coverArtArchiveApiClient = new CoverArtArchiveApi()

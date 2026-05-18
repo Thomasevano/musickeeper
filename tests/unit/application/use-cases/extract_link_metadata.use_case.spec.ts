@@ -1,19 +1,19 @@
 import { test } from '@japa/runner'
+import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
 import {
-  LinkMetadataService,
-  isLinkMetadataError,
-} from '../../../src/infrastructure/services/link_metadata.service.js'
-import {
-  MusicBrainzEnrichmentService,
+  EnrichMusicItemUseCase,
   type SearchResultsSerializer,
-} from '../../../src/infrastructure/services/musicbrainz_enrichment.service.js'
-import { MusicItem, SearchType } from '../../../src/domain/music_item.js'
+} from '#application/use-cases/enrich_music_item.use_case.js'
+import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
+import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
+import { SearchGateway } from '#application/ports/search.gateway.js'
+import { CoverArtGateway } from '#application/ports/cover_art.gateway.js'
+import { isLinkMetadataError } from '#domain/link.js'
+import { MusicItem, SearchType } from '#domain/music_item.js'
 
-// Store original fetch
 const originalFetch = globalThis.fetch
 
-// Mock MusicBrainzRepository
-class MockMusicBrainzRepository {
+class MockSearchGateway extends SearchGateway {
   public shouldReturnResults: boolean = true
   public shouldThrowError: boolean = false
 
@@ -23,7 +23,7 @@ class MockMusicBrainzRepository {
     }
 
     if (!this.shouldReturnResults) {
-      return type === 'album' ? { releases: [] } : { recordings: [] }
+      return (type === 'album' ? { releases: [] } : { recordings: [] }) as never
     }
 
     if (type === 'album') {
@@ -36,7 +36,7 @@ class MockMusicBrainzRepository {
             'artist-credit': [{ artist: { name: 'Test Artist' } }],
           },
         ],
-      }
+      } as never
     }
 
     return {
@@ -50,11 +50,16 @@ class MockMusicBrainzRepository {
           'releases': [{ id: 'release-789', title: 'Test Album' }],
         },
       ],
-    }
+    } as never
   }
 }
 
-// Mock serializer that returns MusicItems directly
+class MockCoverArtGateway extends CoverArtGateway {
+  async getThumbnailUrl(_releaseId: string): Promise<string | null> {
+    return null
+  }
+}
+
 const mockSerializer: SearchResultsSerializer = async (searchResults) => {
   const results = searchResults as { releases?: unknown[]; recordings?: unknown[] }
   if (results.releases && results.releases.length > 0) {
@@ -87,14 +92,27 @@ const mockSerializer: SearchResultsSerializer = async (searchResults) => {
   return []
 }
 
-test.group('LinkMetadataService - URL parsing errors', (group) => {
+function makeUseCase(
+  search: MockSearchGateway = new MockSearchGateway(),
+  serializer: SearchResultsSerializer = mockSerializer,
+  coverArt: CoverArtGateway = new MockCoverArtGateway()
+): ExtractLinkMetadataUseCase {
+  const enrich = new EnrichMusicItemUseCase(search, coverArt, serializer)
+  return new ExtractLinkMetadataUseCase(
+    new LinkParserAdapter(),
+    new PlatformMetadataAdapter(),
+    enrich
+  )
+}
+
+test.group('ExtractLinkMetadataUseCase - URL parsing errors', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
 
   test('returns error for invalid URL format', async ({ assert }) => {
-    const service = new LinkMetadataService()
-    const result = await service.fetchMetadata('not-a-valid-url')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('not-a-valid-url')
 
     assert.isTrue(isLinkMetadataError(result))
     if (isLinkMetadataError(result)) {
@@ -104,8 +122,8 @@ test.group('LinkMetadataService - URL parsing errors', (group) => {
   })
 
   test('returns error for unsupported platform', async ({ assert }) => {
-    const service = new LinkMetadataService()
-    const result = await service.fetchMetadata('https://tidal.com/browse/track/12345')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://tidal.com/browse/track/12345')
 
     assert.isTrue(isLinkMetadataError(result))
     if (isLinkMetadataError(result)) {
@@ -114,7 +132,7 @@ test.group('LinkMetadataService - URL parsing errors', (group) => {
   })
 })
 
-test.group('LinkMetadataService - Spotify oEmbed', (group) => {
+test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -137,9 +155,8 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -172,10 +189,10 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -206,10 +223,10 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldThrowError = true
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const search = new MockSearchGateway()
+    search.shouldThrowError = true
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -238,9 +255,8 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3'
     )
 
@@ -251,7 +267,7 @@ test.group('LinkMetadataService - Spotify oEmbed', (group) => {
   })
 })
 
-test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
+test.group('ExtractLinkMetadataUseCase - Spotify HTML fallback', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -284,9 +300,8 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -294,9 +309,7 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
     if (!isLinkMetadataError(result)) {
       assert.equal(result.linkMetadata.artist, 'Rick Astley')
       assert.equal(result.linkMetadata.albumName, 'Whenever You Need Somebody')
-      // MusicBrainz enriches since artist is now available
       assert.equal(result.source, 'musicbrainz')
-      // Album name from Spotify HTML overrides MusicBrainz
       assert.equal(result.musicItem.albumName, 'Whenever You Need Somebody')
     }
   })
@@ -328,7 +341,6 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    // Use a serializer that returns a MusicItem with blank cover art (like real MusicBrainz)
     const blankCoverSerializer: SearchResultsSerializer = async () => [
       new MusicItem({
         id: 'mb-track-456',
@@ -340,16 +352,14 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
       }),
     ]
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, blankCoverSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase(new MockSearchGateway(), blankCoverSerializer)
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
       assert.equal(result.source, 'musicbrainz')
-      // Should use Spotify thumbnail instead of Blank_album placeholder
       assert.equal(result.musicItem.coverArt, 'https://i.scdn.co/image/abc123')
     }
   })
@@ -372,12 +382,11 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const service = new LinkMetadataService()
-    const result = await service.fetchMetadata('https://open.spotify.com/track/abc123')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://open.spotify.com/track/abc123')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
-      // Falls back to link metadata with empty artist
       assert.equal(result.source, 'link')
       assert.equal(result.linkMetadata.artist, '')
       assert.equal(result.musicItem.title, 'Some Track')
@@ -406,15 +415,14 @@ test.group('LinkMetadataService - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    await service.fetchMetadata('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
+    const useCase = makeUseCase()
+    await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(htmlFetchCalled, 'Should not fetch HTML when oEmbed has author_name')
   })
 })
 
-test.group('LinkMetadataService - YouTube oEmbed', (group) => {
+test.group('ExtractLinkMetadataUseCase - YouTube oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -437,9 +445,8 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -466,10 +473,10 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata('https://music.youtube.com/watch?v=abc123')
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute('https://music.youtube.com/watch?v=abc123')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -480,7 +487,6 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
   test('extracts clean artist and album from YouTube auto-generated description', async ({
     assert,
   }) => {
-    // Simulates ytInitialPlayerResponse embedded in YouTube page HTML
     const ytPageHtml = `<html><head>
       <meta property="og:description" content="Tame Impala">
     </head><body>
@@ -508,15 +514,13 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata('https://music.youtube.com/watch?v=e1N_fJlJaXY')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://music.youtube.com/watch?v=e1N_fJlJaXY')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
       assert.equal(result.linkMetadata.artist, 'Tame Impala')
       assert.equal(result.linkMetadata.albumName, 'Deadbeat')
-      // Album from YouTube overrides MusicBrainz
       assert.equal(result.musicItem.albumName, 'Deadbeat')
     }
   })
@@ -537,13 +541,11 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
-      // No HTML fetch needed — artist is clean
       assert.equal(result.linkMetadata.artist, 'Rick Astley')
     }
   })
@@ -574,23 +576,21 @@ test.group('LinkMetadataService - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata('https://music.youtube.com/watch?v=V0J5U1z2Wu8')
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute('https://music.youtube.com/watch?v=V0J5U1z2Wu8')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
-      // Artists joined with comma, not middle dot
       assert.equal(result.linkMetadata.artist, "ISHA, Limsa d'Aulnay")
-      // Each artist is a separate entry
       assert.deepEqual(result.musicItem.artists, ['ISHA', "Limsa d'Aulnay"])
       assert.equal(result.linkMetadata.albumName, 'Bitume Caviar (vol.2)')
     }
   })
 })
 
-test.group('LinkMetadataService - YouTube Music playlist', (group) => {
+test.group('ExtractLinkMetadataUseCase - YouTube Music playlist', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -609,14 +609,10 @@ test.group('LinkMetadataService - YouTube Music playlist', (group) => {
       })
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(
-      undefined,
-      undefined,
-      new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer)
-    )
-    const result = await service.fetchMetadata(
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute(
       'https://music.youtube.com/playlist?list=OLAK5uy_lJ0yXPKvCREyQl6Bcxp6I8CAfrD-yX-VA'
     )
 
@@ -633,7 +629,6 @@ test.group('LinkMetadataService - YouTube Music playlist', (group) => {
   })
 
   test('handles localized "Album by" variants in og:title', async ({ assert }) => {
-    // Test English format
     const playlistHtmlEn = `<html><head>
       <meta property="og:title" content="USB - Album by Fred again..">
       <meta property="og:image" content="https://yt3.googleusercontent.com/usb.jpg">
@@ -645,8 +640,8 @@ test.group('LinkMetadataService - YouTube Music playlist', (group) => {
         headers: { 'Content-Type': 'text/html' },
       })
 
-    const service = new LinkMetadataService()
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.youtube.com/playlist?list=OLAK5uy_test'
     )
 
@@ -658,7 +653,7 @@ test.group('LinkMetadataService - YouTube Music playlist', (group) => {
   })
 })
 
-test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
+test.group('ExtractLinkMetadataUseCase - SoundCloud oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -691,9 +686,8 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://soundcloud.com/rick-astley/never-gonna-give-you-up'
     )
 
@@ -723,18 +717,17 @@ test.group('LinkMetadataService - SoundCloud oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const service = new LinkMetadataService()
-    const result = await service.fetchMetadata('https://soundcloud.com/some-artist/some-track')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://soundcloud.com/some-artist/some-track')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
-      // Falls back to oEmbed title (with "by" suffix) — still usable
       assert.equal(result.linkMetadata.title, 'Some Track by Some Artist')
     }
   })
 })
 
-test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
+test.group('ExtractLinkMetadataUseCase - Apple Music oEmbed', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -755,9 +748,8 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
     )
 
@@ -789,9 +781,8 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/us/album/midnights/1649434004'
     )
 
@@ -819,9 +810,8 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/fr/album/save-the-day-from-hoppers/1877213779?i=1877213780&l=en-GB'
     )
 
@@ -833,7 +823,7 @@ test.group('LinkMetadataService - Apple Music oEmbed', (group) => {
   })
 })
 
-test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
+test.group('ExtractLinkMetadataUseCase - Apple Music HTML fallback', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -865,9 +855,8 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
     )
 
@@ -914,9 +903,8 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/us/album/midnights/1649434004'
     )
 
@@ -956,9 +944,8 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/us/album/midnights/1649434004?i=1649434288'
     )
 
@@ -975,16 +962,14 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
       if (urlString.includes('/api/oembed')) {
         return new Response('Not found', { status: 404 })
       }
-      // HTML page has no og:title
       return new Response(
         '<html><head><meta property="og:description" content="Some description"></head><body></body></html>',
         { status: 200, headers: { 'Content-Type': 'text/html' } }
       )
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://music.apple.com/us/album/midnights/1649434004'
     )
 
@@ -995,7 +980,7 @@ test.group('LinkMetadataService - Apple Music HTML fallback', (group) => {
   })
 })
 
-test.group('LinkMetadataService - oEmbed errors', (group) => {
+test.group('ExtractLinkMetadataUseCase - oEmbed errors', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -1005,9 +990,8 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
       return new Response('Not found', { status: 404 })
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata('https://open.spotify.com/track/nonexistent123')
+    const useCase = makeUseCase()
+    const result = await useCase.execute('https://open.spotify.com/track/nonexistent123')
 
     assert.isTrue(isLinkMetadataError(result))
     if (isLinkMetadataError(result)) {
@@ -1020,9 +1004,8 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
       return new Response('Server error', { status: 500 })
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -1037,9 +1020,8 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
       throw new Error('Network error')
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const useCase = makeUseCase()
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -1050,7 +1032,7 @@ test.group('LinkMetadataService - oEmbed errors', (group) => {
   })
 })
 
-test.group('LinkMetadataService - Partial data handling', (group) => {
+test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
   group.each.teardown(() => {
     globalThis.fetch = originalFetch
   })
@@ -1058,7 +1040,6 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
   test('handles missing artist in oEmbed response', async ({ assert }) => {
     const mockOEmbedResponse = {
       title: 'Track With No Artist',
-      // author_name missing
     }
 
     globalThis.fetch = async () => {
@@ -1068,10 +1049,10 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
       })
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -1087,7 +1068,6 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
     const mockOEmbedResponse = {
       title: 'Track Without Thumbnail',
       author_name: 'Artist Name',
-      // thumbnail_url missing
     }
 
     globalThis.fetch = async () => {
@@ -1097,10 +1077,10 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
       })
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
@@ -1124,17 +1104,16 @@ test.group('LinkMetadataService - Partial data handling', (group) => {
       })
     }
 
-    const mockRepo = new MockMusicBrainzRepository()
-    mockRepo.shouldReturnResults = false
-    const service = new LinkMetadataService(undefined, undefined, new MusicBrainzEnrichmentService(mockRepo as never, mockSerializer))
-    const result = await service.fetchMetadata(
+    const search = new MockSearchGateway()
+    search.shouldReturnResults = false
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
       assert.equal(result.source, 'link')
-      // Fallback uses "Unknown Title" when title is empty
       assert.equal(result.musicItem.title, 'Unknown Title')
     }
   })

@@ -1,15 +1,12 @@
 import { test } from '@japa/runner'
-import {
-  LinkParserService,
-  StreamingPlatform,
-  isLinkParseError,
-} from '../../../src/infrastructure/services/link_parser.service.js'
-import { SearchType } from '../../../src/domain/music_item.js'
+import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
+import { StreamingPlatform, isLinkParseError } from '#domain/link.js'
+import { SearchType } from '#domain/music_item.js'
 
-const service = new LinkParserService()
+const service = new LinkParserAdapter()
 
 // Spotify URL tests
-test.group('LinkParserService - Spotify URLs', () => {
+test.group('LinkParserAdapter - Spotify URLs', () => {
   test('parses Spotify track URL', ({ assert }) => {
     const url = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     const result = service.parseLink(url)
@@ -50,7 +47,7 @@ test.group('LinkParserService - Spotify URLs', () => {
 })
 
 // YouTube URL tests
-test.group('LinkParserService - YouTube URLs', () => {
+test.group('LinkParserAdapter - YouTube URLs', () => {
   test('parses standard YouTube URL', ({ assert }) => {
     const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     const result = service.parseLink(url)
@@ -127,7 +124,7 @@ test.group('LinkParserService - YouTube URLs', () => {
 })
 
 // Apple Music URL tests
-test.group('LinkParserService - Apple Music URLs', () => {
+test.group('LinkParserAdapter - Apple Music URLs', () => {
   test('parses Apple Music album URL', ({ assert }) => {
     const url = 'https://music.apple.com/us/album/midnights/1649434004'
     const result = service.parseLink(url)
@@ -179,7 +176,7 @@ test.group('LinkParserService - Apple Music URLs', () => {
 })
 
 // SoundCloud URL tests
-test.group('LinkParserService - SoundCloud URLs', () => {
+test.group('LinkParserAdapter - SoundCloud URLs', () => {
   test('parses SoundCloud track URL', ({ assert }) => {
     const url = 'https://soundcloud.com/artistname/track-title'
     const result = service.parseLink(url)
@@ -233,7 +230,7 @@ test.group('LinkParserService - SoundCloud URLs', () => {
 })
 
 // Error cases
-test.group('LinkParserService - Error cases', () => {
+test.group('LinkParserAdapter - Error cases', () => {
   test('returns error for invalid URL format', ({ assert }) => {
     const result = service.parseLink('not-a-valid-url')
 

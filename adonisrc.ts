@@ -37,6 +37,8 @@ export default defineConfig({
     () => import('@adonisjs/inertia/inertia_provider'),
     () => import('@adonisjs/vite/vite_provider'),
     () => import('./src/infrastructure/providers/musicbrainz_provider.js'),
+    () => import('./src/infrastructure/providers/link_provider.js'),
+    () => import('./src/infrastructure/providers/platform_provider.js'),
     () => import('@adonisjs/static/static_provider'),
   ],
 

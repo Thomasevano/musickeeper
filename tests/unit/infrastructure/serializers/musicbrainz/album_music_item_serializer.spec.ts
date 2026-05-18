@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
 import { IReleaseMatch } from 'musicbrainz-api'
-import { serializeReleaseAsAlbumMusicItem } from '../../../../src/infrastructure/serializers/musicbrainz/album_music_item_serializer.js'
-import { MusicItem, SearchType } from '../../../../src/domain/music_item.js'
+import { serializeReleaseAsAlbumMusicItem } from '#infrastructure/serializers/musicbrainz/album_music_item_serializer.js'
+import { MusicItem, SearchType } from '#domain/music_item.js'
 
 test('Serialize a release from MusicBrainz as an Album', async ({ assert }) => {
   const exampleMusicBrainzRelease: IReleaseMatch = {

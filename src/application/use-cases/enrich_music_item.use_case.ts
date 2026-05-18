@@ -1,24 +1,24 @@
 import { IRecordingList, IReleaseList } from 'musicbrainz-api'
-import { MusicItem, SearchType } from '../../domain/music_item.js'
-import { MusicBrainzRepository } from '../repositories/musicbrainz_search.repository.js'
-import { serializeMusicBrainzSearchResults } from '../serializers/musicbrainz/search_results_serializer.js'
-import { coverArtArchiveApiClient } from '../providers/musicbrainz_provider.js'
+import { MusicItem, SearchType } from '#domain/music_item.js'
+import { SearchGateway } from '#application/ports/search.gateway.js'
+import { CoverArtGateway } from '#application/ports/cover_art.gateway.js'
 
 export type SearchResultsSerializer = (
   searchResults: IReleaseList | IRecordingList
 ) => Promise<MusicItem[]>
 
-export class MusicBrainzEnrichmentService {
+export class EnrichMusicItemUseCase {
   constructor(
-    private repo: MusicBrainzRepository = new MusicBrainzRepository(),
-    private serializeSearchResults: SearchResultsSerializer = serializeMusicBrainzSearchResults
+    private search: SearchGateway,
+    private coverArt: CoverArtGateway,
+    private serializeSearchResults: SearchResultsSerializer
   ) {}
 
   /**
    * Search MusicBrainz for a track or album and enrich cover art when the
    * recording is only linked to a compilation rather than the original album.
    */
-  async enrich(
+  async execute(
     title: string,
     artist: string,
     type: SearchType,
@@ -27,9 +27,6 @@ export class MusicBrainzEnrichmentService {
     const musicItem = await this.searchRecording(title, artist, type)
     if (!musicItem) return null
 
-    // When the recording is only linked to a compilation, look up the album
-    // directly to get the correct cover art. Use the primary (first) artist
-    // since albums are credited to the main artist, not featured artists.
     if (albumNameHint && musicItem.albumName !== albumNameHint) {
       const primaryArtist = artist.split(',')[0].trim()
       const coverArt = await this.fetchAlbumCoverArt(
@@ -51,9 +48,8 @@ export class MusicBrainzEnrichmentService {
     type: SearchType
   ): Promise<MusicItem | null> {
     try {
-      // Strip feat. annotations — MusicBrainz titles don't include them
       const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, '').trim()
-      const searchResults = await this.repo.searchItem(cleanTitle, type, artist)
+      const searchResults = await this.search.searchItem(cleanTitle, type, artist)
       const musicItems = await this.serializeSearchResults(searchResults)
       return musicItems.length > 0 ? musicItems[0] : null
     } catch {
@@ -67,13 +63,12 @@ export class MusicBrainzEnrichmentService {
     releaseDate?: string
   ): Promise<string | null> {
     try {
-      const searchResults = await this.repo.searchItem(albumName, SearchType.album, artist)
+      const searchResults = await this.search.searchItem(albumName, SearchType.album, artist)
 
       // @ts-expect-error musicbrainz-api doesn't allow union types
       const releases: IReleaseList['releases'] = searchResults.releases || []
       if (!releases.length) return null
 
-      // Prefer the release from the same year as the track
       const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null
       const sorted = [...releases].sort((a, b) => {
         const aMatch = a.date?.slice(0, 4) === releaseYear ? 0 : 1
@@ -82,14 +77,8 @@ export class MusicBrainzEnrichmentService {
       })
 
       for (const release of sorted) {
-        try {
-          const coverArt = await coverArtArchiveApiClient.getReleaseCovers(release.id)
-          if (coverArt.images?.length) {
-            return coverArt.images[0].thumbnails.small
-          }
-        } catch {
-          // No cover art for this release, try the next
-        }
+        const thumbnail = await this.coverArt.getThumbnailUrl(release.id)
+        if (thumbnail) return thumbnail
       }
       return null
     } catch {

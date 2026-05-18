@@ -1,9 +1,9 @@
 import { IRecordingList, IReleaseList } from 'musicbrainz-api'
-import { SearchRepository } from '../../application/repositories/search.repository.js'
-import { musicbrainzApi } from '../providers/musicbrainz_provider.js'
-import { SearchType } from '../../domain/music_item.js'
+import { SearchGateway } from '#application/ports/search.gateway.js'
+import { musicbrainzApi } from './musicbrainz_client.js'
+import { SearchType } from '#domain/music_item.js'
 
-export class MusicBrainzRepository implements SearchRepository {
+export class MusicBrainzGateway extends SearchGateway {
   async searchItem(
     query: string,
     type: SearchType,

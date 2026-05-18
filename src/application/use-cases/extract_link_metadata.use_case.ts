@@ -1,44 +1,21 @@
-import { MusicItem, SearchType } from '../../domain/music_item.js'
-import { LinkParserService, isLinkParseError } from './link_parser.service.js'
-import { PlatformMetadataService, type OEmbedMetadata } from './platform_metadata.service.js'
-import { MusicBrainzEnrichmentService } from './musicbrainz_enrichment.service.js'
+import { MusicItem, SearchType } from '#domain/music_item.js'
+import {
+  isLinkParseError,
+  type LinkMetadata,
+  type LinkMetadataResult,
+} from '#domain/link.js'
+import { LinkParserPort } from '#application/ports/link_parser.port.js'
+import { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import { EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'
 
-export type { OEmbedMetadata }
-
-export interface LinkMetadata {
-  title: string
-  artist: string
-  type: SearchType
-  thumbnailUrl?: string
-  originalUrl: string
-  albumName?: string
-}
-
-export interface LinkMetadataSuccess {
-  musicItem: MusicItem
-  source: 'musicbrainz' | 'link'
-  linkMetadata: LinkMetadata
-}
-
-export interface LinkMetadataError {
-  error: string
-  originalUrl: string
-}
-
-export type LinkMetadataResult = LinkMetadataSuccess | LinkMetadataError
-
-export function isLinkMetadataError(result: LinkMetadataResult): result is LinkMetadataError {
-  return 'error' in result
-}
-
-export class LinkMetadataService {
+export class ExtractLinkMetadataUseCase {
   constructor(
-    private linkParser: LinkParserService = new LinkParserService(),
-    private platformMetadata: PlatformMetadataService = new PlatformMetadataService(),
-    private musicBrainzEnrichment: MusicBrainzEnrichmentService = new MusicBrainzEnrichmentService()
+    private linkParser: LinkParserPort,
+    private platformMetadata: PlatformMetadataPort,
+    private enrichMusicItem: EnrichMusicItemUseCase
   ) {}
 
-  async fetchMetadata(url: string): Promise<LinkMetadataResult> {
+  async execute(url: string): Promise<LinkMetadataResult> {
     const parseResult = this.linkParser.parseLink(url)
 
     if (isLinkParseError(parseResult)) {
@@ -61,7 +38,7 @@ export class LinkMetadataService {
     }
 
     if (linkMetadata.title && linkMetadata.artist) {
-      const musicItem = await this.musicBrainzEnrichment.enrich(
+      const musicItem = await this.enrichMusicItem.execute(
         linkMetadata.title,
         linkMetadata.artist,
         linkMetadata.type,
@@ -69,13 +46,10 @@ export class LinkMetadataService {
       )
 
       if (musicItem) {
-        // Prefer album name from the streaming platform over MusicBrainz
-        // (MusicBrainz may match a compilation instead of the original album)
         if (linkMetadata.albumName) {
           musicItem.albumName = linkMetadata.albumName
         }
 
-        // Prefer platform cover art; use MusicBrainz cover only as fallback
         if (linkMetadata.thumbnailUrl) {
           musicItem.coverArt = linkMetadata.thumbnailUrl
         }

@@ -1,8 +1,8 @@
-import { musicbrainzApi } from '../providers/musicbrainz_provider.js'
-import { SearchType } from '../../domain/music_item.js'
-import { detectPlatform, normalizeLinkUrl } from '../../shared/platform_registry.js'
-import { PlatformSearchService } from './platform_search.service.js'
-import type { ExternalLink } from '../../domain/music_item.js'
+import { musicbrainzApi } from './musicbrainz_client.js'
+import { SearchType } from '#domain/music_item.js'
+import { detectPlatform } from '#shared/platform_registry.js'
+import type { ExternalLink } from '#domain/music_item.js'
+import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -55,9 +55,7 @@ export function extractLinksFromRelations(
   return links
 }
 
-export class MusicBrainzExternalLinksService {
-  private platformSearch = new PlatformSearchService()
-
+export class MusicBrainzExternalLinksAdapter extends MusicBrainzExternalLinksPort {
   async fetchExternalLinks(mbid: string, itemType: SearchType): Promise<ExternalLink[]> {
     try {
       const entity = itemType === SearchType.album ? 'release' : 'recording'
@@ -89,48 +87,5 @@ export class MusicBrainzExternalLinksService {
       console.error('Failed to fetch external links from MusicBrainz:', error)
       return []
     }
-  }
-
-  async enrichLinks(
-    mbid: string,
-    itemType: SearchType,
-    artists: string[],
-    title: string,
-    locale: string,
-    sourceUrl?: string
-  ): Promise<ExternalLink[]> {
-    const [mbLinks, searchLinks] = await Promise.all([
-      this.fetchExternalLinks(mbid, itemType),
-      this.platformSearch.search(artists, title, itemType),
-    ])
-
-    const allLinks: ExternalLink[] = [...mbLinks, ...searchLinks]
-
-    if (sourceUrl) {
-      const spec = detectPlatform(sourceUrl)
-      if (spec && !allLinks.some((l) => l.platform === spec.id)) {
-        allLinks.push({
-          platform: spec.id,
-          label: spec.label,
-          url: sourceUrl,
-          category: spec.category,
-          source: 'source-url',
-        })
-      }
-    }
-
-    const seen = new Set<string>()
-    const result: ExternalLink[] = []
-
-    for (const link of allLinks) {
-      if (seen.has(link.platform)) continue
-      seen.add(link.platform)
-      result.push({
-        ...link,
-        url: normalizeLinkUrl(link.url, locale),
-      })
-    }
-
-    return result
   }
 }

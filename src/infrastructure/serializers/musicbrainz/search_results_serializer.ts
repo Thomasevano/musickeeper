@@ -2,7 +2,7 @@ import { IRecordingList, IRecordingMatch, IReleaseList, IReleaseMatch } from 'mu
 import { MusicItem } from '../../../domain/music_item.js'
 import { serializeRecordingAsTrackMusicItem } from './track_music_item_serializer.js'
 import { serializeReleaseAsAlbumMusicItem } from './album_music_item_serializer.js'
-import { coverArtArchiveApiClient } from '../../../infrastructure/providers/musicbrainz_provider.js'
+import { coverArtArchiveApiClient } from '../../adapters/musicbrainz/musicbrainz_client.js'
 
 // Priority order for release group types when picking cover art
 const RELEASE_TYPE_PRIORITY: Record<string, number> = {

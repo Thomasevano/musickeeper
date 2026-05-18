@@ -1,31 +1,12 @@
-import { SearchType } from '../../domain/music_item.js'
+import { SearchType } from '#domain/music_item.js'
+import {
+  StreamingPlatform,
+  type LinkParseResult,
+  type ParsedLink,
+} from '#domain/link.js'
+import { LinkParserPort } from '#application/ports/link_parser.port.js'
 
-export enum StreamingPlatform {
-  Spotify = 'spotify',
-  YouTube = 'youtube',
-  AppleMusic = 'apple_music',
-  SoundCloud = 'soundcloud',
-}
-
-export interface ParsedLink {
-  platform: StreamingPlatform
-  type: SearchType
-  id: string
-  originalUrl: string
-}
-
-export interface LinkParseError {
-  error: string
-  originalUrl: string
-}
-
-export type LinkParseResult = ParsedLink | LinkParseError
-
-export function isLinkParseError(result: LinkParseResult): result is LinkParseError {
-  return 'error' in result
-}
-
-export class LinkParserService {
+export class LinkParserAdapter extends LinkParserPort {
   private readonly spotifyPattern = /^https?:\/\/open\.spotify\.com\/(track|album)\/([a-zA-Z0-9]+)/
   private readonly youtubePattern =
     /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|music\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)/
@@ -83,7 +64,6 @@ export class LinkParserService {
   }
 
   private parseYouTubeUrl(url: string): ParsedLink | null {
-    // YouTube Music album playlists: music.youtube.com/playlist?list=...
     try {
       const parsed = new URL(url)
       if (parsed.hostname === 'music.youtube.com' && parsed.pathname === '/playlist') {

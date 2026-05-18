@@ -1,5 +1,16 @@
 import { test } from '@japa/runner'
-import LinkController from '../../../src/infrastructure/http/controllers/link_controller.js'
+import LinkController from '#infrastructure/http/controllers/link_controller.js'
+import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
+import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
+import type { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
+
+function makeController(): LinkController {
+  return new LinkController(
+    new LinkParserAdapter(),
+    new PlatformMetadataAdapter(),
+    {} as ExtractLinkMetadataUseCase
+  )
+}
 
 interface MockResponse {
   status: number
@@ -43,7 +54,7 @@ test.group('LinkController - oembed', (group) => {
   })
 
   test('returns 400 when URL is missing', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({})
 
     await controller.oembed(ctx as never)
@@ -54,7 +65,7 @@ test.group('LinkController - oembed', (group) => {
   })
 
   test('returns 400 when URL is not a string', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 123 })
 
     await controller.oembed(ctx as never)
@@ -65,7 +76,7 @@ test.group('LinkController - oembed', (group) => {
   })
 
   test('returns 400 for invalid URL format', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'not-a-valid-url' })
 
     await controller.oembed(ctx as never)
@@ -76,7 +87,7 @@ test.group('LinkController - oembed', (group) => {
   })
 
   test('returns 400 for unsupported platform', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'https://tidal.com/browse/track/12345' })
 
     await controller.oembed(ctx as never)
@@ -87,7 +98,7 @@ test.group('LinkController - oembed', (group) => {
   })
 
   test('returns 400 for Apple Music URL with redirect message', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'https://music.apple.com/us/album/midnights/1649434004' })
 
     await controller.oembed(ctx as never)
@@ -115,7 +126,7 @@ test.group('LinkController - oembed', (group) => {
       })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC',
     })
@@ -144,7 +155,7 @@ test.group('LinkController - oembed', (group) => {
       })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' })
 
     await controller.oembed(ctx as never)
@@ -171,7 +182,7 @@ test.group('LinkController - oembed', (group) => {
       })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'https://soundcloud.com/artistname/track-title' })
 
     await controller.oembed(ctx as never)
@@ -186,7 +197,7 @@ test.group('LinkController - oembed', (group) => {
       return new Response('Not found', { status: 404 })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://open.spotify.com/track/nonexistent',
     })
@@ -203,7 +214,7 @@ test.group('LinkController - oembed', (group) => {
       return new Response('Server error', { status: 500 })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC',
     })
@@ -221,7 +232,7 @@ test.group('LinkController - oembed', (group) => {
       throw new Error('Network error')
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC',
     })
@@ -246,7 +257,7 @@ test.group('LinkController - oembed', (group) => {
       })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC',
     })
@@ -269,7 +280,7 @@ test.group('LinkController - appleMusic', (group) => {
   })
 
   test('returns 400 when URL is missing', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({})
 
     await controller.appleMusic(ctx as never)
@@ -280,7 +291,7 @@ test.group('LinkController - appleMusic', (group) => {
   })
 
   test('returns 400 when URL is not a string', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 123 })
 
     await controller.appleMusic(ctx as never)
@@ -291,7 +302,7 @@ test.group('LinkController - appleMusic', (group) => {
   })
 
   test('returns 400 for invalid URL format', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'not-a-valid-url' })
 
     await controller.appleMusic(ctx as never)
@@ -302,7 +313,7 @@ test.group('LinkController - appleMusic', (group) => {
   })
 
   test('returns 400 for non-Apple Music URL', async ({ assert }) => {
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({ url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC' })
 
     await controller.appleMusic(ctx as never)
@@ -331,7 +342,7 @@ test.group('LinkController - appleMusic', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://music.apple.com/us/album/midnights/1649434004?i=1649434012',
     })
@@ -352,7 +363,7 @@ test.group('LinkController - appleMusic', (group) => {
       return new Response('Not found', { status: 404 })
     }
 
-    const controller = new LinkController()
+    const controller = makeController()
     const ctx = createMockContext({
       url: 'https://music.apple.com/us/album/nonexistent/999999',
     })
