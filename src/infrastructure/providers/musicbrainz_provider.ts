@@ -14,25 +14,25 @@ export default class MusicBrainzProvider {
   constructor(protected app: ApplicationService) {}
 
   async boot() {
-    this.app.container.bind(SearchGateway, () => {
+    this.app.container.singleton(SearchGateway, () => {
       return this.app.container.make(MusicBrainzGateway)
     })
 
-    this.app.container.bind(CoverArtGateway, () => {
+    this.app.container.singleton(CoverArtGateway, () => {
       return this.app.container.make(CoverArtArchiveGateway)
     })
 
-    this.app.container.bind(MusicBrainzExternalLinksPort, () => {
+    this.app.container.singleton(MusicBrainzExternalLinksPort, () => {
       return this.app.container.make(MusicBrainzExternalLinksAdapter)
     })
 
-    this.app.container.bind(EnrichMusicItemUseCase, async () => {
+    this.app.container.singleton(EnrichMusicItemUseCase, async () => {
       const search = await this.app.container.make(SearchGateway)
       const coverArt = await this.app.container.make(CoverArtGateway)
       return new EnrichMusicItemUseCase(search, coverArt, serializeMusicBrainzSearchResults)
     })
 
-    this.app.container.bind(GetExternalLinksUseCase, async () => {
+    this.app.container.singleton(GetExternalLinksUseCase, async () => {
       const mbLinks = await this.app.container.make(MusicBrainzExternalLinksPort)
       const platformSearch = await this.app.container.make(PlatformSearchPort)
       return new GetExternalLinksUseCase(mbLinks, platformSearch)

@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { GetExternalLinksUseCase } from '#application/use-cases/get_external_links.use_case.js'
 import { SearchType } from '#domain/music_item.js'
@@ -14,6 +15,7 @@ const indexQueryValidator = vine.compile(
   })
 )
 
+@inject()
 export default class LinksController {
   constructor(private getExternalLinks: GetExternalLinksUseCase) {}
 

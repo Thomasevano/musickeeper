@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { StreamingPlatform, isLinkParseError } from '#domain/link.js'
 import { isLinkMetadataError } from '#domain/link.js'
@@ -11,6 +12,7 @@ export interface OEmbedResponse {
   thumbnail_url?: string
 }
 
+@inject()
 export default class LinkController {
   constructor(
     private linkParser: LinkParserPort,

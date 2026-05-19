@@ -1,12 +1,13 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { SearchGateway } from '#application/ports/search.gateway.js'
 import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
 
+@inject()
 export default class ListenLaterListController {
-  constructor(
-    private searchGateway: SearchGateway,
-    private serializeSearchResults = serializeMusicBrainzSearchResults
-  ) {}
+  private serializeSearchResults = serializeMusicBrainzSearchResults
+
+  constructor(private searchGateway: SearchGateway) {}
   async index({ inertia, request, response }: HttpContext) {
     const searchItem = request.qs().q
     const searchType = request.qs().type
