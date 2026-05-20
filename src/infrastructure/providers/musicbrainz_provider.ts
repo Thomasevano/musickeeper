@@ -6,7 +6,6 @@ import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_ext
 import { MusicBrainzGateway } from '#infrastructure/adapters/musicbrainz/musicbrainz.gateway.js'
 import { CoverArtArchiveGateway } from '#infrastructure/adapters/musicbrainz/cover_art.gateway.js'
 import { MusicBrainzExternalLinksAdapter } from '#infrastructure/adapters/musicbrainz/musicbrainz_external_links.adapter.js'
-import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
 import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
 import { GetExternalLinksUseCase } from '#application/use-cases/get_external_links.use_case.js'
 
@@ -29,7 +28,7 @@ export default class MusicBrainzProvider {
     this.app.container.singleton(EnrichMusicItemUseCase, async () => {
       const search = await this.app.container.make(SearchGateway)
       const coverArt = await this.app.container.make(CoverArtGateway)
-      return new EnrichMusicItemUseCase(search, coverArt, serializeMusicBrainzSearchResults)
+      return new EnrichMusicItemUseCase(search, coverArt)
     })
 
     this.app.container.singleton(GetExternalLinksUseCase, async () => {

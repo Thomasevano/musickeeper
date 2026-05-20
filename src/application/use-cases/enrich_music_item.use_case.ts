@@ -1,23 +1,13 @@
-import { IRecordingList, IReleaseList } from 'musicbrainz-api'
 import { MusicItem, SearchType } from '#domain/music_item.js'
 import { SearchGateway } from '#application/ports/search.gateway.js'
 import { CoverArtGateway } from '#application/ports/cover_art.gateway.js'
 
-export type SearchResultsSerializer = (
-  searchResults: IReleaseList | IRecordingList
-) => Promise<MusicItem[]>
-
 export class EnrichMusicItemUseCase {
   constructor(
     private search: SearchGateway,
-    private coverArt: CoverArtGateway,
-    private serializeSearchResults: SearchResultsSerializer
+    private coverArt: CoverArtGateway
   ) {}
 
-  /**
-   * Search MusicBrainz for a track or album and enrich cover art when the
-   * recording is only linked to a compilation rather than the original album.
-   */
   async execute(
     title: string,
     artist: string,
@@ -49,9 +39,8 @@ export class EnrichMusicItemUseCase {
   ): Promise<MusicItem | null> {
     try {
       const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, '').trim()
-      const searchResults = await this.search.searchItem(cleanTitle, type, artist)
-      const musicItems = await this.serializeSearchResults(searchResults)
-      return musicItems.length > 0 ? musicItems[0] : null
+      const items = await this.search.searchItem(cleanTitle, type, artist)
+      return items.length > 0 ? items[0] : null
     } catch {
       return null
     }
@@ -63,16 +52,13 @@ export class EnrichMusicItemUseCase {
     releaseDate?: string
   ): Promise<string | null> {
     try {
-      const searchResults = await this.search.searchItem(albumName, SearchType.album, artist)
-
-      // @ts-expect-error musicbrainz-api doesn't allow union types
-      const releases: IReleaseList['releases'] = searchResults.releases || []
+      const releases = await this.search.searchItem(albumName, SearchType.album, artist)
       if (!releases.length) return null
 
       const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null
       const sorted = [...releases].sort((a, b) => {
-        const aMatch = a.date?.slice(0, 4) === releaseYear ? 0 : 1
-        const bMatch = b.date?.slice(0, 4) === releaseYear ? 0 : 1
+        const aMatch = a.releaseDate?.slice(0, 4) === releaseYear ? 0 : 1
+        const bMatch = b.releaseDate?.slice(0, 4) === releaseYear ? 0 : 1
         return aMatch - bMatch
       })
 

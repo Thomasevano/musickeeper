@@ -1,9 +1,6 @@
 import { test } from '@japa/runner'
 import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
-import {
-  EnrichMusicItemUseCase,
-  type SearchResultsSerializer,
-} from '#application/use-cases/enrich_music_item.use_case.js'
+import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
 import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
 import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
 import { SearchGateway } from '#application/ports/search.gateway.js'
@@ -16,66 +13,35 @@ const originalFetch = globalThis.fetch
 class MockSearchGateway extends SearchGateway {
   public shouldReturnResults: boolean = true
   public shouldThrowError: boolean = false
+  public customResults?: MusicItem[]
 
-  async searchItem(_query: string, type: string, _artist?: string) {
+  async searchItem(_query: string, type?: SearchType, _artist?: string): Promise<MusicItem[]> {
     if (this.shouldThrowError) {
       throw new Error('MusicBrainz API error')
     }
 
+    if (this.customResults) {
+      return this.customResults
+    }
+
     if (!this.shouldReturnResults) {
-      return (type === 'album' ? { releases: [] } : { recordings: [] }) as never
+      return []
     }
 
-    if (type === 'album') {
-      return {
-        releases: [
-          {
-            'id': 'mb-album-123',
-            'title': 'Test Album',
-            'date': '2023-01-01',
-            'artist-credit': [{ artist: { name: 'Test Artist' } }],
-          },
-        ],
-      } as never
+    if (type === SearchType.album) {
+      return [
+        new MusicItem({
+          id: 'mb-album-123',
+          title: 'Test Album',
+          releaseDate: '2023-01-01',
+          artists: ['Test Artist'],
+          itemType: SearchType.album,
+          albumName: 'Test Album',
+          coverArt: 'https://coverartarchive.org/test-cover.jpg',
+        }),
+      ]
     }
 
-    return {
-      recordings: [
-        {
-          'id': 'mb-track-456',
-          'title': 'Test Track',
-          'first-release-date': '2023-06-15',
-          'length': 180000,
-          'artist-credit': [{ artist: { name: 'Test Artist' } }],
-          'releases': [{ id: 'release-789', title: 'Test Album' }],
-        },
-      ],
-    } as never
-  }
-}
-
-class MockCoverArtGateway extends CoverArtGateway {
-  async getThumbnailUrl(_releaseId: string): Promise<string | null> {
-    return null
-  }
-}
-
-const mockSerializer: SearchResultsSerializer = async (searchResults) => {
-  const results = searchResults as { releases?: unknown[]; recordings?: unknown[] }
-  if (results.releases && results.releases.length > 0) {
-    return [
-      new MusicItem({
-        id: 'mb-album-123',
-        title: 'Test Album',
-        releaseDate: '2023-01-01',
-        artists: ['Test Artist'],
-        itemType: SearchType.album,
-        albumName: 'Test Album',
-        coverArt: 'https://coverartarchive.org/test-cover.jpg',
-      }),
-    ]
-  }
-  if (results.recordings && results.recordings.length > 0) {
     return [
       new MusicItem({
         id: 'mb-track-456',
@@ -89,15 +55,19 @@ const mockSerializer: SearchResultsSerializer = async (searchResults) => {
       }),
     ]
   }
-  return []
+}
+
+class MockCoverArtGateway extends CoverArtGateway {
+  async getThumbnailUrl(_releaseId: string): Promise<string | null> {
+    return null
+  }
 }
 
 function makeUseCase(
   search: MockSearchGateway = new MockSearchGateway(),
-  serializer: SearchResultsSerializer = mockSerializer,
   coverArt: CoverArtGateway = new MockCoverArtGateway()
 ): ExtractLinkMetadataUseCase {
-  const enrich = new EnrichMusicItemUseCase(search, coverArt, serializer)
+  const enrich = new EnrichMusicItemUseCase(search, coverArt)
   return new ExtractLinkMetadataUseCase(
     new LinkParserAdapter(),
     new PlatformMetadataAdapter(),
@@ -341,7 +311,8 @@ test.group('ExtractLinkMetadataUseCase - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const blankCoverSerializer: SearchResultsSerializer = async () => [
+    const blankCoverSearch = new MockSearchGateway()
+    blankCoverSearch.customResults = [
       new MusicItem({
         id: 'mb-track-456',
         title: 'Test Track',
@@ -352,7 +323,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify HTML fallback', (group) => {
       }),
     ]
 
-    const useCase = makeUseCase(new MockSearchGateway(), blankCoverSerializer)
+    const useCase = makeUseCase(blankCoverSearch)
     const result = await useCase.execute(
       'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
     )

@@ -1,14 +1,10 @@
-import { IRecordingList, IReleaseList } from 'musicbrainz-api'
 import { SearchGateway } from '#application/ports/search.gateway.js'
 import { musicbrainzApi } from './musicbrainz_client.js'
-import { SearchType } from '#domain/music_item.js'
+import { MusicItem, SearchType } from '#domain/music_item.js'
+import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
 
 export class MusicBrainzGateway extends SearchGateway {
-  async searchItem(
-    query: string,
-    type: SearchType,
-    artist?: string
-  ): Promise<IRecordingList | IReleaseList> {
+  async searchItem(query: string, type: SearchType, artist?: string): Promise<MusicItem[]> {
     let response
     const limit = 10
 
@@ -40,6 +36,6 @@ export class MusicBrainzGateway extends SearchGateway {
       }
     }
 
-    return response
+    return serializeMusicBrainzSearchResults(response)
   }
 }

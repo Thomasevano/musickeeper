@@ -1,9 +1,5 @@
-import { IRecordingList, IReleaseList } from 'musicbrainz-api'
+import { MusicItem, SearchType } from '#domain/music_item.js'
 
 export abstract class SearchGateway {
-  abstract searchItem(
-    query: string,
-    type?: string,
-    artist?: string
-  ): Promise<IRecordingList | IReleaseList>
+  abstract searchItem(query: string, type?: SearchType, artist?: string): Promise<MusicItem[]>
 }
