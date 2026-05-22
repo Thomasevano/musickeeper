@@ -3,6 +3,12 @@ import { SearchType } from '#domain/music_item.js'
 import { detectPlatform } from '#shared/platform_registry.js'
 import type { ExternalLink } from '#domain/music_item.js'
 import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
+import type {
+  IMayHaveRelations,
+  IRecording,
+  IRelease,
+  IReleaseGroup,
+} from 'musicbrainz-api'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -20,14 +26,6 @@ const KEEP_RELATION_TYPES = [
   'download for free',
   'get the music',
 ]
-
-interface EntityWithRelations {
-  'relations'?: Array<{
-    type: string
-    url?: { resource: string }
-  }>
-  'release-group'?: { id: string }
-}
 
 export function extractLinksFromRelations(
   relations: Array<{ type: string; url?: { resource: string } }>,
@@ -58,23 +56,26 @@ export function extractLinksFromRelations(
 export class MusicBrainzExternalLinksAdapter extends MusicBrainzExternalLinksPort {
   async fetchExternalLinks(mbid: string, itemType: SearchType): Promise<ExternalLink[]> {
     try {
-      const entity = itemType === SearchType.album ? 'release' : 'recording'
-      const inc = itemType === SearchType.album ? ['url-rels', 'release-groups'] : ['url-rels']
-      const result: EntityWithRelations = await withTimeout(
-        (musicbrainzApi.lookup as any)(entity, mbid, inc),
-        10000
-      )
+      const result: IRelease | IRecording =
+        itemType === SearchType.album
+          ? await withTimeout(
+              musicbrainzApi.lookup('release', mbid, ['url-rels', 'release-groups']),
+              10000
+            )
+          : await withTimeout(musicbrainzApi.lookup('recording', mbid, ['url-rels']), 10000)
+
       const relations = result.relations ?? []
       const seen = new Set<string>()
       const links: ExternalLink[] = extractLinksFromRelations(relations, seen)
 
-      if (itemType === SearchType.album && result['release-group']?.id) {
+      if ('release-group' in result && result['release-group']?.id) {
         const releaseGroupId = result['release-group'].id
         try {
-          const rgResult: EntityWithRelations = await withTimeout(
-            (musicbrainzApi.lookup as any)('release-group', releaseGroupId, ['url-rels']),
+          // Vendor IReleaseGroup omits `relations`, but MB returns them when url-rels requested.
+          const rgResult = (await withTimeout(
+            musicbrainzApi.lookup('release-group', releaseGroupId, ['url-rels']),
             10000
-          )
+          )) as IReleaseGroup & IMayHaveRelations
           const rgRelations = rgResult.relations ?? []
           links.push(...extractLinksFromRelations(rgRelations, seen))
         } catch {
