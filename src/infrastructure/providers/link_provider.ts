@@ -12,27 +12,27 @@ export default class LinkProvider {
   constructor(protected app: ApplicationService) {}
 
   async boot() {
-    this.app.container.bind(LinkParserPort, () => {
+    this.app.container.singleton(LinkParserPort, () => {
       return this.app.container.make(LinkParserAdapter)
     })
 
-    this.app.container.bind(PlatformMetadataPort, () => {
+    this.app.container.singleton(PlatformMetadataPort, () => {
       return this.app.container.make(PlatformMetadataAdapter)
     })
 
-    this.app.container.bind(FetchOEmbedMetadataUseCase, async () => {
+    this.app.container.singleton(FetchOEmbedMetadataUseCase, async () => {
       const parser = await this.app.container.make(LinkParserPort)
       const metadata = await this.app.container.make(PlatformMetadataPort)
       return new FetchOEmbedMetadataUseCase(parser, metadata)
     })
 
-    this.app.container.bind(FetchAppleMusicMetadataUseCase, async () => {
+    this.app.container.singleton(FetchAppleMusicMetadataUseCase, async () => {
       const parser = await this.app.container.make(LinkParserPort)
       const metadata = await this.app.container.make(PlatformMetadataPort)
       return new FetchAppleMusicMetadataUseCase(parser, metadata)
     })
 
-    this.app.container.bind(ExtractLinkMetadataUseCase, async () => {
+    this.app.container.singleton(ExtractLinkMetadataUseCase, async () => {
       const parser = await this.app.container.make(LinkParserPort)
       const metadata = await this.app.container.make(PlatformMetadataPort)
       const enrich = await this.app.container.make(EnrichMusicItemUseCase)

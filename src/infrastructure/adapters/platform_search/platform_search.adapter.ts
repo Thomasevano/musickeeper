@@ -9,19 +9,15 @@ import type { PlatformSearchResult } from './match.js'
 
 export class PlatformSearchAdapter extends PlatformSearchPort {
   constructor(
-    private deezer: DeezerSearchClient = new DeezerSearchClient(),
-    private apple: AppleSearchClient = new AppleSearchClient(),
-    private qobuz: QobuzSearchClient = new QobuzSearchClient(),
-    private bandcamp: BandcampSearchClient = new BandcampSearchClient()
+    private deezer: Pick<DeezerSearchClient, 'search'>,
+    private apple: Pick<AppleSearchClient, 'search'>,
+    private qobuz: Pick<QobuzSearchClient, 'search'>,
+    private bandcamp: Pick<BandcampSearchClient, 'search'>
   ) {
     super()
   }
 
-  async search(
-    artists: string[],
-    title: string,
-    itemType: SearchType
-  ): Promise<ExternalLink[]> {
+  async search(artists: string[], title: string, itemType: SearchType): Promise<ExternalLink[]> {
     const query = `${artists.join(' ')} ${title}`
     const results: PlatformSearchResult[] = []
 
