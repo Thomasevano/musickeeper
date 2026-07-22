@@ -69,8 +69,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.55.0)
       musicbrainz-api:
-        specifier: ^0.27.1
-        version: 0.27.1(supports-color@10.2.2)
+        specifier: ^1.2.1
+        version: 1.2.1(supports-color@10.2.2)
       ofetch:
         specifier: ^1.5.1
         version: 1.5.1
@@ -3855,8 +3855,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  musicbrainz-api@0.27.1:
-    resolution: {integrity: sha512-K+30W6UYqmKepF4UV9OydLwbLa4UNppdqL3AqcVm7tb6rFrjEmyAtdPGeHD1qsyTNdsqM1PjCor4G+7HlyEKlQ==}
+  musicbrainz-api@1.2.1:
+    resolution: {integrity: sha512-5ra5nkiv6be1lcIz7Skz7lFtlEK/1dBb4JXz5T6m42faermxLR39buqIxSBXrB2K2oY0qyNVMu8f1AdSZubUdw==}
     engines: {node: ^14.13.1 || >=16.0.0}
 
   mustache@4.2.0:
@@ -4989,8 +4989,8 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  uuid@13.0.0:
-    resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
+  uuid@14.0.1:
+    resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -8842,7 +8842,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  musicbrainz-api@0.27.1(supports-color@10.2.2):
+  musicbrainz-api@1.2.1(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       http-status-codes: 2.3.0
@@ -8851,7 +8851,7 @@ snapshots:
       rate-limit-threshold: 0.2.0
       spark-md5: 3.0.2
       tough-cookie: 5.1.2
-      uuid: 13.0.0
+      uuid: 14.0.1
     transitivePeerDependencies:
       - supports-color
 
@@ -10016,7 +10016,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  uuid@13.0.0: {}
+  uuid@14.0.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
 
