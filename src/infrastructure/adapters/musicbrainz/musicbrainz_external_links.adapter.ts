@@ -3,12 +3,7 @@ import { SearchType } from '#domain/music_item.js'
 import { detectPlatform } from '#shared/platform_registry.js'
 import type { ExternalLink } from '#domain/music_item.js'
 import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
-import type {
-  IMayHaveRelations,
-  IRecording,
-  IRelease,
-  IReleaseGroup,
-} from 'musicbrainz-api'
+import type { IMayHaveRelations, IRecording, IRelease, IReleaseGroup } from 'musicbrainz-api'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([

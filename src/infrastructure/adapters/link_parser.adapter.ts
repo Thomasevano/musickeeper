@@ -1,9 +1,5 @@
 import { SearchType } from '#domain/music_item.js'
-import {
-  StreamingPlatform,
-  type LinkParseResult,
-  type ParsedLink,
-} from '#domain/link.js'
+import { StreamingPlatform, type LinkParseResult, type ParsedLink } from '#domain/link.js'
 import { LinkParserPort } from '#application/ports/link_parser.port.js'
 
 export class LinkParserAdapter extends LinkParserPort {

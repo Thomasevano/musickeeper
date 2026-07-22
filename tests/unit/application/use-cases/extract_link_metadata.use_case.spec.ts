@@ -56,9 +56,7 @@ class MockSearchPort extends SearchPort {
   }
 }
 
-function makeUseCase(
-  search: MockSearchPort = new MockSearchPort()
-): ExtractLinkMetadataUseCase {
+function makeUseCase(search: MockSearchPort = new MockSearchPort()): ExtractLinkMetadataUseCase {
   const enrich = new EnrichMusicItemUseCase(search)
   return new ExtractLinkMetadataUseCase(
     new LinkParserAdapter(),
@@ -118,9 +116,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -154,9 +150,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
     const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -188,9 +182,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
     const search = new MockSearchPort()
     search.shouldThrowError = true
     const useCase = makeUseCase(search)
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -218,9 +210,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3'
-    )
+    const result = await useCase.execute('https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -263,9 +253,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify HTML fallback', (group) => {
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -316,9 +304,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify HTML fallback', (group) => {
     ]
 
     const useCase = makeUseCase(blankCoverSearch)
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -604,9 +590,7 @@ test.group('ExtractLinkMetadataUseCase - YouTube Music playlist', (group) => {
       })
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://music.youtube.com/playlist?list=OLAK5uy_test'
-    )
+    const result = await useCase.execute('https://music.youtube.com/playlist?list=OLAK5uy_test')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -745,9 +729,7 @@ test.group('ExtractLinkMetadataUseCase - Apple Music oEmbed', (group) => {
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://music.apple.com/us/album/midnights/1649434004'
-    )
+    const result = await useCase.execute('https://music.apple.com/us/album/midnights/1649434004')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -867,9 +849,7 @@ test.group('ExtractLinkMetadataUseCase - Apple Music HTML fallback', (group) => 
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://music.apple.com/us/album/midnights/1649434004'
-    )
+    const result = await useCase.execute('https://music.apple.com/us/album/midnights/1649434004')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -932,9 +912,7 @@ test.group('ExtractLinkMetadataUseCase - Apple Music HTML fallback', (group) => 
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://music.apple.com/us/album/midnights/1649434004'
-    )
+    const result = await useCase.execute('https://music.apple.com/us/album/midnights/1649434004')
 
     assert.isTrue(isLinkMetadataError(result))
     if (isLinkMetadataError(result)) {
@@ -968,9 +946,7 @@ test.group('ExtractLinkMetadataUseCase - oEmbed errors', (group) => {
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isTrue(isLinkMetadataError(result))
     if (isLinkMetadataError(result)) {
@@ -984,9 +960,7 @@ test.group('ExtractLinkMetadataUseCase - oEmbed errors', (group) => {
     }
 
     const useCase = makeUseCase()
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isTrue(isLinkMetadataError(result))
     if (isLinkMetadataError(result)) {
@@ -1015,9 +989,7 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
     const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -1043,9 +1015,7 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
     const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
@@ -1070,9 +1040,7 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
     const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
-    const result = await useCase.execute(
-      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-    )
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
 
     assert.isFalse(isLinkMetadataError(result))
     if (!isLinkMetadataError(result)) {
