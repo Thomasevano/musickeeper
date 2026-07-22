@@ -112,17 +112,5 @@
   "resolutions": {
     "strtok3": "8.0.1"
   },
-  "pnpm": {
-    "overrides": {
-      "strtok3": "8.0.1"
-    },
-    "ignoredBuiltDependencies": [
-      "esbuild"
-    ],
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "sharp"
-    ]
-  },
   "prettier": "@adonisjs/prettier-config"
 }

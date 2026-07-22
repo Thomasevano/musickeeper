@@ -1,0 +1,8 @@
+overrides:
+  strtok3: 8.0.1
+
+allowBuilds:
+  '@biomejs/biome': false
+  '@swc/core': true
+  esbuild: false
+  sharp: true
