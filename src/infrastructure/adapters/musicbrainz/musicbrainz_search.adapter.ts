@@ -1,9 +1,9 @@
-import { SearchGateway } from '#application/ports/search.gateway.js'
+import { SearchPort } from '#application/ports/search.port.js'
 import { musicbrainzApi } from './musicbrainz_client.js'
 import { MusicItem, SearchType } from '#domain/music_item.js'
 import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
 
-export class MusicBrainzGateway extends SearchGateway {
+export class MusicBrainzSearchAdapter extends SearchPort {
   async searchItem(query: string, type: SearchType, artist?: string): Promise<MusicItem[]> {
     let response
     const limit = 10

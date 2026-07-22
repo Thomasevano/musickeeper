@@ -1,10 +1,10 @@
 import { MusicItem, SearchType } from '#domain/music_item.js'
-import { SearchGateway } from '#application/ports/search.gateway.js'
+import { SearchPort } from '#application/ports/search.port.js'
 
 const BLANK_COVER_ART = '../../../../resources/images/Blank_album.svg'
 
 export class EnrichMusicItemUseCase {
-  constructor(private search: SearchGateway) {}
+  constructor(private search: SearchPort) {}
 
   async execute(
     title: string,

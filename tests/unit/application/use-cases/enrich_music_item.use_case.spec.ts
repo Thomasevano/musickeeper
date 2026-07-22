@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
-import { SearchGateway } from '#application/ports/search.gateway.js'
+import { SearchPort } from '#application/ports/search.port.js'
 import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
 import { MusicItem, SearchType } from '#domain/music_item.js'
 
-class AlbumHintSearchGateway extends SearchGateway {
+class AlbumHintSearchPort extends SearchPort {
   async searchItem(_query: string, type?: SearchType): Promise<MusicItem[]> {
     if (type === SearchType.album) {
       return [
@@ -44,7 +44,7 @@ class AlbumHintSearchGateway extends SearchGateway {
 
 test.group('EnrichMusicItemUseCase', () => {
   test('reuses serialized cover art from the matching-year album', async ({ assert }) => {
-    const useCase = new EnrichMusicItemUseCase(new AlbumHintSearchGateway())
+    const useCase = new EnrichMusicItemUseCase(new AlbumHintSearchPort())
 
     const result = await useCase.execute(
       'Song',

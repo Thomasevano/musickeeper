@@ -1,11 +1,11 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import { SearchGateway } from '#application/ports/search.gateway.js'
+import { SearchPort } from '#application/ports/search.port.js'
 import { SearchType } from '#domain/music_item.js'
 
 @inject()
 export default class ListenLaterListController {
-  constructor(private searchGateway: SearchGateway) {}
+  constructor(private searchPort: SearchPort) {}
 
   async index({ inertia, request, response }: HttpContext) {
     const searchItem = request.qs().q
@@ -16,7 +16,7 @@ export default class ListenLaterListController {
       (searchItem && searchItem.length >= 3) || (artistName && artistName.trim().length >= 3)
 
     if (hasValidSearch) {
-      const serializedItems = await this.searchGateway.searchItem(
+      const serializedItems = await this.searchPort.searchItem(
         searchItem || '',
         searchType,
         artistName

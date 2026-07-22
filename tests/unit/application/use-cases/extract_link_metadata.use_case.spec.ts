@@ -3,13 +3,13 @@ import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_
 import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
 import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
 import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
-import { SearchGateway } from '#application/ports/search.gateway.js'
+import { SearchPort } from '#application/ports/search.port.js'
 import { isLinkMetadataError } from '#domain/link.js'
 import { MusicItem, SearchType } from '#domain/music_item.js'
 
 const originalFetch = globalThis.fetch
 
-class MockSearchGateway extends SearchGateway {
+class MockSearchPort extends SearchPort {
   public shouldReturnResults: boolean = true
   public shouldThrowError: boolean = false
   public customResults?: MusicItem[]
@@ -57,7 +57,7 @@ class MockSearchGateway extends SearchGateway {
 }
 
 function makeUseCase(
-  search: MockSearchGateway = new MockSearchGateway()
+  search: MockSearchPort = new MockSearchPort()
 ): ExtractLinkMetadataUseCase {
   const enrich = new EnrichMusicItemUseCase(search)
   return new ExtractLinkMetadataUseCase(
@@ -151,7 +151,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute(
@@ -185,7 +185,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldThrowError = true
     const useCase = makeUseCase(search)
     const result = await useCase.execute(
@@ -303,7 +303,7 @@ test.group('ExtractLinkMetadataUseCase - Spotify HTML fallback', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const blankCoverSearch = new MockSearchGateway()
+    const blankCoverSearch = new MockSearchPort()
     blankCoverSearch.customResults = [
       new MusicItem({
         id: 'mb-track-456',
@@ -436,7 +436,7 @@ test.group('ExtractLinkMetadataUseCase - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute('https://music.youtube.com/watch?v=abc123')
@@ -539,7 +539,7 @@ test.group('ExtractLinkMetadataUseCase - YouTube oEmbed', (group) => {
       throw new Error(`Unexpected fetch: ${urlString}`)
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute('https://music.youtube.com/watch?v=V0J5U1z2Wu8')
@@ -572,7 +572,7 @@ test.group('ExtractLinkMetadataUseCase - YouTube Music playlist', (group) => {
       })
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute(
@@ -1012,7 +1012,7 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
       })
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute(
@@ -1040,7 +1040,7 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
       })
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute(
@@ -1067,7 +1067,7 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
       })
     }
 
-    const search = new MockSearchGateway()
+    const search = new MockSearchPort()
     search.shouldReturnResults = false
     const useCase = makeUseCase(search)
     const result = await useCase.execute(
