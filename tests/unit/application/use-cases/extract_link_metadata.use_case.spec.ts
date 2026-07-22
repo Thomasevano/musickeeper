@@ -4,7 +4,6 @@ import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item
 import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
 import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
 import { SearchGateway } from '#application/ports/search.gateway.js'
-import { CoverArtGateway } from '#application/ports/cover_art.gateway.js'
 import { isLinkMetadataError } from '#domain/link.js'
 import { MusicItem, SearchType } from '#domain/music_item.js'
 
@@ -57,17 +56,10 @@ class MockSearchGateway extends SearchGateway {
   }
 }
 
-class MockCoverArtGateway extends CoverArtGateway {
-  async getThumbnailUrl(_releaseId: string): Promise<string | null> {
-    return null
-  }
-}
-
 function makeUseCase(
-  search: MockSearchGateway = new MockSearchGateway(),
-  coverArt: CoverArtGateway = new MockCoverArtGateway()
+  search: MockSearchGateway = new MockSearchGateway()
 ): ExtractLinkMetadataUseCase {
-  const enrich = new EnrichMusicItemUseCase(search, coverArt)
+  const enrich = new EnrichMusicItemUseCase(search)
   return new ExtractLinkMetadataUseCase(
     new LinkParserAdapter(),
     new PlatformMetadataAdapter(),

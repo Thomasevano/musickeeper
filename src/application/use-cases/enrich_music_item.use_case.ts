@@ -1,12 +1,10 @@
 import { MusicItem, SearchType } from '#domain/music_item.js'
 import { SearchGateway } from '#application/ports/search.gateway.js'
-import { CoverArtGateway } from '#application/ports/cover_art.gateway.js'
+
+const BLANK_COVER_ART = '../../../../resources/images/Blank_album.svg'
 
 export class EnrichMusicItemUseCase {
-  constructor(
-    private search: SearchGateway,
-    private coverArt: CoverArtGateway
-  ) {}
+  constructor(private search: SearchGateway) {}
 
   async execute(
     title: string,
@@ -63,8 +61,9 @@ export class EnrichMusicItemUseCase {
       })
 
       for (const release of sorted) {
-        const thumbnail = await this.coverArt.getThumbnailUrl(release.id)
-        if (thumbnail) return thumbnail
+        if (release.coverArt && release.coverArt !== BLANK_COVER_ART) {
+          return release.coverArt
+        }
       }
       return null
     } catch {
