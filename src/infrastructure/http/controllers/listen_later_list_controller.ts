@@ -1,25 +1,30 @@
+import vine from '@vinejs/vine'
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { SearchPort } from '#application/ports/search.port.js'
 import { SearchType } from '#domain/music_item.js'
+
+const searchQueryValidator = vine.compile(
+  vine.object({
+    q: vine.string().trim().minLength(3).optional(),
+    type: vine.enum(['album', 'track']).optional(),
+    artist: vine.string().trim().minLength(3).optional(),
+  })
+)
 
 @inject()
 export default class ListenLaterListController {
   constructor(private searchPort: SearchPort) {}
 
   async index({ inertia, request, response }: HttpContext) {
-    const searchItem = request.qs().q
-    const searchType = request.qs().type as SearchType | undefined
-    const artistName = request.qs().artist
+    const payload = await request.validateUsing(searchQueryValidator)
+    const searchType = payload.type === 'album' ? SearchType.album : SearchType.track
 
-    const hasValidSearch =
-      (searchItem && searchItem.length >= 3) || (artistName && artistName.trim().length >= 3)
-
-    if (hasValidSearch) {
+    if (payload.q || payload.artist) {
       const serializedItems = await this.searchPort.searchItem(
-        searchItem || '',
+        payload.q ?? '',
         searchType,
-        artistName
+        payload.artist
       )
       return response.status(200).header('Content-Type', 'application/json').send({
         serializedItems,
