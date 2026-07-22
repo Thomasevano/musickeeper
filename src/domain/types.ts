@@ -1,8 +1,8 @@
-export type authProviderTokens = {
+export type AuthProviderTokens = {
   accessToken: string
   refreshToken: string
   expiresAt: string
 }
-export interface providerTokens extends authProviderTokens {
+export interface ProviderTokens extends AuthProviderTokens {
   userId: string
 }
