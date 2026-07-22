@@ -40,7 +40,6 @@
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "@swc/core": "^1.15.21",
     "@types/node": "^22.19.15",
-    "@types/spotify-api": "^0.0.25",
     "@vite-pwa/assets-generator": "^1.0.2",
     "bits-ui": "2.15.4",
     "dequal": "^2.0.3",

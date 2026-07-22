@@ -141,9 +141,6 @@ importers:
       '@types/node':
         specifier: ^22.19.15
         version: 22.19.15
-      '@types/spotify-api':
-        specifier: ^0.0.25
-        version: 0.0.25
       '@vite-pwa/assets-generator':
         specifier: ^1.0.2
         version: 1.0.2
@@ -2152,9 +2149,6 @@ packages:
 
   '@types/resolve@1.20.2':
     resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
-
-  '@types/spotify-api@0.0.25':
-    resolution: {integrity: sha512-okhoy0U9fPWtwqCfbDyW8VxamhqvXE0gXIVeMOh5HcvEFQvWW2X0VsvdiX/OyiGQpZbZiOJXIGrbnIPfK0AIpA==}
 
   '@types/superagent@8.1.9':
     resolution: {integrity: sha512-pTVjI73witn+9ILmoJdajHGW2jkSaOzhiFYF1Rd3EQ94kymLqB9PjD9ISg7WaALC7+dCHT0FGe9T2LktLq/3GQ==}
@@ -7153,8 +7147,6 @@ snapshots:
   '@types/qs@6.15.0': {}
 
   '@types/resolve@1.20.2': {}
-
-  '@types/spotify-api@0.0.25': {}
 
   '@types/superagent@8.1.9':
     dependencies:
