@@ -3,12 +3,19 @@ import LinkController from '#infrastructure/http/controllers/link_controller.js'
 import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
 import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
 import type { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
+import { FetchOEmbedMetadataUseCase } from '#application/use-cases/fetch_oembed_metadata.use_case.js'
+import { FetchAppleMusicMetadataUseCase } from '#application/use-cases/fetch_apple_music_metadata.use_case.js'
 
 function makeController(): LinkController {
+  const extractLinkMetadataStub = {
+    execute: async () => ({ error: 'stub', originalUrl: '' }),
+  } as unknown as ExtractLinkMetadataUseCase
+  const parser = new LinkParserAdapter()
+  const metadata = new PlatformMetadataAdapter()
   return new LinkController(
-    new LinkParserAdapter(),
-    new PlatformMetadataAdapter(),
-    {} as ExtractLinkMetadataUseCase
+    new FetchOEmbedMetadataUseCase(parser, metadata),
+    new FetchAppleMusicMetadataUseCase(parser, metadata),
+    extractLinkMetadataStub
   )
 }
 

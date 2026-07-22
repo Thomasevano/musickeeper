@@ -1,12 +1,10 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import { StreamingPlatform, isLinkParseError, isLinkMetadataError } from '#domain/link.js'
-import { LinkParserPort } from '#application/ports/link_parser.port.js'
-import {
-  PlatformMetadataPort,
-  type PlatformMetadata,
-} from '#application/ports/platform_metadata.port.js'
+import { isLinkMetadataError } from '#domain/link.js'
+import type { PlatformMetadata } from '#application/ports/platform_metadata.port.js'
 import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
+import { FetchOEmbedMetadataUseCase } from '#application/use-cases/fetch_oembed_metadata.use_case.js'
+import { FetchAppleMusicMetadataUseCase } from '#application/use-cases/fetch_apple_music_metadata.use_case.js'
 
 export interface OEmbedResponse {
   title: string
@@ -28,8 +26,8 @@ function toOEmbedResponse(metadata: PlatformMetadata): OEmbedResponse {
 @inject()
 export default class LinkController {
   constructor(
-    private linkParser: LinkParserPort,
-    private platformMetadata: PlatformMetadataPort,
+    private fetchOEmbedMetadata: FetchOEmbedMetadataUseCase,
+    private fetchAppleMusicMetadata: FetchAppleMusicMetadataUseCase,
     private extractLinkMetadata: ExtractLinkMetadataUseCase
   ) {}
 
@@ -40,19 +38,7 @@ export default class LinkController {
       return response.status(400).json({ error: 'URL is required' })
     }
 
-    const parseResult = this.linkParser.parseLink(url)
-
-    if (isLinkParseError(parseResult)) {
-      return response.status(400).json({ error: parseResult.error })
-    }
-
-    if (parseResult.platform === StreamingPlatform.AppleMusic) {
-      return response.status(400).json({
-        error: 'Apple Music does not support oEmbed. Use /api/link/apple-music instead.',
-      })
-    }
-
-    const result = await this.platformMetadata.fetch(parseResult)
+    const result = await this.fetchOEmbedMetadata.execute(url)
 
     if ('error' in result) {
       const status = result.error.includes('not found')
@@ -73,23 +59,11 @@ export default class LinkController {
       return response.status(400).json({ error: 'URL is required' })
     }
 
-    const parseResult = this.linkParser.parseLink(url)
-
-    if (isLinkParseError(parseResult)) {
-      return response.status(400).json({ error: parseResult.error })
-    }
-
-    if (parseResult.platform !== StreamingPlatform.AppleMusic) {
-      return response.status(400).json({
-        error:
-          'This endpoint only accepts Apple Music URLs. Use /api/link/oembed for other platforms.',
-      })
-    }
-
-    const result = await this.platformMetadata.fetch(parseResult)
+    const result = await this.fetchAppleMusicMetadata.execute(url)
 
     if ('error' in result) {
-      return response.status(422).json({ error: result.error })
+      const status = result.kind === 'validation' ? 400 : 422
+      return response.status(status).json({ error: result.error })
     }
 
     return response.status(200).json(toOEmbedResponse(result))
