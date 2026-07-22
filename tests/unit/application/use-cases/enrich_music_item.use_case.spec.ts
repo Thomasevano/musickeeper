@@ -4,7 +4,7 @@ import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item
 import { MusicItem, SearchType } from '#domain/music_item.js'
 
 class AlbumHintSearchPort extends SearchPort {
-  async searchItem(_query: string, type?: SearchType): Promise<MusicItem[]> {
+  async searchItem(_query: string, type: SearchType): Promise<MusicItem[]> {
     if (type === SearchType.album) {
       return [
         new MusicItem({

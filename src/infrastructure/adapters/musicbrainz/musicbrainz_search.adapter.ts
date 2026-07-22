@@ -13,7 +13,7 @@ export class MusicBrainzSearchAdapter extends SearchPort {
     const isTitleAndArtist = query && query.trim() !== '' && artist && artist.trim() !== ''
 
     if (isTitleAndArtist) {
-      if (type === 'album') {
+      if (type === SearchType.album) {
         searchQuery = `release:"${query}" AND artist:"${artist}"`
         response = await musicbrainzApi.search('release', { query: searchQuery, limit })
       } else {
@@ -22,14 +22,14 @@ export class MusicBrainzSearchAdapter extends SearchPort {
       }
     } else if (isArtistOnly) {
       searchQuery = `artist:"${artist}"`
-      if (type === 'album') {
+      if (type === SearchType.album) {
         response = await musicbrainzApi.search('release', { query: searchQuery, limit })
       } else {
         response = await musicbrainzApi.search('recording', { query: searchQuery, limit })
       }
     } else {
       searchQuery = query
-      if (type === 'album') {
+      if (type === SearchType.album) {
         response = await musicbrainzApi.search('release', { query: searchQuery, limit })
       } else {
         response = await musicbrainzApi.search('recording', { query: searchQuery, limit })

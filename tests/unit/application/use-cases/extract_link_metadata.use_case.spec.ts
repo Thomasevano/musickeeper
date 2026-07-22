@@ -14,7 +14,7 @@ class MockSearchPort extends SearchPort {
   public shouldThrowError: boolean = false
   public customResults?: MusicItem[]
 
-  async searchItem(_query: string, type?: SearchType, _artist?: string): Promise<MusicItem[]> {
+  async searchItem(_query: string, type: SearchType, _artist?: string): Promise<MusicItem[]> {
     if (this.shouldThrowError) {
       throw new Error('MusicBrainz API error')
     }
