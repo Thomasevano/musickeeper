@@ -114,6 +114,7 @@ export class AppleSearchClient {
       }
     }
 
+    // Search results can omit albums; the artist lookup returns the full catalog.
     const lookupUrl = `https://itunes.apple.com/lookup?id=${artistItem.artistId}&entity=album`
     const lookupResponse = await fetch(lookupUrl, { signal: AbortSignal.timeout(8000) })
     if (!lookupResponse.ok) return null

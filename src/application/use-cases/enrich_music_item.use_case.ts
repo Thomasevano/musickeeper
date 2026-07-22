@@ -15,6 +15,8 @@ export class EnrichMusicItemUseCase {
     const musicItem = await this.searchRecording(title, artist, type)
     if (!musicItem) return null
 
+    // A recording may point at a compilation. Prefer the platform's album hint
+    // and use the primary artist because albums omit featured-artist credits.
     if (albumNameHint && musicItem.albumName !== albumNameHint) {
       const primaryArtist = artist.split(',')[0].trim()
       const coverArt = await this.fetchAlbumCoverArt(
@@ -36,6 +38,7 @@ export class EnrichMusicItemUseCase {
     type: SearchType
   ): Promise<MusicItem | null> {
     try {
+      // MusicBrainz titles omit featured-artist annotations.
       const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, '').trim()
       const items = await this.search.searchItem(cleanTitle, type, artist)
       return items.length > 0 ? items[0] : null
@@ -53,6 +56,7 @@ export class EnrichMusicItemUseCase {
       const releases = await this.search.searchItem(albumName, SearchType.album, artist)
       if (!releases.length) return null
 
+      // Prefer artwork from a release in the recording's release year.
       const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null
       const sorted = [...releases].sort((a, b) => {
         const aMatch = a.releaseDate?.slice(0, 4) === releaseYear ? 0 : 1

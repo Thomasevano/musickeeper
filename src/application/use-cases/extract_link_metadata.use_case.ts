@@ -46,10 +46,12 @@ export class ExtractLinkMetadataUseCase {
       )
 
       if (musicItem) {
+        // Platform album names are more precise when MusicBrainz matches a compilation.
         if (linkMetadata.albumName) {
           musicItem.albumName = linkMetadata.albumName
         }
 
+        // Prefer platform artwork; keep MusicBrainz artwork only as a fallback.
         if (linkMetadata.thumbnailUrl) {
           musicItem.coverArt = linkMetadata.thumbnailUrl
         }
