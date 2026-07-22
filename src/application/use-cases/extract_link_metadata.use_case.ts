@@ -22,19 +22,19 @@ export class ExtractLinkMetadataUseCase {
       return { error: parseResult.error, originalUrl: parseResult.originalUrl }
     }
 
-    const oEmbedMetadata = await this.platformMetadata.fetch(parseResult)
+    const platformMetadata = await this.platformMetadata.fetch(parseResult)
 
-    if ('error' in oEmbedMetadata) {
-      return { error: oEmbedMetadata.error, originalUrl: parseResult.originalUrl }
+    if ('error' in platformMetadata) {
+      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl }
     }
 
     const linkMetadata: LinkMetadata = {
-      title: oEmbedMetadata.title,
-      artist: oEmbedMetadata.author_name,
+      title: platformMetadata.title,
+      artist: platformMetadata.artist,
       type: parseResult.type,
-      thumbnailUrl: oEmbedMetadata.thumbnail_url,
+      thumbnailUrl: platformMetadata.thumbnailUrl,
       originalUrl: parseResult.originalUrl,
-      albumName: oEmbedMetadata.album_name,
+      albumName: platformMetadata.albumName,
     }
 
     if (linkMetadata.title && linkMetadata.artist) {

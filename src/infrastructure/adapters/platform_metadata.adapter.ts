@@ -2,8 +2,15 @@ import { SearchType } from '#domain/music_item.js'
 import { StreamingPlatform, type ParsedLink } from '#domain/link.js'
 import {
   PlatformMetadataPort,
-  type OEmbedMetadata,
+  type PlatformMetadata,
 } from '#application/ports/platform_metadata.port.js'
+
+interface OEmbedMetadata {
+  title: string
+  author_name: string
+  thumbnail_url?: string
+  album_name?: string
+}
 
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -46,7 +53,21 @@ export class PlatformMetadataAdapter extends PlatformMetadataPort {
     return value ? PlatformMetadataAdapter.decodeHtmlEntities(value) : undefined
   }
 
-  async fetch(parsedLink: ParsedLink): Promise<OEmbedMetadata | { error: string }> {
+  async fetch(parsedLink: ParsedLink): Promise<PlatformMetadata | { error: string }> {
+    const result = await this.fetchOEmbedMetadata(parsedLink)
+    if ('error' in result) return result
+
+    return {
+      title: result.title,
+      artist: result.author_name,
+      thumbnailUrl: result.thumbnail_url,
+      albumName: result.album_name,
+    }
+  }
+
+  private async fetchOEmbedMetadata(
+    parsedLink: ParsedLink
+  ): Promise<OEmbedMetadata | { error: string }> {
     const { platform, originalUrl } = parsedLink
 
     if (platform === StreamingPlatform.AppleMusic) {
@@ -120,7 +141,9 @@ export class PlatformMetadataAdapter extends PlatformMetadataPort {
     }
   }
 
-  async fetchAppleMusicMetadata(parsedLink: ParsedLink): Promise<OEmbedMetadata | { error: string }> {
+  private async fetchAppleMusicMetadata(
+    parsedLink: ParsedLink
+  ): Promise<OEmbedMetadata | { error: string }> {
     // iTunes Lookup API returns structured data — language-independent, includes album name
     const itunesResult = await this.fetchAppleMusicItunesMetadata(parsedLink.id, parsedLink.type)
     if (itunesResult) return itunesResult

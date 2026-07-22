@@ -1,15 +1,12 @@
 import type { ParsedLink } from '#domain/link.js'
 
-export interface OEmbedMetadata {
+export interface PlatformMetadata {
   title: string
-  author_name: string
-  thumbnail_url?: string
-  album_name?: string
+  artist: string
+  thumbnailUrl?: string
+  albumName?: string
 }
 
 export abstract class PlatformMetadataPort {
-  abstract fetch(parsedLink: ParsedLink): Promise<OEmbedMetadata | { error: string }>
-  abstract fetchAppleMusicMetadata(
-    parsedLink: ParsedLink
-  ): Promise<OEmbedMetadata | { error: string }>
+  abstract fetch(parsedLink: ParsedLink): Promise<PlatformMetadata | { error: string }>
 }

@@ -1,15 +1,28 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import { StreamingPlatform, isLinkParseError } from '#domain/link.js'
-import { isLinkMetadataError } from '#domain/link.js'
+import { StreamingPlatform, isLinkParseError, isLinkMetadataError } from '#domain/link.js'
 import { LinkParserPort } from '#application/ports/link_parser.port.js'
-import { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import {
+  PlatformMetadataPort,
+  type PlatformMetadata,
+} from '#application/ports/platform_metadata.port.js'
 import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
 
 export interface OEmbedResponse {
   title: string
   author_name: string
   thumbnail_url?: string
+  album_name?: string
+}
+
+function toOEmbedResponse(metadata: PlatformMetadata): OEmbedResponse {
+  const result: OEmbedResponse = {
+    title: metadata.title,
+    author_name: metadata.artist,
+    thumbnail_url: metadata.thumbnailUrl,
+  }
+  if (metadata.albumName) result.album_name = metadata.albumName
+  return result
 }
 
 @inject()
@@ -50,7 +63,7 @@ export default class LinkController {
       return response.status(status).json({ error: result.error })
     }
 
-    return response.status(200).json(result)
+    return response.status(200).json(toOEmbedResponse(result))
   }
 
   async appleMusic({ request, response }: HttpContext) {
@@ -73,13 +86,13 @@ export default class LinkController {
       })
     }
 
-    const result = await this.platformMetadata.fetchAppleMusicMetadata(parseResult)
+    const result = await this.platformMetadata.fetch(parseResult)
 
     if ('error' in result) {
       return response.status(422).json({ error: result.error })
     }
 
-    return response.status(200).json(result)
+    return response.status(200).json(toOEmbedResponse(result))
   }
 
   async metadata({ request, response }: HttpContext) {
