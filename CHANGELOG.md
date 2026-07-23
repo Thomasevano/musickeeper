@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.7.0](https://github.com/Thomasevano/musickeeper/compare/v0.6.0...v0.7.0) (2026-07-23)
+
+
+### Features
+
+* add releaseDate column to listenlateritem ([48a16ab](https://github.com/Thomasevano/musickeeper/commit/48a16ab0622825c7537a78763f409f9ecf89e80c))
+* **api:** add GET /api/links endpoint ([0500af8](https://github.com/Thomasevano/musickeeper/commit/0500af838072ed66490db32cede62ff2b3f79ea6))
+* **domain:** add ExternalLink type and platform registry ([b6402b4](https://github.com/Thomasevano/musickeeper/commit/b6402b4271a6a91756174945dc0b9b989b98eddf))
+* fetch external links when adding items to listen-later ([1a56279](https://github.com/Thomasevano/musickeeper/commit/1a56279fb1aa7f106b0eed4c6c5a0130f0db027e))
+* filter on list item status ([dde901c](https://github.com/Thomasevano/musickeeper/commit/dde901cefca62ab66ddc2a7e00fb64bf14ca82d7))
+* filter on listenlateritem type ([b780ced](https://github.com/Thomasevano/musickeeper/commit/b780ced1e46438e4972261c60b899d1fc1092e36))
+* **front:** add link to platform on listenlateritem ([8d36262](https://github.com/Thomasevano/musickeeper/commit/8d36262a6c49adb7609c3fe1452b2b961a381374))
+* **links:** add MusicBrainz external links service ([5aa8961](https://github.com/Thomasevano/musickeeper/commit/5aa89613b642d75435470c2324c38ca084d918d1))
+* **search:** add platform search service for Deezer, Apple, Qobuz, Bandcamp ([ee3544f](https://github.com/Thomasevano/musickeeper/commit/ee3544f21b44ec70ad9e30639b75614b8af06e56))
+* sort by title, artist and added date ([fd061aa](https://github.com/Thomasevano/musickeeper/commit/fd061aa3cfb5bd12bd0597404502f7c3d62db26e))
+* **storage:** add externalLinks field with DB migration v3 ([a01057e](https://github.com/Thomasevano/musickeeper/commit/a01057ee76b1ca23a07941fcb822def0d6e609a6))
+* **ui:** add Links column to listen-later table ([faf0c19](https://github.com/Thomasevano/musickeeper/commit/faf0c198972111837afcca4adf66b652cd3531e9))
+* **ui:** add logo ([a756afc](https://github.com/Thomasevano/musickeeper/commit/a756afca97df8f7b66a73d2409a33969921034e2))
+* **ui:** animate status badge on listened toggle ([baae37e](https://github.com/Thomasevano/musickeeper/commit/baae37e30589155d43dfcfb61c5af8bdfc63ae09))
+* **ui:** use a badge and icon for listenlateritem type ([2c485d2](https://github.com/Thomasevano/musickeeper/commit/2c485d25b3e2987c6ae3fcc8726333d1aa69cbcc))
+* **ux:** confirm delete dialog ([9932ac8](https://github.com/Thomasevano/musickeeper/commit/9932ac8efa04160aa88f637171b8ff8b5b965450))
+
+
+### Bug Fixes
+
+* **a11y:** error pages ([cdd8925](https://github.com/Thomasevano/musickeeper/commit/cdd89255e54e49ed86b83422d37f4ba71f4914b3))
+* **a11y:** landing components ([d1816af](https://github.com/Thomasevano/musickeeper/commit/d1816af9bdab7ffd38302d0fe890ed19f7056187))
+* **a11y:** listen-later and confirm dialog component ([f6803ac](https://github.com/Thomasevano/musickeeper/commit/f6803acb734ee6111db3545f94ebab54c76f8ad9))
+* **a11y:** navigation ([8fc9859](https://github.com/Thomasevano/musickeeper/commit/8fc98591c470ac6c7d6bc08caac7119f7d9da59c))
+* **a11y:** trackItem ([0e483ea](https://github.com/Thomasevano/musickeeper/commit/0e483ea334411814ff065852454e2bf712d31963))
+* Apple Music paste link metadata fetch ([bec9721](https://github.com/Thomasevano/musickeeper/commit/bec9721289f48047637a548ccc384f012b60455e))
+* musicbrainz-api vendor types no longer leak past adapter layer ([370e9c9](https://github.com/Thomasevano/musickeeper/commit/370e9c9374f0b43f0b08e7f3f0b65c4d082e81ee))
+* replaced (musicbrainzApi.lookup as any) + local EntityWithRelations with vendor types from musicbrainz-api ([15ac1d7](https://github.com/Thomasevano/musickeeper/commit/15ac1d7fcd39d14441a0a0f5bcccb06463e1d60b))
+* row used id ([db97adf](https://github.com/Thomasevano/musickeeper/commit/db97adf0ef3b738e7a9870304b078148815a8a59))
+* **search:** require explicit search type ([1d642eb](https://github.com/Thomasevano/musickeeper/commit/1d642eb452955f4dc08bd000490cd81047445f74))
+* **search:** validate listen-later queries ([ce90904](https://github.com/Thomasevano/musickeeper/commit/ce909046211cc3649aa831fcac0cc69ebf5262f9))
+* **test:** configure HTTP test base URL ([673affd](https://github.com/Thomasevano/musickeeper/commit/673affdd836109e86f1d20a6290419c4cab96305))
+* **ui:** animation when adding/deleting a trackItem ([a2a3114](https://github.com/Thomasevano/musickeeper/commit/a2a3114f83aaa34e496e10d528a591b8d39e3436))
+* **ui:** Landing Page ([49b078c](https://github.com/Thomasevano/musickeeper/commit/49b078ceca6a77f849be5fa649886b942f6ddf61))
+* **ui:** listen later page ([fa9a246](https://github.com/Thomasevano/musickeeper/commit/fa9a2467ca9ed94e7f7182970c9d74f8065ea058))
+* **ui:** remove album name as column and show the album name in the title for a track ([860e2b8](https://github.com/Thomasevano/musickeeper/commit/860e2b8ff87fb44175277699e5cfd39ef830a12c))
+* **ui:** text spaces on landing page ([158c390](https://github.com/Thomasevano/musickeeper/commit/158c39042a5596ddae19aa44da5939b5377089f2))
+* **ui:** toggleTheme animation ([0bd73c6](https://github.com/Thomasevano/musickeeper/commit/0bd73c658f0885113f414799a92129e9f0639322))
+* **ui:** update navigation music note icon stroke ([fd4b864](https://github.com/Thomasevano/musickeeper/commit/fd4b864a9cd479990a708944d5566617f1b64b1f))
+* **ui:** use dynamic viewport to avoid glitch on mobile ([1b75bd0](https://github.com/Thomasevano/musickeeper/commit/1b75bd0b0ff40021afa4c6b2e6ccc2a655317b27))
+* **ui:** use tabular-nums for cells containing dates and numbers ([af72a06](https://github.com/Thomasevano/musickeeper/commit/af72a06e620509bc06ac281761618026c40fce22))
+* **ux:** debounce search ([660b281](https://github.com/Thomasevano/musickeeper/commit/660b28188c6068a9eecb50f44dcd6ccafc24247a))
+* **ux:** search trackItem ([db75012](https://github.com/Thomasevano/musickeeper/commit/db75012b21ffb1012cd3a873c7a77c1fe8be8032))
+
+
+### Performance Improvements
+
+* **musicbrainz:** reuse serialized cover art ([d9d79e5](https://github.com/Thomasevano/musickeeper/commit/d9d79e53d80a2a3ca9e055f52d23f71a22fd766b))
+
 ## [0.6.0](https://github.com/Thomasevano/musickeeper/compare/v0.5.0...v0.6.0) (2026-04-01)
 
 
