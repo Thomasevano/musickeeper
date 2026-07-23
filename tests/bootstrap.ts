@@ -7,6 +7,15 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { inertiaApiClient } from '@adonisjs/inertia/plugins/api_client'
 
 /**
+ * Ensure the HTTP server binding and the api-client base URL agree even when
+ * no `.env.test` file is present (e.g. CI). The api-client derives its base URL
+ * from `process.env.HOST`/`process.env.PORT`; without them a relative request
+ * like `/library/listen-later` treats `library` as a hostname and fails DNS.
+ */
+process.env.HOST ??= 'localhost'
+process.env.PORT ??= '3333'
+
+/**
  * This file is imported by the "bin/test.ts" entrypoint file
  */
 
