@@ -1,17 +1,17 @@
-FROM node:jod-alpine3.23 AS base
+FROM node:24.18.0-alpine3.23 AS base
 ENV PNPM_HOME="/pnpm"
 RUN corepack enable
 
 # All deps stage
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # Production only deps stage
 FROM base AS production-deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
 # Build stage
