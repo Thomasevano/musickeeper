@@ -22,3 +22,8 @@ jobs:
           # this is a built-in strategy in release-please, see "Action Inputs"
           # for more options
           release-type: node
+          # One-time version skip: v0.7.0 was published on a since-abandoned
+          # history (orphaned tag), so the next release must skip to 0.8.0.
+          # REMOVE this line once v0.8.0 is tagged, or every release stays
+          # pinned to 0.8.0.
+          release-as: '0.8.0'
