@@ -3,6 +3,7 @@
   "version": "0.6.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.17.0",
   "license": "AGPL-3.0-only",
   "scripts": {
     "start": "node bin/server.js",
