@@ -1,0 +1,11 @@
+# Generated / vendored — never reformat
+pnpm-lock.yaml
+CHANGELOG.md
+build
+public/assets
+public/sw.js
+public/workbox-*.js
+.effect-references
+inertia/lib/components/ui
+inertia/lib/hooks
+inertia/lib/utils.ts
