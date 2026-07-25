@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 const SPOTIFY_URL = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
 
@@ -23,6 +24,23 @@ const mockMetadataResponse = {
     originalUrl: SPOTIFY_URL,
     albumName: 'Whenever You Need Somebody',
   },
+}
+
+// The "Add" link button shares its accessible-name prefix with the sortable
+// "Added" column header, so it must be matched exactly.
+const addLinkButton = (page: Page) => page.getByRole('button', { name: 'Add', exact: true })
+
+// The search combobox is labelled "Song or album title", which contains both
+// "Title" and "Album" as substrings. Scope editable-field lookups to the dialog.
+const dialogField = (page: Page, label: string) =>
+  page.getByRole('dialog').getByLabel(label, { exact: true })
+
+async function addSpotifyItem(page: Page) {
+  await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+  await addLinkButton(page).click()
+  await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+  await page.getByRole('button', { name: 'Add to List' }).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
 }
 
 test.describe('listen later page', () => {
@@ -50,16 +68,16 @@ test.describe('paste link - add valid link', () => {
     await linkInput.fill(SPOTIFY_URL)
 
     // Click Add button
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Dialog opens with the correct title
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
 
     // Editable fields are populated
-    await expect(page.getByLabel('Title')).toHaveValue('Never Gonna Give You Up')
-    await expect(page.getByLabel('Artists')).toHaveValue('Rick Astley')
-    await expect(page.getByLabel('Album')).toHaveValue('Whenever You Need Somebody')
+    await expect(dialogField(page, 'Title')).toHaveValue('Never Gonna Give You Up')
+    await expect(dialogField(page, 'Artists')).toHaveValue('Rick Astley')
+    await expect(dialogField(page, 'Album')).toHaveValue('Whenever You Need Somebody')
 
     // Source badge is shown
     await expect(page.getByText('MusicBrainz Match')).toBeVisible()
@@ -70,11 +88,11 @@ test.describe('paste link - add valid link', () => {
     // Dialog closes
     await expect(page.getByRole('dialog')).not.toBeVisible()
 
-    // Item appears in the list table
-    await expect(
-      page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
-    ).toBeVisible()
-    await expect(page.getByRole('cell', { name: 'Rick Astley', exact: true })).toBeVisible()
+    // Item appears in the list table (title cell also holds the album subtitle,
+    // and a cover cell carries "Cover of <title>", so match the row instead).
+    const addedRow = page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })
+    await expect(addedRow).toBeVisible()
+    await expect(addedRow).toContainText('Rick Astley')
 
     // Success toast appears
     await expect(page.getByText('"Never Gonna Give You Up" added to your list')).toBeVisible()
@@ -88,7 +106,7 @@ test.describe('paste link - invalid link errors', () => {
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill('not-a-valid-url')
 
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Client-side validation error shown inline
     await expect(page.getByText('Please enter a valid URL')).toBeVisible()
@@ -113,7 +131,7 @@ test.describe('paste link - invalid link errors', () => {
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill('https://tidal.com/browse/track/12345')
 
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Dialog opens with error state
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -144,7 +162,7 @@ test.describe('paste link - invalid link errors', () => {
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
 
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Dialog opens with error
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -154,7 +172,7 @@ test.describe('paste link - invalid link errors', () => {
   test('add button is disabled when input is empty', async ({ page }) => {
     await page.goto('/library/listen-later')
 
-    await expect(page.getByRole('button', { name: 'Add' })).toBeDisabled()
+    await expect(addLinkButton(page)).toBeDisabled()
   })
 })
 
@@ -171,18 +189,14 @@ test.describe('paste link - duplicate detection', () => {
     await page.goto('/library/listen-later')
 
     // Add an item first
-    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
-    await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
-    await page.getByRole('button', { name: 'Add to List' }).click()
-    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await addSpotifyItem(page)
   })
 
   test('shows duplicate warning when pasting same link again', async ({ page }) => {
     // Paste the same link again
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Dialog shows duplicate state
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -221,7 +235,7 @@ test.describe('paste link - duplicate detection', () => {
     // Paste the same link again
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Wait for duplicate dialog to fully load
     await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
@@ -230,15 +244,15 @@ test.describe('paste link - duplicate detection', () => {
     await page.getByRole('button', { name: 'Add Anyway' }).click()
 
     // Two rows now exist with the same title
-    const titleCells = page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
-    await expect(titleCells).toHaveCount(2)
+    const duplicateRows = page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })
+    await expect(duplicateRows).toHaveCount(2)
   })
 
   test('view existing closes dialog and scrolls to the item', async ({ page }) => {
     // Paste the same link again
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Click "View Existing"
     await page.getByRole('button', { name: 'View Existing' }).click()
@@ -263,37 +277,34 @@ test.describe('paste link - edit fields before saving', () => {
     // Paste a link
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     // Wait for dialog with data
     await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
 
     // Edit the title
-    const titleInput = page.getByLabel('Title')
+    const titleInput = dialogField(page, 'Title')
     await titleInput.clear()
     await titleInput.fill('Together Forever')
 
     // Edit the artists
-    const artistsInput = page.getByLabel('Artists')
+    const artistsInput = dialogField(page, 'Artists')
     await artistsInput.clear()
     await artistsInput.fill('Rick Astley, Someone Else')
 
     // Edit the album
-    const albumInput = page.getByLabel('Album')
+    const albumInput = dialogField(page, 'Album')
     await albumInput.clear()
     await albumInput.fill('Hold Me in Your Arms')
 
     // Confirm
     await page.getByRole('button', { name: 'Add to List' }).click()
 
-    // Edited values appear in the list
-    await expect(page.getByRole('cell', { name: 'Together Forever', exact: true })).toBeVisible()
-    await expect(
-      page.getByRole('cell', { name: 'Rick Astley, Someone Else', exact: true })
-    ).toBeVisible()
-    await expect(
-      page.getByRole('cell', { name: 'Hold Me in Your Arms', exact: true })
-    ).toBeVisible()
+    // Edited values appear in the list (album shows as a subtitle in the title cell)
+    const editedRow = page.getByRole('row').filter({ hasText: 'Together Forever' })
+    await expect(editedRow).toBeVisible()
+    await expect(editedRow).toContainText('Rick Astley, Someone Else')
+    await expect(editedRow).toContainText('Hold Me in Your Arms')
 
     // Toast shows the edited title
     await expect(page.getByText('"Together Forever" added to your list')).toBeVisible()
@@ -312,12 +323,12 @@ test.describe('paste link - edit fields before saving', () => {
 
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
 
     // Clear the title
-    const titleInput = page.getByLabel('Title')
+    const titleInput = dialogField(page, 'Title')
     await titleInput.clear()
 
     // Add to List button should be disabled
@@ -364,16 +375,16 @@ test.describe('paste link - album type hides album field', () => {
 
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill('https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc')
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
 
     // Title and Artists fields are visible
-    await expect(page.getByLabel('Title')).toBeVisible()
-    await expect(page.getByLabel('Artists')).toBeVisible()
+    await expect(dialogField(page, 'Title')).toBeVisible()
+    await expect(dialogField(page, 'Artists')).toBeVisible()
 
     // Album field is NOT shown for album type
-    await expect(page.getByLabel('Album')).not.toBeVisible()
+    await expect(dialogField(page, 'Album')).not.toBeVisible()
   })
 
   test('shows album field when type is track', async ({ page }) => {
@@ -389,14 +400,14 @@ test.describe('paste link - album type hides album field', () => {
 
     const linkInput = page.getByPlaceholder('Paste a link from Spotify')
     await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
+    await addLinkButton(page).click()
 
     await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
 
     // All three fields are visible for track type
-    await expect(page.getByLabel('Title')).toBeVisible()
-    await expect(page.getByLabel('Artists')).toBeVisible()
-    await expect(page.getByLabel('Album')).toBeVisible()
+    await expect(dialogField(page, 'Title')).toBeVisible()
+    await expect(dialogField(page, 'Artists')).toBeVisible()
+    await expect(dialogField(page, 'Album')).toBeVisible()
   })
 })
 
@@ -412,32 +423,26 @@ test.describe('delete item', () => {
 
     await page.goto('/library/listen-later')
 
-    // First add an item
-    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
-    await linkInput.fill(SPOTIFY_URL)
-    await page.getByRole('button', { name: 'Add' }).click()
-    await page.getByRole('button', { name: 'Add to List' }).click()
+    // First add an item (establishes this test's own state)
+    await addSpotifyItem(page)
 
     // Verify item is in the list
-    await expect(
-      page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
-    ).toBeVisible()
+    const itemRow = page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })
+    await expect(itemRow).toBeVisible()
 
-    // Click the delete button (trash icon in the row)
-    const deleteButton = page
-      .getByRole('row')
-      .filter({ hasText: 'Never Gonna Give You Up' })
-      .getByRole('button')
-      .last()
-    await deleteButton.click()
+    // Open the row actions menu and choose Delete
+    await itemRow.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('menuitem', { name: 'Delete' }).click()
+
+    // Confirm deletion in the confirmation dialog
+    await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Confirm' }).click()
 
     // Item is removed from the list
-    await expect(
-      page.getByRole('cell', { name: 'Never Gonna Give You Up', exact: true })
-    ).not.toBeVisible()
+    await expect(itemRow).not.toBeVisible()
 
     // Empty state message appears
-    await expect(page.getByText('No items in your listen later list yet')).toBeVisible()
+    await expect(page.getByText('Add your first item by searching above')).toBeVisible()
 
     // Success toast appears
     await expect(page.getByText('"Never Gonna Give You Up" removed from your list')).toBeVisible()

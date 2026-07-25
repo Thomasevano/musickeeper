@@ -22,5 +22,14 @@ export default defineConfig({
     url: 'http://127.0.0.1:63136',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
+    env: {
+      HOST: '127.0.0.1',
+      PORT: '63136',
+      NODE_ENV: 'development',
+      APP_KEY: 'applicationtestappkey',
+      SESSION_DRIVER: 'memory',
+      LOG_LEVEL: 'info',
+      MB_APP_CONTACT_EMAIL: 'test@test.com',
+    },
   },
 })
