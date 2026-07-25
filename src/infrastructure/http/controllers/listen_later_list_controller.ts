@@ -32,7 +32,7 @@ export default class ListenLaterListController {
     }
     return inertia.render(
       'listen-later',
-      {},
+      { title: 'Listen Later' },
       {
         title: 'Listen Later - MusicKeeper',
         description:
