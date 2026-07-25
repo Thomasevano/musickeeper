@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/Thomasevano/musickeeper/compare/v0.8.0...v0.8.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **docker:** make husky prepare script resilient in prod install ([c107eda](https://github.com/Thomasevano/musickeeper/commit/c107edae4a2962a959378cc49eefbb7163f61138))
+
 ## [0.8.0](https://github.com/Thomasevano/musickeeper/compare/v0.6.0...v0.8.0) (2026-07-25)
 
 
