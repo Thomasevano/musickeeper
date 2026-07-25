@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "generate-pwa-icons": "pwa-assets-generator --preset minimal-2023 public/favicon.svg",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "imports": {
     "#tests/*": "./tests/*.js",
