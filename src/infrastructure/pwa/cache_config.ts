@@ -69,8 +69,8 @@ export const CACHE_CONFIGS = {
 /**
  * Validates that a request should be cached based on Accept header
  */
-export function shouldCacheAsPage(acceptHeader: string | null, isInertiaRequest: boolean): boolean {
-  if (isInertiaRequest) {
+export function shouldCacheAsPage(acceptHeader: string | null, isInertia: boolean): boolean {
+  if (isInertia) {
     return true
   }
   return acceptHeader?.includes('text/html') ?? false

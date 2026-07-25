@@ -99,7 +99,11 @@ export function openDatabase(indexedDBInstance: IDBFactory = indexedDB): Promise
                 item.externalLinks = []
                 const updateReq = cursor.update(item)
                 updateReq.onerror = () => {
-                  console.error('Failed to backfill externalLinks for item %o:', item.id, updateReq.error)
+                  console.error(
+                    'Failed to backfill externalLinks for item %o:',
+                    item.id,
+                    updateReq.error
+                  )
                 }
               }
               cursor.continue()

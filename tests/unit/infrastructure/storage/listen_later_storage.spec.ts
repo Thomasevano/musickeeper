@@ -265,7 +265,7 @@ test.group('Listen Later Storage - Helper Functions', () => {
     assert.equal(sorted[0].title, 'First')
     assert.equal(sorted[1].title, 'Second')
     assert.equal(sorted[2].title, 'Third')
-    
+
     // Verify it's actually sorted by comparing timestamps
     const firstTime = (sorted[0].addedAt as Date).getTime()
     const secondTime = (sorted[1].addedAt as Date).getTime()
@@ -273,8 +273,10 @@ test.group('Listen Later Storage - Helper Functions', () => {
     assert.isTrue(firstTime < secondTime, 'First item should have earlier timestamp than second')
     assert.isTrue(secondTime < thirdTime, 'Second item should have earlier timestamp than third')
   })
-  
-  test('sortListenLaterItems returns items in ascending order (oldest first)', async ({ assert }) => {
+
+  test('sortListenLaterItems returns items in ascending order (oldest first)', async ({
+    assert,
+  }) => {
     // This test uses items that would fail if sort is broken (e.g., reversed or unsorted)
     const oldest = {
       id: 'oldest',
@@ -286,7 +288,7 @@ test.group('Listen Later Storage - Helper Functions', () => {
       addedAt: new Date('2020-01-01'),
     }
     const newest = {
-      id: 'newest', 
+      id: 'newest',
       title: 'Newest',
       releaseDate: '2024-01-01',
       artists: ['Artist'],
@@ -303,7 +305,7 @@ test.group('Listen Later Storage - Helper Functions', () => {
       hasBeenListened: false,
       addedAt: new Date('2022-06-15'),
     }
-    
+
     // Input in random order
     const items = [newest, oldest, middle]
     const sorted = sortListenLaterItems(items)
