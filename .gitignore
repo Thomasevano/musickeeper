@@ -36,3 +36,6 @@ scripts/demo/.profile/
 
 # Platform specific
 .DS_Store
+
+# AdonisJS codegen output
+.adonisjs

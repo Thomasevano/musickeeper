@@ -15,5 +15,22 @@ export default [
     // Vendored Effect reference repositories (git-ignored, not project source).
     ignores: ['.effect-references/**'],
   },
+  {
+    // Svelte components. `@adonisjs/eslint-config` ships vue/react parsers only,
+    // so its TS parser cannot read `.svelte` SFCs. Keep them out of scope until
+    // an eslint-plugin-svelte config is wired up.
+    ignores: ['**/*.svelte'],
+  },
   ...configApp(),
+  {
+    files: ['inertia/**/*.ts'],
+    rules: {
+      // The entrypoint pulls the app stylesheet out of `resources/`. That is an
+      // asset, not backend code, so it is exempt from the frontend import guard.
+      '@adonisjs/no-backend-import-in-frontend': [
+        'error',
+        { allowed: ['../resources/css/app.css'] },
+      ],
+    },
+  },
 ]

@@ -1,6 +1,6 @@
-/// <reference path="../../adonisrc.ts" />
-/// <reference path="../../config/inertia.ts" />
-import '../../resources/css/app.css'
+/// <reference path="../adonisrc.ts" />
+/// <reference path="../src/infrastructure/config/inertia.ts" />
+import '../resources/css/app.css'
 import { createInertiaApp } from '@inertiajs/svelte'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { hydrate, mount } from 'svelte'
@@ -14,7 +14,7 @@ createInertiaApp({
   title: (title: string) => (title ? `${title} - ${appName}` : appName),
 
   resolve: (name) => {
-    return resolvePageComponent(`../pages/${name}.svelte`, import.meta.glob('../pages/**/*.svelte'))
+    return resolvePageComponent(`./pages/${name}.svelte`, import.meta.glob('./pages/**/*.svelte'))
   },
 
   setup({ el, App, props }) {
