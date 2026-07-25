@@ -1,11 +1,11 @@
-name: Tests
+name: Lint
 
 on:
   - push
   - pull_request
 
 jobs:
-  api-tests:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,13 +26,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run tests
-        run: pnpm run test
-        env:
-          NODE_ENV: test
-          HOST: 127.0.0.1
-          PORT: 3333
-          LOG_LEVEL: info
-          APP_KEY: applicationtestappkey
-          SESSION_DRIVER: memory
-          MB_APP_CONTACT_EMAIL: test@test.com
+      - name: Lint
+        run: pnpm lint
