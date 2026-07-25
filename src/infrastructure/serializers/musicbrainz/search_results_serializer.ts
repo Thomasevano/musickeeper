@@ -1,4 +1,9 @@
-import { IRecordingList, IRecordingMatch, IReleaseList, IReleaseMatch } from 'musicbrainz-api'
+import {
+  type IRecordingList,
+  type IRecordingMatch,
+  type IReleaseList,
+  type IReleaseMatch,
+} from 'musicbrainz-api'
 import { MusicItem } from '../../../domain/music_item.js'
 import { serializeRecordingAsTrackMusicItem } from './track_music_item_serializer.js'
 import { serializeReleaseAsAlbumMusicItem } from './album_music_item_serializer.js'

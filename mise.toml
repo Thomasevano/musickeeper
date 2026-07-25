@@ -1,0 +1,3 @@
+[tools]
+# AdonisJS v7 requires Node.js 24. Keep this in sync with `.nvmrc`.
+node = "24.18.0"
