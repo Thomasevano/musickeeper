@@ -7,13 +7,13 @@
 </script>
 
 <svelte:head>
-  {#if $page.props.title}
-    <title>{$page.props.title} - MusicKeeper</title>
+  {#if page.props.title}
+    <title>{page.props.title} - MusicKeeper</title>
   {:else}
     <title>MusicKeeper</title>
   {/if}
-  {#if $page.props.description}
-    <meta name="description" content={$page.props.description} />
+  {#if page.props.description}
+    <meta name="description" content={page.props.description} />
   {/if}
 </svelte:head>
 

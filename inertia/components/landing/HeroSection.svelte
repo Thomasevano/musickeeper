@@ -4,7 +4,7 @@
   import { buttonVariants, Button } from '$lib/components/ui/button'
   import { Sparkles } from '@lucide/svelte'
 
-  const { appVersion } = $page.props
+  const { appVersion } = page.props
 </script>
 
 <section class="space-y-6 pb-6 pt-16 md:py-20 lg:py-28">
