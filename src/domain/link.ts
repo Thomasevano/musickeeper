@@ -1,4 +1,4 @@
-import { SearchType, MusicItem } from './music_item.js'
+import { type SearchType, type MusicItem } from './music_item.js'
 
 export enum StreamingPlatform {
   Spotify = 'spotify',

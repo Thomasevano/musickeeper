@@ -1,5 +1,5 @@
 import { SearchPort } from '#application/ports/search.port.js'
-import { MusicItem, SearchType } from '#domain/music_item.js'
+import { MusicItem, type SearchType } from '#domain/music_item.js'
 
 export interface CachedSearchOptions {
   /** How long a cached result stays servable, in milliseconds. */

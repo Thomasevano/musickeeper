@@ -1,8 +1,8 @@
-import { SearchType } from '#domain/music_item.js'
+import { type SearchType } from '#domain/music_item.js'
 import type { ExternalLink } from '#domain/music_item.js'
 import { detectPlatform, normalizeLinkUrl } from '#shared/platform_registry.js'
-import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
-import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
+import { type PlatformSearchPort } from '#application/ports/platform_search.port.js'
+import { type MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
 
 export class GetExternalLinksUseCase {
   constructor(

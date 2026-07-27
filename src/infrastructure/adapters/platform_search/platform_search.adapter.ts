@@ -1,10 +1,10 @@
 import type { ExternalLink, SearchType } from '#domain/music_item.js'
 import { PLATFORMS } from '#shared/platform_registry.js'
 import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
-import { DeezerSearchClient } from './deezer.client.js'
-import { AppleSearchClient } from './apple.client.js'
-import { QobuzSearchClient } from './qobuz.client.js'
-import { BandcampSearchClient } from './bandcamp.client.js'
+import { type DeezerSearchClient } from './deezer.client.js'
+import { type AppleSearchClient } from './apple.client.js'
+import { type QobuzSearchClient } from './qobuz.client.js'
+import { type BandcampSearchClient } from './bandcamp.client.js'
 import type { PlatformSearchResult } from './match.js'
 
 export class PlatformSearchAdapter extends PlatformSearchPort {
