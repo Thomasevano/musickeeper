@@ -4,7 +4,7 @@ import {
   type IReleaseList,
   type IReleaseMatch,
 } from 'musicbrainz-api'
-import { MusicItem } from '../../../domain/music_item.js'
+import { type MusicItem } from '../../../domain/music_item.js'
 import { serializeRecordingAsTrackMusicItem } from './track_music_item_serializer.js'
 import { serializeReleaseAsAlbumMusicItem } from './album_music_item_serializer.js'
 import { coverArtArchiveApiClient } from '../../adapters/musicbrainz/musicbrainz_client.js'

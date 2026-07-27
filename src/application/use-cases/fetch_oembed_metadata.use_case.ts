@@ -1,4 +1,4 @@
-import { LinkParserPort } from '#application/ports/link_parser.port.js'
+import { type LinkParserPort } from '#application/ports/link_parser.port.js'
 import {
   type PlatformMetadataPort,
   type PlatformMetadata,

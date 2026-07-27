@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-import { ListenLaterItem, MusicItem } from '../../domain/music_item.js'
+import { type ListenLaterItem, type MusicItem } from '../../domain/music_item.js'
 
 const DB_NAME = 'listenLaterDB'
 const DB_VERSION = 3

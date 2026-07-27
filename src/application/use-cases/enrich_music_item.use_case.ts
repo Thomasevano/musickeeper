@@ -1,5 +1,5 @@
-import { MusicItem, SearchType } from '#domain/music_item.js'
-import { SearchPort } from '#application/ports/search.port.js'
+import { type MusicItem, SearchType } from '#domain/music_item.js'
+import { type SearchPort } from '#application/ports/search.port.js'
 
 const BLANK_COVER_ART = '../../../../resources/images/Blank_album.svg'
 

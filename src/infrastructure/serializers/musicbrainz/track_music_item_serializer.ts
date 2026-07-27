@@ -1,4 +1,4 @@
-import { IRecordingMatch, IReleaseMatch, IArtistCredit } from 'musicbrainz-api'
+import { type IRecordingMatch, type IReleaseMatch, type IArtistCredit } from 'musicbrainz-api'
 import { MusicItem, SearchType } from '../../../domain/music_item.js'
 
 export function serializeRecordingAsTrackMusicItem(

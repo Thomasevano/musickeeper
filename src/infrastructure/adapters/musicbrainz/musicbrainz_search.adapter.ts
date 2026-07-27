@@ -1,6 +1,6 @@
 import { SearchPort } from '#application/ports/search.port.js'
 import { musicbrainzApi } from './musicbrainz_client.js'
-import { MusicItem, SearchType } from '#domain/music_item.js'
+import { type MusicItem, SearchType } from '#domain/music_item.js'
 import { serializeMusicBrainzSearchResults } from '#infrastructure/serializers/musicbrainz/search_results_serializer.js'
 
 export class MusicBrainzSearchAdapter extends SearchPort {

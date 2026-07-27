@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
-import { IRecordingMatch } from 'musicbrainz-api'
+import { type IRecordingMatch } from 'musicbrainz-api'
 import { serializeRecordingAsTrackMusicItem } from '#infrastructure/serializers/musicbrainz/track_music_item_serializer.js'
-import { MusicItem, SearchType } from '#domain/music_item.js'
+import { type MusicItem, SearchType } from '#domain/music_item.js'
 
 test('Serialize a track from MusicBrainz', async ({ assert }) => {
   const exampleMusicBrainzRecording: IRecordingMatch = {
