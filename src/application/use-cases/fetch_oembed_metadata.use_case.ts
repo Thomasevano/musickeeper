@@ -1,6 +1,6 @@
-import { LinkParserPort } from '#application/ports/link_parser.port.js'
+import { type LinkParserPort } from '#application/ports/link_parser.port.js'
 import {
-  PlatformMetadataPort,
+  type PlatformMetadataPort,
   type PlatformMetadata,
 } from '#application/ports/platform_metadata.port.js'
 import { StreamingPlatform, isLinkParseError } from '#domain/link.js'

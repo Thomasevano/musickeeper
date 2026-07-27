@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { test } from '@japa/runner'
 import {
-  ListenLaterItem,
+  type ListenLaterItem,
   SearchType,
   type ExternalLink,
 } from '../../../../src/domain/music_item.js'

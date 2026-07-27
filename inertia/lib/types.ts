@@ -1,4 +1,4 @@
-import { Component } from 'svelte'
+import { type Component } from 'svelte'
 import type { IconProps } from '@lucide/svelte'
 
 export interface LandingFeature {

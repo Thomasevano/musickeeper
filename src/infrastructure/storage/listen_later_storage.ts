@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 import {
-  ListenLaterItem,
+  type ListenLaterItem,
   type ExternalLink,
   type ListenLaterItemProperties,
 } from '../../domain/music_item.js'
