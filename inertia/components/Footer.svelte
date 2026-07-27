@@ -1,6 +1,6 @@
 <script>
   import { page } from '@inertiajs/svelte'
-  const { appName, appVersion } = $page.props
+  const { appName, appVersion } = page.props
 </script>
 
 <footer>
