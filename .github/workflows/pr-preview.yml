@@ -1,0 +1,229 @@
+name: PR preview
+
+# Builds the production image for a pull request, deploys it to Coolify as a
+# preview of the production application, then runs the end-to-end suite against
+# that deployment. The preview is destroyed when the pull request closes.
+#
+# Setup is documented in docs/pr-previews.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: 'thomasevano/musickeeper'
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build preview image
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      docker_tag: ${{ steps.tag.outputs.docker_tag }}
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - name: Compute image tag
+        id: tag
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: echo "docker_tag=pr-${PR}-${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push preview image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          # A preview only ever runs on the Coolify host, so one arch is enough.
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.docker_tag }}
+          cache-from: type=gha,scope=musickeeper-preview
+          cache-to: type=gha,mode=max,scope=musickeeper-preview
+
+  deploy:
+    name: Deploy preview
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      preview_url: ${{ steps.url.outputs.preview_url }}
+    steps:
+      - name: Resolve preview URL
+        id: url
+        env:
+          TEMPLATE: ${{ vars.COOLIFY_PREVIEW_URL_TEMPLATE }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TEMPLATE}" ]; then
+            echo "::error::Repository variable COOLIFY_PREVIEW_URL_TEMPLATE is unset (expected e.g. https://pr-{{pr_id}}.example.com)."
+            exit 1
+          fi
+          echo "preview_url=${TEMPLATE//'{{pr_id}}'/${PR}}" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Coolify deployment
+        id: trigger
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_API_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+          DOCKER_TAG: ${{ needs.build.outputs.docker_tag }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/deploy.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            -H 'Accept: application/json' \
+            "${COOLIFY_URL%/}/api/v1/deploy?uuid=${APP_UUID}&pr=${PR}&docker_tag=${DOCKER_TAG}")
+          if [ "${code}" != '200' ]; then
+            echo "::error::Coolify rejected the deploy request (HTTP ${code}): $(cat /tmp/deploy.json)"
+            exit 1
+          fi
+          deployment_uuid=$(jq -r '.deployments[0].deployment_uuid // empty' /tmp/deploy.json)
+          if [ -z "${deployment_uuid}" ]; then
+            echo "::error::Coolify queued no deployment: $(cat /tmp/deploy.json)"
+            exit 1
+          fi
+          echo "deployment_uuid=${deployment_uuid}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the deployment to finish
+        timeout-minutes: 20
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_API_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          DEPLOYMENT_UUID: ${{ steps.trigger.outputs.deployment_uuid }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 180); do
+            code=$(curl -sS -o /tmp/status.json -w '%{http_code}' \
+              -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              -H 'Accept: application/json' \
+              "${COOLIFY_URL%/}/api/v1/deployments/${DEPLOYMENT_UUID}" || echo 000)
+            if [ "${code}" = '200' ]; then
+              status=$(jq -r 'if type == "array" then .[0].status else .status end' /tmp/status.json)
+              echo "deployment status: ${status}"
+              case "${status}" in
+                finished) exit 0 ;;
+                failed | cancelled-by-user)
+                  echo "::error::Coolify deployment ${status}. Logs: ${COOLIFY_URL%/}/deployment/${DEPLOYMENT_UUID}"
+                  exit 1
+                  ;;
+              esac
+            else
+              echo "status query returned HTTP ${code}"
+            fi
+            sleep 5
+          done
+          echo '::error::Timed out waiting for the Coolify deployment to finish.'
+          exit 1
+
+      - name: Wait for the preview to answer
+        timeout-minutes: 5
+        env:
+          PREVIEW_URL: ${{ steps.url.outputs.preview_url }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${PREVIEW_URL%/}/" || echo 000)
+            if [ "${code}" = '200' ]; then
+              echo "${PREVIEW_URL} is serving HTTP 200"
+              exit 0
+            fi
+            echo "waiting for ${PREVIEW_URL} (HTTP ${code})"
+            sleep 5
+          done
+          echo "::error::${PREVIEW_URL} never answered with HTTP 200."
+          exit 1
+
+      - name: Comment the preview URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          PREVIEW_URL: ${{ steps.url.outputs.preview_url }}
+          DOCKER_TAG: ${{ needs.build.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+          marker='<!-- coolify-preview -->'
+          body="${marker}
+          ### Preview deployment
+
+          | | |
+          | --- | --- |
+          | URL | ${PREVIEW_URL} |
+          | Image | \`${REGISTRY}/${IMAGE_NAME}:${DOCKER_TAG}\` |
+          | Commit | ${{ github.event.pull_request.head.sha }} |
+
+          Same image and same Dockerfile as a release build."
+          comment_id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
+            --jq "[.[] | select(.body | startswith(\"${marker}\"))] | first | .id // empty")
+          if [ -n "${comment_id}" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" -f body="${body}"
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="${body}"
+          fi
+
+  e2e:
+    name: End-to-end against preview
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run end-to-end tests
+        run: pnpm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.deploy.outputs.preview_url }}
+
+  destroy:
+    name: Destroy preview
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the Coolify preview
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_API_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/destroy.json -w '%{http_code}' -X DELETE \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            -H 'Accept: application/json' \
+            "${COOLIFY_URL%/}/api/v1/applications/${APP_UUID}/previews/${PR}")
+          case "${code}" in
+            200 | 204 | 404) echo "preview for PR ${PR} is gone (HTTP ${code})" ;;
+            *)
+              echo "::error::Failed to delete the preview (HTTP ${code}): $(cat /tmp/destroy.json)"
+              exit 1
+              ;;
+          esac
