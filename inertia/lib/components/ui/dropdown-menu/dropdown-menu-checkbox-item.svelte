@@ -3,6 +3,7 @@
   import Check from '@lucide/svelte/icons/check'
   import Minus from '@lucide/svelte/icons/minus'
   import { cn } from '$lib/utils.js'
+  import { controlHeights } from '../control_heights.js'
   import type { Snippet } from 'svelte'
 
   let {
@@ -23,6 +24,7 @@
   bind:indeterminate
   class={cn(
     'data-highlighted:bg-accent data-highlighted:text-accent-foreground relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50',
+    controlHeights.menuItem,
     className
   )}
   {...restProps}

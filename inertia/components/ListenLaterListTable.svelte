@@ -12,8 +12,7 @@
     getPaginationRowModel,
     getSortedRowModel,
   } from '@tanstack/table-core'
-  import { fly } from 'svelte/transition'
-  import { cubicOut, cubicIn } from 'svelte/easing'
+  import { rowIn, rowOut } from './data-table/data_table_row_transitions.js'
   import DataTableActions from './data-table/data-table-actions.svelte'
   import DataTableStatusBadge from './data-table/data-table-status-badge.svelte'
   import DataTableTypeBadge from './data-table/data-table-type-badge.svelte'
@@ -31,39 +30,6 @@
   } from '$lib/components/ui/data-table/index.js'
   import type { ListenLaterItem } from '../../src/domain/music_item'
 
-  /**
-   * Custom transition that collapses height on exit so the table reflows
-   * smoothly instead of leaving a blank gap.
-   *
-   * Enter: fade + slide down from -6px  (ease-out, 250ms)
-   * Exit:  fade + slide right + height collapse (ease-in, 200ms — slightly
-   *        faster than entrance per web-animation-design guidelines)
-   *
-   * Both transitions are disabled when the user prefers reduced motion.
-   */
-  function rowIn(node: Element) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return { duration: 0 }
-    }
-    return fly(node, { y: -6, opacity: 0, duration: 250, easing: cubicOut })
-  }
-
-  function rowOut(node: Element) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return { duration: 0 }
-    }
-    const height = (node as HTMLElement).offsetHeight
-    return {
-      duration: 200,
-      easing: cubicIn,
-      css: (t: number) => `
-        opacity: ${t};
-        transform: translateX(${(1 - t) * 14}px);
-        height: ${t * height}px;
-        overflow: hidden;
-      `,
-    }
-  }
 
   let {
     items,
@@ -89,8 +55,16 @@
     { value: 'album', label: 'Albums' },
   ]
 
+  const mobileSortOptions = [
+    { value: 'none', label: 'None' },
+    { value: 'artists_asc', label: 'Artists (A–Z)' },
+    { value: 'added_desc', label: 'Added (newest)' },
+    { value: 'added_asc', label: 'Added (oldest)' },
+  ]
+
   let statusFilter = $state<string>('all')
   let typeFilter = $state<string>('all')
+  let mobileSort = $state<string>('none')
 
   const columns: ColumnDef<ListenLaterItem>[] = [
     {
@@ -277,6 +251,17 @@
     }
   }
 
+  function handleMobileSortChange(value: string) {
+    mobileSort = value
+    if (value === 'none') {
+      sorting = []
+      return
+    }
+
+    const [id, direction] = value.split('_')
+    sorting = [{ id, desc: direction === 'desc' }]
+  }
+
   const columnLabels: Record<string, string> = {
     cover: 'Cover',
     itemType: 'Type',
@@ -288,19 +273,23 @@
   }
 
   const statusFilterLabel = $derived(
-    statusFilterOptions.find((o) => o.value === statusFilter)?.label ?? 'All'
+    statusFilterOptions.find((option) => option.value === statusFilter)?.label ?? 'All'
   )
 
   const typeFilterLabel = $derived(
-    typeFilterOptions.find((o) => o.value === typeFilter)?.label ?? 'All'
+    typeFilterOptions.find((option) => option.value === typeFilter)?.label ?? 'All'
+  )
+
+  const mobileSortLabel = $derived(
+    mobileSortOptions.find((o) => o.value === mobileSort)?.label ?? 'None'
   )
 </script>
 
 <div class="w-full">
-  <div class="flex items-center gap-2 py-4">
+  <div class="flex flex-wrap items-center gap-2 py-4">
     <!-- Status filter -->
     <Select.Root type="single" value={statusFilter} onValueChange={handleStatusFilterChange}>
-      <Select.Trigger class="w-[160px]">
+      <Select.Trigger class="min-h-11 w-full sm:min-h-10 sm:w-[160px]">
         <span>Status: {statusFilterLabel}</span>
       </Select.Trigger>
       <Select.Content>
@@ -314,7 +303,7 @@
 
     <!-- Type filter -->
     <Select.Root type="single" value={typeFilter} onValueChange={handleTypeFilterChange}>
-      <Select.Trigger class="w-[150px]">
+      <Select.Trigger class="min-h-11 w-full sm:min-h-10 sm:w-[150px]">
         <span>Type: {typeFilterLabel}</span>
       </Select.Trigger>
       <Select.Content>
@@ -326,11 +315,27 @@
       </Select.Content>
     </Select.Root>
 
+    <!-- Mobile sort -->
+    <div class="w-full md:hidden">
+      <Select.Root type="single" value={mobileSort} onValueChange={handleMobileSortChange}>
+        <Select.Trigger class="w-full">
+          <span>Sort: {mobileSortLabel}</span>
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Group>
+            {#each mobileSortOptions as option (option.value)}
+              <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
+            {/each}
+          </Select.Group>
+        </Select.Content>
+      </Select.Root>
+    </div>
+
     <!-- Column visibility toggle -->
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
-          <Button {...props} variant="outline" class="ml-auto">
+          <Button {...props} variant="outline" class="min-h-11 w-full sm:ml-auto sm:min-h-10 sm:w-auto">
             Columns <ChevronDownIcon class="ml-2 size-4" />
           </Button>
         {/snippet}
@@ -348,13 +353,23 @@
     </DropdownMenu.Root>
   </div>
 
-  <div class="overflow-x-auto rounded-md border">
+  <div class="hidden overflow-x-auto rounded-md border md:block">
     <Table.Root>
       <Table.Header>
         {#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
           <Table.Row>
             {#each headerGroup.headers as header (header.id)}
-              <Table.Head>
+              <Table.Head
+                aria-sort={
+                  header.column.getCanSort()
+                    ? header.column.getIsSorted() === 'asc'
+                      ? 'ascending'
+                      : header.column.getIsSorted() === 'desc'
+                        ? 'descending'
+                        : 'none'
+                    : undefined
+                }
+              >
                 {#if !header.isPlaceholder}
                   <FlexRender
                     content={header.column.columnDef.header}
@@ -394,6 +409,50 @@
         {/each}
       </Table.Body>
     </Table.Root>
+  </div>
+
+  <div class="space-y-3 md:hidden">
+    {#each table.getRowModel().rows as row (row.original.id)}
+      <article
+        id={`mobile-item-${row.original.id}`}
+        class={[
+          'rounded-lg border p-4 shadow-sm',
+          highlightedItemId === row.original.id ? 'bg-warning/20' : '',
+        ].join(' ')}
+      >
+        <div class="flex items-start gap-3">
+          <CoverArt
+            src={row.original.coverArt}
+            alt={`Cover of ${row.original.title}`}
+            size="sm"
+            class="shrink-0"
+          />
+          <div class="min-w-0 flex-1">
+            <DataTableTitleCell
+              title={row.original.title}
+              albumName={row.original.itemType === 'track' ? (row.original.albumName ?? null) : null}
+            />
+            <p class="text-muted-foreground mt-1 truncate text-sm">
+              {row.original.artists?.join(', ') || 'Unknown artist'}
+            </p>
+          </div>
+          <DataTableActions
+            item={row.original}
+            {onDelete}
+            {onToggleListen}
+          />
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <DataTableTypeBadge type={row.original.itemType} />
+          <DataTableStatusBadge hasBeenListened={row.original.hasBeenListened} />
+        </div>
+        <div class="mt-3">
+          <DataTableLinksCell item={row.original} />
+        </div>
+      </article>
+    {:else}
+      <div class="rounded-lg border p-6 text-center text-sm text-muted-foreground">No results.</div>
+    {/each}
   </div>
 
   <div class="flex items-center justify-end space-x-2 pt-4">

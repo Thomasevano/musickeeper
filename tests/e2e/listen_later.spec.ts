@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 const SPOTIFY_URL = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
 
@@ -26,6 +26,35 @@ const mockMetadataResponse = {
   },
 }
 
+interface ListenLaterItemSeed {
+  id: string
+  title: string
+  releaseDate?: string
+  artists: string[]
+  itemType: 'track' | 'album'
+  hasBeenListened: boolean
+  addedAt: number
+  externalLinks?: {
+    platform: string
+    label: string
+    url: string
+    category: 'stream' | 'buy'
+  }[]
+}
+
+type ListenLaterSeedOverrides = Pick<ListenLaterItemSeed, 'id' | 'title'> &
+  Partial<Omit<ListenLaterItemSeed, 'id' | 'title'>>
+
+function listenLaterSeed(overrides: ListenLaterSeedOverrides): ListenLaterItemSeed {
+  return {
+    artists: ['Artist'],
+    itemType: 'album',
+    hasBeenListened: false,
+    addedAt: 1,
+    ...overrides,
+  }
+}
+
 // The "Add" link button shares its accessible-name prefix with the sortable
 // "Added" column header, so it must be matched exactly.
 const addLinkButton = (page: Page) => page.getByRole('button', { name: 'Add', exact: true })
@@ -35,12 +64,54 @@ const addLinkButton = (page: Page) => page.getByRole('button', { name: 'Add', ex
 const dialogField = (page: Page, label: string) =>
   page.getByRole('dialog').getByLabel(label, { exact: true })
 
+async function expectMinTouchTarget(locator: Locator) {
+  await expect(locator).toBeVisible()
+  await expect
+    .poll(() => locator.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeGreaterThanOrEqual(44)
+}
+
+async function expectAllMinTouchTargets(locator: Locator) {
+  const count = await locator.count()
+  expect(count).toBeGreaterThan(0)
+  for (let index = 0; index < count; index += 1) {
+    await expectMinTouchTarget(locator.nth(index))
+  }
+}
+
 async function addSpotifyItem(page: Page) {
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
   await addLinkButton(page).click()
   await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
   await page.getByRole('button', { name: 'Add to List' }).click()
   await expect(page.getByRole('dialog')).not.toBeVisible()
+}
+async function seedListenLaterItems(page: Page, items: ListenLaterItemSeed[]) {
+  await page.evaluate(async (seed) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('listenLaterDB', 3)
+      request.onupgradeneeded = () => {
+        const database = request.result
+        if (!database.objectStoreNames.contains('listenLaterList')) {
+          database.createObjectStore('listenLaterList', { keyPath: 'id', autoIncrement: true })
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction('listenLaterList', 'readwrite')
+      const store = transaction.objectStore('listenLaterList')
+      store.clear()
+      for (const item of seed) store.add(item)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+
+    db.close()
+  }, items)
+  await page.reload()
 }
 
 test.describe('listen later page', () => {
@@ -477,5 +548,240 @@ test.describe('artist-only search', () => {
     const requestUrl = new URL(searchUrls[0])
     expect(requestUrl.searchParams.get('artist')).toBe('angele')
     expect(requestUrl.searchParams.has('q')).toBe(false)
+  })
+})
+
+test.describe('table filters', () => {
+  test('filters rendered rows', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      {
+        id: 'album-item',
+        title: 'Album result',
+        releaseDate: '2024-01-01',
+        artists: ['Album Artist'],
+        itemType: 'album',
+        hasBeenListened: false,
+        addedAt: 1,
+      },
+      {
+        id: 'track-item',
+        title: 'Track result',
+        releaseDate: '2024-01-02',
+        artists: ['Track Artist'],
+        itemType: 'track',
+        hasBeenListened: false,
+        addedAt: 2,
+      },
+    ])
+
+    await page.getByRole('button', { name: 'Type: All', exact: true }).click()
+    await page.getByRole('option', { name: 'Albums', exact: true }).click()
+
+    await expect(page.getByText('1 item(s)')).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: 'Album result' })).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: 'Track result' })).not.toBeVisible()
+  })
+})
+
+test.describe('reduced motion', () => {
+  test.use({ viewport: { width: 320, height: 568 } })
+
+  test('removes sheet travel under reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    const sheet = page.getByRole('dialog')
+
+    await expect(sheet).toBeVisible()
+    const motion = await sheet.evaluate((element) => ({
+      reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      transforms: element.getAnimations().flatMap((animation) => {
+        if (!(animation.effect instanceof KeyframeEffect)) return []
+        return animation.effect.getKeyframes().map((frame) => String(frame.transform ?? 'none'))
+      }),
+    }))
+    expect(motion.reduced).toBe(true)
+    expect(motion.transforms.length).toBeGreaterThan(0)
+    expect(
+      motion.transforms.filter(
+        (transform) => transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)'
+      )
+    ).toEqual([])
+  })
+})
+
+test.describe('mobile breakpoint controls', () => {
+  test.use({ viewport: { width: 700, height: 800 } })
+
+  test('keeps interactive controls at least 44px', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'touch-target-item',
+        title: 'Touch target item',
+        externalLinks: [
+          {
+            platform: 'deezer',
+            label: 'Deezer',
+            url: 'https://www.deezer.com/album/1',
+            category: 'stream',
+          },
+        ],
+      }),
+    ])
+
+    const mobileCard = page.locator('#mobile-item-touch-target-item')
+    const controls = [
+      page.locator('#link-url'),
+      addLinkButton(page),
+      page.locator('#search-type'),
+      page.locator('#search-title'),
+      page.locator('#search-artist'),
+      page.getByRole('button', { name: 'Status: All', exact: true }),
+      page.getByRole('button', { name: 'Type: All', exact: true }),
+      page.getByRole('button', { name: 'Sort: None', exact: true }),
+      page.getByRole('button', { name: 'Columns', exact: true }),
+      mobileCard.getByRole('button', { name: 'Open menu' }),
+      page.getByRole('button', { name: 'Previous' }),
+      page.getByRole('button', { name: 'Next' }),
+      page.getByRole('button', { name: 'Open navigation' }),
+      page.getByRole('link', { name: 'MusicKeeper home', exact: true }),
+    ]
+
+    for (const control of controls) await expectMinTouchTarget(control)
+
+    const selectTriggers = [
+      page.locator('#search-type'),
+      page.getByRole('button', { name: 'Status: All', exact: true }),
+      page.getByRole('button', { name: 'Type: All', exact: true }),
+      page.getByRole('button', { name: 'Sort: None', exact: true }),
+    ]
+    for (const trigger of selectTriggers) {
+      await trigger.click()
+      await expectAllMinTouchTargets(
+        page.locator('[data-slot="select-content"][data-state="open"]').getByRole('option')
+      )
+      await page.keyboard.press('Escape')
+    }
+
+    await page.getByRole('button', { name: 'Columns', exact: true }).click()
+    await expectAllMinTouchTargets(page.getByRole('menuitemcheckbox'))
+    await page.keyboard.press('Escape')
+
+    await mobileCard.getByRole('button', { name: 'Open menu' }).click()
+    await expectAllMinTouchTargets(page.getByRole('menuitem'))
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
+    await expectMinTouchTarget(navigation.getByRole('link', { name: 'Features' }))
+    await expectMinTouchTarget(navigation.getByRole('link', { name: 'Blog' }))
+    await expectMinTouchTarget(page.getByRole('button', { name: 'Toggle theme' }))
+    await page.getByRole('button', { name: 'Toggle theme' }).click()
+    await expectAllMinTouchTargets(page.getByRole('menuitem'))
+    await page.keyboard.press('Escape')
+    await expectMinTouchTarget(page.getByRole('button', { name: 'Close', exact: true }))
+  })
+})
+
+test.describe('mobile navigation', () => {
+  test.use({ viewport: { width: 320, height: 568 } })
+
+  test('provides compact navigation on narrow screens', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+  })
+
+  test('opens a Deezer album from a mobile card', async ({ page }) => {
+    await page.context().route('https://www.deezer.com/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<title>Deezer album</title>',
+      })
+    )
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'deezer-item',
+        title: 'Deezer album',
+        externalLinks: [
+          {
+            platform: 'deezer',
+            label: 'Deezer',
+            url: 'https://www.deezer.com/album/1',
+            category: 'stream',
+          },
+        ],
+      }),
+    ])
+
+    const popupPromise = page.waitForEvent('popup')
+    await page.locator('#mobile-item-deezer-item').getByRole('link', { name: 'Deezer' }).click()
+    const popup = await popupPromise
+    await expect(popup).toHaveURL('https://www.deezer.com/album/1')
+  })
+
+  test('marks an item as listened from a mobile card', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'mobile-listened-item',
+        title: 'Mobile listened item',
+      }),
+    ])
+
+    const mobileCard = page.locator('#mobile-item-mobile-listened-item')
+    await expect(mobileCard.getByText('Not listened', { exact: true })).toBeVisible()
+    await mobileCard.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('menuitem', { name: 'Mark as listened' }).click()
+    await expect(mobileCard.getByText('Listened', { exact: true })).toBeVisible()
+
+    await page.reload()
+    await expect(mobileCard.getByText('Listened', { exact: true })).toBeVisible()
+  })
+
+  test('deletes an item through confirmation from a mobile card', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'mobile-delete-item',
+        title: 'Mobile delete item',
+      }),
+    ])
+
+    const mobileCard = page.locator('#mobile-item-mobile-delete-item')
+    await mobileCard.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(mobileCard).not.toBeVisible()
+    await expect(page.getByText('Add your first item by searching above')).toBeVisible()
+
+    await page.reload()
+    await expect(mobileCard).not.toBeVisible()
+  })
+
+  test('provides mobile sorting for saved items', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      {
+        id: 'mobile-sort-item',
+        title: 'Mobile sort item',
+        releaseDate: '2024-01-01',
+        artists: ['Mobile Artist'],
+        itemType: 'album',
+        hasBeenListened: false,
+        addedAt: 1,
+      },
+    ])
+
+    await expect(page.getByRole('button', { name: 'Sort: None', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Sort: None', exact: true }).click()
+    await page.getByRole('option', { name: 'Artists (A–Z)', exact: true }).click()
+    await expect(
+      page.getByRole('button', { name: 'Sort: Artists (A–Z)', exact: true })
+    ).toBeVisible()
   })
 })

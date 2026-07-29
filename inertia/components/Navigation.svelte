@@ -1,19 +1,53 @@
 <script lang="ts">
+  import MenuIcon from '@lucide/svelte/icons/menu'
   import { IsMobile } from '$lib/components/hooks/is_mobile.svelte.js'
   import * as NavigationMenu from '$lib/components/ui/navigation-menu/index.js'
   import { navigationMenuTriggerStyle } from '$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte'
+  import * as Sheet from '$lib/components/ui/sheet/index.js'
+  import { Button } from '$lib/components/ui/button/index.js'
+  import { controlHeights } from '$lib/components/ui/control_heights.js'
   import { ModeWatcher } from 'mode-watcher'
   import ToggleTheme from './ToggleTheme.svelte'
 
   const isMobile = new IsMobile()
+  const navigationLinks = [
+    { href: '/#features', label: 'Features', external: false },
+    {
+      href: 'https://thomasevano.fr/en/tags/musickeeper/',
+      label: 'Blog',
+      external: true,
+    },
+  ] as const
+  let mobileNavOpen = $state(false)
 </script>
+
+{#snippet navigationLink(
+  link: (typeof navigationLinks)[number],
+  className: string,
+  onclick: (() => void) | undefined
+)}
+  <a
+    href={link.href}
+    class={className}
+    rel={link.external ? 'noopener noreferrer' : undefined}
+    target={link.external ? '_blank' : undefined}
+    {onclick}
+  >
+    {link.label}
+    {#if link.external}<span class="sr-only"> (opens in new tab)</span>{/if}
+  </a>
+{/snippet}
 
 <NavigationMenu.Root
   viewport={isMobile.current}
-  class="mx-auto w-full max-w-screen-2xl px-8 flex flex-0 py-5 justify-between items-center md:px-12 lg:px-16"
+  class="mx-auto flex w-full max-w-screen-2xl flex-0 items-center justify-between px-8 py-5 md:px-12 lg:px-16"
 >
   <ModeWatcher />
-  <a href="/" class="font-display font-bold flex items-center gap-2">
+  <a
+    href="/"
+    class={`flex items-center gap-2 font-display font-bold ${controlHeights.menuItem}`}
+    aria-label="MusicKeeper home"
+  >
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
       aria-hidden="true">
@@ -25,23 +59,48 @@
     </svg>
     MusicKeeper
   </a>
-  <NavigationMenu.List class="flex-wrap">
-    <NavigationMenu.Item>
-      <NavigationMenu.Link>
-        {#snippet child()}
-          <a href="/#features" class={navigationMenuTriggerStyle()}>Features</a>
-        {/snippet}
-      </NavigationMenu.Link>
-    </NavigationMenu.Item>
-    <NavigationMenu.Item>
-      <NavigationMenu.Link>
-        {#snippet child()}
-          <a href="https://thomasevano.fr/en/tags/musickeeper/" class={navigationMenuTriggerStyle()}
-            rel="noopener noreferrer" target="_blank">Blog<span class="sr-only"> (opens in new tab)</span></a
-          >
-        {/snippet}
-      </NavigationMenu.Link>
-    </NavigationMenu.Item>
+
+  <NavigationMenu.List class="hidden md:flex">
+    {#each navigationLinks as link (link.href)}
+      <NavigationMenu.Item>
+        <NavigationMenu.Link>
+          {#snippet child()}
+            {@render navigationLink(link, navigationMenuTriggerStyle(), undefined)}
+          {/snippet}
+        </NavigationMenu.Link>
+      </NavigationMenu.Item>
+    {/each}
   </NavigationMenu.List>
-  <ToggleTheme />
+
+  <div class="hidden md:block">
+    <ToggleTheme />
+  </div>
+
+  <Sheet.Root bind:open={mobileNavOpen}>
+    <Sheet.Trigger class="md:hidden">
+      {#snippet child({ props })}
+        <Button {...props} variant="outline" size="icon" class="size-11" aria-label="Open navigation">
+          <MenuIcon class="size-5" aria-hidden="true" />
+        </Button>
+      {/snippet}
+    </Sheet.Trigger>
+    <Sheet.Content side="right" class="w-[min(20rem,calc(100%-1rem))]">
+      <Sheet.Header>
+        <Sheet.Title>MusicKeeper</Sheet.Title>
+        <Sheet.Description>Navigate MusicKeeper.</Sheet.Description>
+      </Sheet.Header>
+      <nav class="flex flex-col gap-2 px-2 pt-4" aria-label="Mobile navigation">
+        {#each navigationLinks as link (link.href)}
+          {@render navigationLink(
+            link,
+            'flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-muted',
+            () => (mobileNavOpen = false)
+          )}
+        {/each}
+        <div class="pt-2">
+          <ToggleTheme />
+        </div>
+      </nav>
+    </Sheet.Content>
+  </Sheet.Root>
 </NavigationMenu.Root>
