@@ -19,6 +19,7 @@
 <Button
   variant="ghost"
   class="cursor-pointer px-0 hover:bg-transparent"
+  aria-label={`${label}, ${sorted === 'asc' ? 'sorted ascending' : sorted === 'desc' ? 'sorted descending' : 'not sorted'}`}
   onclick={() => column.toggleSorting(sorted === 'asc')}
 >
   {label}

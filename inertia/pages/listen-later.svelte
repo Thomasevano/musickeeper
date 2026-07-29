@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as Alert from '$lib/components/ui/alert/index.js'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
+  import { controlHeights } from '$lib/components/ui/control_heights.js'
   import * as Select from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
   import { Link2, Search, WifiOff } from '@lucide/svelte'
@@ -60,6 +61,10 @@
 
   const debouncedSearch = new Debounced(() => searchTerm, 300)
   const debouncedArtist = new Debounced(() => artistName, 300)
+  const searchInputClasses = [
+    'placeholder:text-muted-foreground flex w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50',
+    controlHeights.default,
+  ].join(' ')
 
   const hasSearchTerm = $derived(debouncedSearch.current.trim().length >= 3)
   const hasArtist = $derived(debouncedArtist.current.trim().length >= 3)
@@ -506,7 +511,7 @@
 </script>
 
 <LibraryLayout data={listenLaterItems}>
-  <div class="mx-auto w-full max-w-screen-2xl px-8 py-6 md:px-12 lg:px-16">
+  <div class="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-12 lg:px-16">
     {#if isOffline}
       <Alert.Root variant="info" class="mb-4">
         <WifiOff />
@@ -531,7 +536,7 @@
     <!-- Paste Link Section -->
     <div class="mb-6">
       <h3 class="text-lg font-medium mb-2">Add from Link</h3>
-      <div class="flex gap-2">
+      <div class="flex flex-col gap-2 sm:flex-row">
         <label for="link-url" class="sr-only">Music link URL</label>
         <Input
           id="link-url"
@@ -543,7 +548,11 @@
           aria-describedby={linkError ? 'link-url-error' : undefined}
           aria-invalid={linkError ? 'true' : undefined}
         />
-        <Button onclick={handlePasteLink} disabled={isProcessingLink || !linkUrl.trim()}>
+        <Button
+          class="w-full sm:w-auto"
+          onclick={handlePasteLink}
+          disabled={isProcessingLink || !linkUrl.trim()}
+        >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
           {isProcessingLink ? 'Processing...' : 'Add'}
         </Button>
@@ -558,7 +567,7 @@
     <div class="mb-4 flex items-center gap-4" class:opacity-50={isOffline}>
       <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
-        <Select.Trigger id="search-type" class="w-[180px]">{triggerContent}</Select.Trigger>
+        <Select.Trigger id="search-type" class="w-full sm:w-[180px]">{triggerContent}</Select.Trigger>
 
         <Select.Content>
           <Select.Group>
@@ -575,8 +584,8 @@
     </div>
 
     <div class="rounded-lg border shadow-md mb-4" class:opacity-50={isOffline}>
-      <div class="flex gap-2 w-full border-b">
-        <div class="flex flex-1 items-center gap-2 ps-3 pe-8 h-9">
+      <div class="flex w-full flex-col gap-0 border-b sm:flex-row">
+        <div class="flex min-w-0 flex-1 items-center gap-2 p-3 sm:h-12 sm:py-1.5">
           <Search class="size-4 shrink-0 opacity-50" aria-hidden="true" />
           <label for="search-title" class="sr-only">Song or album title</label>
           <input
@@ -590,18 +599,18 @@
             aria-controls="search-results-list"
             aria-autocomplete="list"
             onkeydown={handleInputKeydown}
-            class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            class={searchInputClasses}
           />
         </div>
 
-        <div class="flex flex-1 items-center gap-2 ps-3 pe-3 h-9 border-l">
+        <div class="flex min-w-0 flex-1 items-center gap-2 border-t p-3 sm:h-12 sm:border-l sm:border-t-0 sm:py-1.5">
           <label for="search-artist" class="sr-only">Artist name</label>
           <input
             id="search-artist"
             bind:value={artistName}
             placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional)...'}
             disabled={isOffline}
-            class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            class={searchInputClasses}
           />
         </div>
       </div>
