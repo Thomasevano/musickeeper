@@ -1,5 +1,9 @@
 import { defineConfig } from '@playwright/test'
 
+// When set, the suite runs against an already deployed target (a Coolify
+// preview in CI) instead of booting a local dev server.
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -8,7 +12,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:63136',
+    baseURL: externalBaseURL ?? 'http://127.0.0.1:63136',
     trace: 'on-first-retry',
   },
   projects: [
@@ -17,19 +21,21 @@ export default defineConfig({
       use: { browserName: 'chromium' },
     },
   ],
-  webServer: {
-    command: 'node ace serve --hmr',
-    url: 'http://127.0.0.1:63136',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30000,
-    env: {
-      HOST: '127.0.0.1',
-      PORT: '63136',
-      NODE_ENV: 'development',
-      APP_KEY: 'applicationtestappkey',
-      SESSION_DRIVER: 'memory',
-      LOG_LEVEL: 'info',
-      MB_APP_CONTACT_EMAIL: 'test@test.com',
-    },
-  },
+  webServer: externalBaseURL
+    ? undefined
+    : {
+        command: 'node ace serve --hmr',
+        url: 'http://127.0.0.1:63136',
+        reuseExistingServer: !process.env.CI,
+        timeout: 30000,
+        env: {
+          HOST: '127.0.0.1',
+          PORT: '63136',
+          NODE_ENV: 'development',
+          APP_KEY: 'applicationtestappkey',
+          SESSION_DRIVER: 'memory',
+          LOG_LEVEL: 'info',
+          MB_APP_CONTACT_EMAIL: 'test@test.com',
+        },
+      },
 })
