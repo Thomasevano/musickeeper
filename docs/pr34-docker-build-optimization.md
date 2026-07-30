@@ -12,7 +12,7 @@ image-size measurements.
 
 ## What changed (recap)
 
-Two independent optimizations, both in PR #34:
+Two independent optimizations, both in [PR #34](https://github.com/Thomasevano/musickeeper/pull/34):
 
 1. **CI build workflow** (`.github/workflows/build.yml`): one QEMU-emulated
    multi-platform job → a matrix of two **native** jobs (`linux/amd64` on
@@ -40,8 +40,8 @@ produced a tag, so the only real number available was the release baseline:
 
 ## Sequence of work done this session
 
-1. **Merged PR #35** (`ci(preview): deploy pull requests to coolify`) into
-   `main` — unrelated to #34 in scope, but its `pr-preview.yml` workflow is
+1. **Merged [PR #35](https://github.com/Thomasevano/musickeeper/pull/35)** (`ci(preview): deploy pull requests to coolify`) into
+   `main` — unrelated to [#34](https://github.com/Thomasevano/musickeeper/pull/34) in scope, but its `pr-preview.yml` workflow is
    what makes the rest of this possible: it builds and deploys the real
    production Docker image, and runs Playwright, on every same-repo pull
    request.
@@ -54,10 +54,10 @@ produced a tag, so the only real number available was the release baseline:
      fix didn't disturb an already-dirty local working tree. Verified
      `main:docs/pr-previews.md` is 311 lines after the fix
      (commit `b47b388`).
-2. **Rebased PR #34 onto the updated `main`** in an isolated `git worktree`
+2. **Rebased [PR #34](https://github.com/Thomasevano/musickeeper/pull/34) onto the updated `main`** in an isolated `git worktree`
    (kept the operation away from the already-dirty primary working tree).
    Clean rebase, no conflicts. Force-pushed.
-3. This automatically triggered `pr-preview.yml` on PR #34 (`synchronize`
+3. This automatically triggered `pr-preview.yml` on [PR #34](https://github.com/Thomasevano/musickeeper/pull/34) (`synchronize`
    event, same-repo branch). Full pipeline went green:
    - `Build preview image` (amd64 only): success,
      [run 30549238770](https://github.com/Thomasevano/musickeeper/actions/runs/30549238770).
@@ -74,7 +74,7 @@ produced a tag, so the only real number available was the release baseline:
    `type=raw,value=bench-30550837348,enable=true`.
 5. **Dispatched the workflow manually** on `chore/docker-image-optimization`
    — see measured results below.
-6. **Updated the PR #34 description** with both result sets and the caveats
+6. **Updated the [PR #34](https://github.com/Thomasevano/musickeeper/pull/34) description** with both result sets and the caveats
    they carry.
 
 ## Measured results
@@ -99,15 +99,15 @@ degraded, QEMU-emulated leg — it finished only ~20s behind amd64.
 
 ### amd64-only, before vs after (secondary data point)
 
-`pr-preview.yml`'s build job (from #35) only builds `linux/amd64`, on a
+`pr-preview.yml`'s build job (from [#35](https://github.com/Thomasevano/musickeeper/pull/35)) only builds `linux/amd64`, on a
 different cache scope (`musickeeper-preview`, also cold in both runs below).
-It happened to run once against the pre-#34 Dockerfile and once against the
-post-#34 Dockerfile, giving a same-job, same-runner comparison:
+It happened to run once against the pre-[#34](https://github.com/Thomasevano/musickeeper/pull/34) Dockerfile and once against the
+post-[#34](https://github.com/Thomasevano/musickeeper/pull/34) Dockerfile, giving a same-job, same-runner comparison:
 
 | Run                                                                                      | Dockerfile      | Job total  | Build+push step |
 | ---------------------------------------------------------------------------------------- | --------------- | ---------- | --------------- |
-| [30336114896](https://github.com/Thomasevano/musickeeper/actions/runs/30336114896) (#35) | before (`main`) | 2 min 42 s | 2 min 24 s      |
-| [30549238770](https://github.com/Thomasevano/musickeeper/actions/runs/30549238770) (#34) | after (this PR) | 2 min 57 s | 2 min 38 s      |
+| [30336114896](https://github.com/Thomasevano/musickeeper/actions/runs/30336114896) ([#35](https://github.com/Thomasevano/musickeeper/pull/35)) | before (`main`) | 2 min 42 s | 2 min 24 s      |
+| [30549238770](https://github.com/Thomasevano/musickeeper/actions/runs/30549238770) ([#34](https://github.com/Thomasevano/musickeeper/pull/34)) | after (this PR) | 2 min 57 s | 2 min 38 s      |
 
 The optimized Dockerfile is **~15s slower** on amd64 alone (the extra
 `runtime-base` Alpine stage adds a pull + `apk add`). This is expected and
@@ -138,7 +138,7 @@ as open before merge:
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Validate the first real tag build; confirm both matrix jobs + `merge-manifest` succeed                           | **Addressed via `workflow_dispatch`**, not yet via a real tag — recommend one more check on the actual next `v*.*.*` push, since it's a different trigger even though the job definitions are identical. |
 | Inspect the published manifest for both platform entries                                                         | **Partially addressed** — confirmed via job logs (two distinct digests merged); a direct `imagetools inspect` against the registry is still outstanding (needs registry credentials).                    |
-| Test important production routes/SSR pages, not only `/`, given the dependency reclassification                  | **Addressed** — the PR-#34 preview ran the full Playwright e2e suite (not a single-route smoke test) against the deployed, optimized image and passed.                                                   |
+| Test important production routes/SSR pages, not only `/`, given the dependency reclassification                  | **Addressed** — the PR-[#34](https://github.com/Thomasevano/musickeeper/pull/34) preview ran the full Playwright e2e suite (not a single-route smoke test) against the deployed, optimized image and passed.                                                   |
 | Measure a repeated release build to confirm cache reuse vs the 6:09 baseline                                     | **Still open** — only a single cold-cache run was measured. A second `workflow_dispatch` run (with the GHA cache now warm from run 30550837348) would show the incremental-build number.                 |
 | Node binary + Alpine `libstdc++` compatibility                                                                   | Already verified locally per PR body (`node -v` → `v24.18.0`); unchanged by this session.                                                                                                                |
 | Review lockfile transitive version changes separately (`enhanced-resolve`, `jiti`, `lodash-es`, `tapable`, etc.) | **Still open** — not reviewed this session.                                                                                                                                                              |
@@ -162,6 +162,5 @@ manifest and a real, e2e-tested deployment. Safe to merge once:
 - Baseline release build: https://github.com/Thomasevano/musickeeper/actions/runs/30171176842
 - Matrix benchmark run: https://github.com/Thomasevano/musickeeper/actions/runs/30550837348
 - amd64-only before/after: [30336114896](https://github.com/Thomasevano/musickeeper/actions/runs/30336114896), [30549238770](https://github.com/Thomasevano/musickeeper/actions/runs/30549238770)
-- PR-#34 preview deployment: https://pr-34.preview.musickeeper.app
+- PR-[#34](https://github.com/Thomasevano/musickeeper/pull/34) preview deployment: https://pr-34.preview.musickeeper.app
 - Prior handoff: `/tmp/musickeeper-pr34-handoff.md`
-  </content>
