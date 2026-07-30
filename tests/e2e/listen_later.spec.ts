@@ -704,6 +704,7 @@ test.describe('mobile breakpoint controls', () => {
       page.getByRole('button', { name: 'Sort: None', exact: true }),
       page.getByRole('button', { name: 'Columns', exact: true }),
       mobileCard.getByRole('button', { name: 'Open menu' }),
+      mobileCard.getByRole('link', { name: 'Deezer' }),
       page.getByRole('button', { name: 'Previous' }),
       page.getByRole('button', { name: 'Next' }),
       page.getByRole('button', { name: 'Open navigation' }),
@@ -759,6 +760,79 @@ test.describe('mobile navigation', () => {
     await navigation.getByRole('link', { name: 'Features' }).click()
     await expect(page).toHaveURL(/\/#features$/)
     await expect(navigation).not.toBeVisible()
+  })
+
+  test('hides desktop controls and presents mobile cards', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'filter-listened-track',
+        title: 'Listened track',
+        itemType: 'track',
+        hasBeenListened: true,
+      }),
+      listenLaterSeed({
+        id: 'filter-unlistened-album',
+        title: 'Unlistened album',
+      }),
+    ])
+
+    for (const name of ['Status: All', 'Type: All']) {
+      const filter = page.getByRole('button', { name, exact: true })
+      await expect(filter).toBeVisible()
+      await expect
+        .poll(() => filter.evaluate((element) => element.getBoundingClientRect().width))
+        .toBeGreaterThanOrEqual(250)
+    }
+
+    const listenedTrack = page.locator('#mobile-item-filter-listened-track')
+    const unlistenedAlbum = page.locator('#mobile-item-filter-unlistened-album')
+
+    await page.getByRole('button', { name: 'Status: All', exact: true }).click()
+    await page.getByRole('option', { name: 'Listened', exact: true }).click()
+    await expect(listenedTrack).toBeVisible()
+    await expect(unlistenedAlbum).not.toBeVisible()
+
+    await page.getByRole('button', { name: 'Status: Listened', exact: true }).click()
+    await page.getByRole('option', { name: 'All', exact: true }).click()
+    await page.getByRole('button', { name: 'Type: All', exact: true }).click()
+    await page.getByRole('option', { name: 'Albums', exact: true }).click()
+    await expect(listenedTrack).not.toBeVisible()
+    await expect(unlistenedAlbum).toBeVisible()
+  })
+
+  test('retains shared controls and presents mobile cards', async ({ page }) => {
+    const longTitle = 'ColumnChooserItem'.repeat(24)
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'column-chooser-item',
+        title: longTitle,
+        itemType: 'track',
+        externalLinks: [
+          {
+            platform: 'spotify',
+            label: 'Spotify',
+            url: 'https://open.spotify.com',
+            category: 'stream',
+          },
+        ],
+      }),
+    ])
+
+    await expect(page.getByRole('button', { name: 'Columns', exact: true })).toBeVisible()
+    const mobileCard = page.locator('#mobile-item-column-chooser-item')
+    const platformLink = mobileCard.getByRole('link', { name: 'Spotify' })
+
+    await expect(mobileCard).toContainText(longTitle)
+    await expect(mobileCard).toContainText('Artist')
+    await expect(mobileCard.getByText('Track', { exact: true })).toBeVisible()
+    await expect(mobileCard.getByText('Not listened', { exact: true })).toBeVisible()
+    await expect(mobileCard.getByRole('button', { name: 'Open menu' })).toBeVisible()
+    await expect(platformLink).toBeVisible()
+    await expect
+      .poll(() => platformLink.evaluate((link) => link.getBoundingClientRect().height))
+      .toBeGreaterThanOrEqual(44)
   })
 
   test('opens a Deezer album from a mobile card', async ({ page }) => {

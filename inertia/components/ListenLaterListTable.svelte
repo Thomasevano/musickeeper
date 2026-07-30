@@ -349,25 +349,27 @@
     </div>
 
     <!-- Column visibility toggle -->
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <Button {...props} variant="outline" class="min-h-11 w-full sm:ml-auto sm:min-h-10 sm:w-auto">
-            Columns <ChevronDownIcon class="ml-2 size-4" />
-          </Button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content align="end">
-        {#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column.id)}
-          <DropdownMenu.CheckboxItem
-            class="capitalize"
-            bind:checked={() => column.getIsVisible(), (v) => column.toggleVisibility(!!v)}
-          >
-            {columnLabels[column.id] ?? column.id}
-          </DropdownMenu.CheckboxItem>
-        {/each}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <div class="w-full md:ml-auto md:w-auto">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          {#snippet child({ props })}
+            <Button {...props} variant="outline" class="w-full sm:ml-auto sm:w-auto">
+              Columns <ChevronDownIcon class="ml-2 size-4" />
+            </Button>
+          {/snippet}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end">
+          {#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column.id)}
+            <DropdownMenu.CheckboxItem
+              class="capitalize"
+              bind:checked={() => column.getIsVisible(), (v) => column.toggleVisibility(!!v)}
+            >
+              {columnLabels[column.id] ?? column.id}
+            </DropdownMenu.CheckboxItem>
+          {/each}
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    </div>
   </div>
 
   <div class="hidden overflow-x-auto rounded-md border md:block">
@@ -433,7 +435,7 @@
       <article
         id={`mobile-item-${row.original.id}`}
         class={[
-          'rounded-lg border p-4 shadow-sm',
+          'rounded-xl border bg-card p-3 shadow-sm',
           highlightedItemId === row.original.id ? 'bg-warning/20' : '',
         ].join(' ')}
       >
@@ -444,12 +446,12 @@
             size="sm"
             class="shrink-0"
           />
-          <div class="min-w-0 flex-1">
+          <div class="min-w-0 flex-1 leading-tight text-pretty">
             <DataTableTitleCell
               title={row.original.title}
               albumName={row.original.itemType === 'track' ? (row.original.albumName ?? null) : null}
             />
-            <p class="text-muted-foreground mt-1 truncate text-sm">
+            <p class="text-muted-foreground mt-1 truncate text-sm text-pretty">
               {row.original.artists?.join(', ') || 'Unknown artist'}
             </p>
           </div>
@@ -463,9 +465,11 @@
           <DataTableTypeBadge type={row.original.itemType} />
           <DataTableStatusBadge hasBeenListened={row.original.hasBeenListened} />
         </div>
-        <div class="mt-3">
-          <DataTableLinksCell item={row.original} />
-        </div>
+        {#if row.original.externalLinks?.length}
+          <div class="mt-3 border-t pt-3">
+            <DataTableLinksCell item={row.original} />
+          </div>
+        {/if}
       </article>
     {:else}
       <div class="rounded-lg border p-6 text-center text-sm text-muted-foreground">No results.</div>
