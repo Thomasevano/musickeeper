@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.1](https://github.com/Thomasevano/musickeeper/compare/v0.8.0...v0.8.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **search:** allow artist-only searches ([b37f6b8](https://github.com/Thomasevano/musickeeper/commit/b37f6b8a7d667f0646f8e395c77e231f01c16607))
+* **search:** omit empty title query ([9a92f67](https://github.com/Thomasevano/musickeeper/commit/9a92f676f5a68ab2f2c17f79e2e2bc19c3651810))
+
+
+### Performance Improvements
+
+* **docker:** builds natifs par architecture et image runtime minimale ([38a88b0](https://github.com/Thomasevano/musickeeper/commit/38a88b05a4fe4a84727d2601c7dd1e78da54b958))
+
 ## [0.8.0](https://github.com/Thomasevano/musickeeper/compare/v0.6.0...v0.8.0) (2026-07-25)
 
 
