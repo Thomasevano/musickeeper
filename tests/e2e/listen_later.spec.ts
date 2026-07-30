@@ -552,35 +552,96 @@ test.describe('artist-only search', () => {
 })
 
 test.describe('table filters', () => {
-  test('filters rendered rows', async ({ page }) => {
+  test('combines type and listened-status filters', async ({ page }) => {
     await page.goto('/library/listen-later')
     await seedListenLaterItems(page, [
-      {
-        id: 'album-item',
-        title: 'Album result',
+      listenLaterSeed({
+        id: 'album-not-listened',
+        title: 'Unheard album',
         releaseDate: '2024-01-01',
         artists: ['Album Artist'],
-        itemType: 'album',
-        hasBeenListened: false,
-        addedAt: 1,
-      },
-      {
-        id: 'track-item',
-        title: 'Track result',
+      }),
+      listenLaterSeed({
+        id: 'album-listened',
+        title: 'Heard album',
         releaseDate: '2024-01-02',
+        artists: ['Album Artist'],
+        hasBeenListened: true,
+        addedAt: 2,
+      }),
+      listenLaterSeed({
+        id: 'track-not-listened',
+        title: 'Unheard track',
+        releaseDate: '2024-01-03',
         artists: ['Track Artist'],
         itemType: 'track',
-        hasBeenListened: false,
-        addedAt: 2,
-      },
+        addedAt: 3,
+      }),
     ])
 
     await page.getByRole('button', { name: 'Type: All', exact: true }).click()
     await page.getByRole('option', { name: 'Albums', exact: true }).click()
+    await page.getByRole('button', { name: 'Status: All', exact: true }).click()
+    await page.getByRole('option', { name: 'Not listened', exact: true }).click()
 
     await expect(page.getByText('1 item(s)')).toBeVisible()
-    await expect(page.getByRole('row').filter({ hasText: 'Album result' })).toBeVisible()
-    await expect(page.getByRole('row').filter({ hasText: 'Track result' })).not.toBeVisible()
+    await expect(page.locator('#item-album-not-listened')).toBeVisible()
+    await expect(page.locator('#item-album-listened')).not.toBeVisible()
+    await expect(page.locator('#item-track-not-listened')).not.toBeVisible()
+  })
+})
+
+test.describe('desktop sorting', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('exposes sort direction to assistive technology', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'sort-zebra', title: 'Zebra', artists: ['Zebra Artist'] }),
+      listenLaterSeed({ id: 'sort-apple', title: 'Apple', artists: ['Apple Artist'] }),
+    ])
+
+    const artistsButton = page.getByRole('button', { name: 'Artists, not sorted', exact: true })
+    const artistsHeader = page.locator('th').filter({ has: artistsButton })
+    await expect(artistsHeader).toHaveAttribute('aria-sort', 'none')
+
+    await artistsButton.click()
+    const ascendingButton = page.getByRole('button', {
+      name: 'Artists, sorted ascending',
+      exact: true,
+    })
+    await expect(page.locator('th').filter({ has: ascendingButton })).toHaveAttribute(
+      'aria-sort',
+      'ascending'
+    )
+    await expect(ascendingButton).toBeVisible()
+
+    await page.setViewportSize({ width: 320, height: 568 })
+    await expect(
+      page.getByRole('button', { name: 'Sort: Artists (A–Z)', exact: true })
+    ).toBeVisible()
+    await page.setViewportSize({ width: 1280, height: 800 })
+
+    await ascendingButton.click()
+    const descendingButton = page.getByRole('button', {
+      name: 'Artists, sorted descending',
+      exact: true,
+    })
+    await expect(page.locator('th').filter({ has: descendingButton })).toHaveAttribute(
+      'aria-sort',
+      'descending'
+    )
+    await expect(descendingButton).toBeVisible()
+
+    await page.setViewportSize({ width: 320, height: 568 })
+    const customSort = page.getByRole('button', {
+      name: 'Sort: Artists (descending)',
+      exact: true,
+    })
+    await expect(customSort).toBeVisible()
+    await customSort.click()
+    await page.getByRole('option', { name: 'None', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Sort: None', exact: true })).toBeVisible()
   })
 })
 
@@ -688,9 +749,16 @@ test.describe('mobile breakpoint controls', () => {
 test.describe('mobile navigation', () => {
   test.use({ viewport: { width: 320, height: 568 } })
 
-  test('provides compact navigation on narrow screens', async ({ page }) => {
+  test('opens the compact navigation sheet', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+
+    const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
+    await expect(navigation).toBeVisible()
+    await expect(navigation.getByRole('link', { name: 'Features' })).toBeVisible()
+    await navigation.getByRole('link', { name: 'Features' }).click()
+    await expect(page).toHaveURL(/\/#features$/)
+    await expect(navigation).not.toBeVisible()
   })
 
   test('opens a Deezer album from a mobile card', async ({ page }) => {
@@ -763,25 +831,48 @@ test.describe('mobile navigation', () => {
     await expect(mobileCard).not.toBeVisible()
   })
 
-  test('provides mobile sorting for saved items', async ({ page }) => {
+  test('sorts saved items by artist and added date', async ({ page }) => {
     await page.goto('/library/listen-later')
     await seedListenLaterItems(page, [
-      {
-        id: 'mobile-sort-item',
-        title: 'Mobile sort item',
+      listenLaterSeed({
+        id: 'old-zebra',
+        title: 'Old Zebra album',
         releaseDate: '2024-01-01',
-        artists: ['Mobile Artist'],
-        itemType: 'album',
-        hasBeenListened: false,
-        addedAt: 1,
-      },
+        artists: ['Zebra Artist'],
+        addedAt: 2,
+      }),
+      listenLaterSeed({
+        id: 'new-apple',
+        title: 'New Apple album',
+        releaseDate: '2024-01-02',
+        artists: ['Apple Artist'],
+      }),
+      listenLaterSeed({
+        id: 'middle-mango',
+        title: 'Middle Mango album',
+        releaseDate: '2024-01-03',
+        artists: ['Mango Artist'],
+        addedAt: 3,
+      }),
     ])
+    const mobileItems = page.locator('article[id^="mobile-item-"]')
 
-    await expect(page.getByRole('button', { name: 'Sort: None', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Sort: None', exact: true }).click()
     await page.getByRole('option', { name: 'Artists (A–Z)', exact: true }).click()
-    await expect(
-      page.getByRole('button', { name: 'Sort: Artists (A–Z)', exact: true })
-    ).toBeVisible()
+    await expect
+      .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))
+      .toEqual(['mobile-item-new-apple', 'mobile-item-middle-mango', 'mobile-item-old-zebra'])
+
+    await page.getByRole('button', { name: 'Sort: Artists (A–Z)', exact: true }).click()
+    await page.getByRole('option', { name: 'Added (newest)', exact: true }).click()
+    await expect
+      .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))
+      .toEqual(['mobile-item-middle-mango', 'mobile-item-old-zebra', 'mobile-item-new-apple'])
+
+    await page.getByRole('button', { name: 'Sort: Added (newest)', exact: true }).click()
+    await page.getByRole('option', { name: 'Added (oldest)', exact: true }).click()
+    await expect
+      .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))
+      .toEqual(['mobile-item-new-apple', 'mobile-item-old-zebra', 'mobile-item-middle-mango'])
   })
 })

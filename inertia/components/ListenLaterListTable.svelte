@@ -55,16 +55,17 @@
     { value: 'album', label: 'Albums' },
   ]
 
-  const mobileSortOptions = [
-    { value: 'none', label: 'None' },
-    { value: 'artists_asc', label: 'Artists (A–Z)' },
-    { value: 'added_desc', label: 'Added (newest)' },
-    { value: 'added_asc', label: 'Added (oldest)' },
+  type MobileSort = 'none' | 'artists_asc' | 'added_desc' | 'added_asc'
+
+  const mobileSortOptions: { value: MobileSort; label: string; sorting: SortingState }[] = [
+    { value: 'none', label: 'None', sorting: [] },
+    { value: 'artists_asc', label: 'Artists (A–Z)', sorting: [{ id: 'artists', desc: false }] },
+    { value: 'added_desc', label: 'Added (newest)', sorting: [{ id: 'addedAt', desc: true }] },
+    { value: 'added_asc', label: 'Added (oldest)', sorting: [{ id: 'addedAt', desc: false }] },
   ]
 
   let statusFilter = $state<string>('all')
   let typeFilter = $state<string>('all')
-  let mobileSort = $state<string>('none')
 
   const columns: ColumnDef<ListenLaterItem>[] = [
     {
@@ -252,14 +253,9 @@
   }
 
   function handleMobileSortChange(value: string) {
-    mobileSort = value
-    if (value === 'none') {
-      sorting = []
-      return
-    }
-
-    const [id, direction] = value.split('_')
-    sorting = [{ id, desc: direction === 'desc' }]
+    const selectedOption = mobileSortOptions.find((option) => option.value === value)
+    if (!selectedOption) return
+    sorting = selectedOption.sorting
   }
 
   const columnLabels: Record<string, string> = {
@@ -272,6 +268,21 @@
     links: 'Links',
   }
 
+  const selectedMobileSortOption = $derived(
+    mobileSortOptions.find(
+      (option) =>
+        option.sorting.length === sorting.length &&
+        option.sorting.every(
+          (entry, index) =>
+            entry.id === sorting[index]?.id && entry.desc === sorting[index]?.desc
+        )
+    )
+  )
+
+  const mobileSort = $derived<MobileSort | 'custom'>(
+    sorting.length === 0 ? 'none' : (selectedMobileSortOption?.value ?? 'custom')
+  )
+
   const statusFilterLabel = $derived(
     statusFilterOptions.find((option) => option.value === statusFilter)?.label ?? 'All'
   )
@@ -281,7 +292,13 @@
   )
 
   const mobileSortLabel = $derived(
-    mobileSortOptions.find((o) => o.value === mobileSort)?.label ?? 'None'
+    selectedMobileSortOption?.label ??
+      sorting
+        .map(
+          (entry) =>
+            `${columnLabels[entry.id] ?? entry.id} (${entry.desc ? 'descending' : 'ascending'})`
+        )
+        .join(', ')
   )
 </script>
 
