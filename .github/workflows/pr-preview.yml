@@ -9,6 +9,13 @@ name: PR preview
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+    # NOTE: GitHub computes this against the whole base...head diff of the
+    # pull request, not just the latest push. Once a PR has touched a
+    # non-doc file, a later doc-only commit on that same PR still triggers
+    # this workflow. Only a PR whose entire diff is docs still skips it.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
 env:
   REGISTRY: ghcr.io
