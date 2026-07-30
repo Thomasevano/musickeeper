@@ -77,12 +77,15 @@
     focusedResultIndex = -1
     try {
       const params = new URLSearchParams({
-        q: debouncedSearch.current,
         type: searchType,
       })
 
+      if (hasSearchTerm) {
+        params.set('q', debouncedSearch.current)
+      }
+
       if (hasArtist) {
-        params.append('artist', debouncedArtist.current)
+        params.set('artist', debouncedArtist.current)
       }
 
       const response = await fetch(`/library/listen-later?${params.toString()}`, {

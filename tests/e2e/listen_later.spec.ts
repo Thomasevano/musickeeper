@@ -448,3 +448,34 @@ test.describe('delete item', () => {
     await expect(page.getByText('"Never Gonna Give You Up" removed from your list')).toBeVisible()
   })
 })
+
+test.describe('artist-only search', () => {
+  test('omits the empty title query from the search request', async ({ page }) => {
+    const searchUrls: string[] = []
+
+    await page.route('**/library/listen-later*', async (route) => {
+      const url = new URL(route.request().url())
+
+      if (!url.searchParams.has('type')) {
+        await route.continue()
+        return
+      }
+
+      searchUrls.push(url.toString())
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ serializedItems: [] }),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Artist name', { exact: true }).fill('angele')
+
+    await expect.poll(() => searchUrls.length).toBeGreaterThan(0)
+
+    const requestUrl = new URL(searchUrls[0])
+    expect(requestUrl.searchParams.get('artist')).toBe('angele')
+    expect(requestUrl.searchParams.has('q')).toBe(false)
+  })
+})
