@@ -1,8 +1,8 @@
 import { MusicItem, SearchType } from '#domain/music_item.js'
 import { isLinkParseError, type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'
-import { LinkParserPort } from '#application/ports/link_parser.port.js'
-import { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
-import { EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'
+import { type LinkParserPort } from '#application/ports/link_parser.port.js'
+import { type PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import { type EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'
 
 export class ExtractLinkMetadataUseCase {
   constructor(

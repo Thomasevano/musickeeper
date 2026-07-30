@@ -32,3 +32,6 @@ playwright-report/
 
 # Platform specific
 .DS_Store
+
+# AdonisJS codegen output
+.adonisjs

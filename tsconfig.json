@@ -13,8 +13,9 @@
       "#shared/*": ["./src/shared/*"],
       "#config/*": ["./src/infrastructure/config/*"],
       "#middleware/*": ["./src/infrastructure/http/middleware/*"],
-      "#tests/*": ["./tests/*"],
+      "#tests/*": ["./tests/*"]
     }
   },
-  "exclude": ["./inertia/**/*", "node_modules", "build"],
+  "references": [{ "path": "./tsconfig.inertia.json" }],
+  "exclude": ["./inertia/**/*", "node_modules", "build"]
 }

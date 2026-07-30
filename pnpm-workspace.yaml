@@ -3,6 +3,10 @@ overrides:
 
 allowBuilds:
   '@biomejs/biome': false
+  # Transitive dependency of @poppinss/ts-exec (the v7 TypeScript JIT compiler).
   '@swc/core': true
   esbuild: false
   sharp: true
+
+minimumReleaseAgeExclude:
+  - eslint@10.8.0

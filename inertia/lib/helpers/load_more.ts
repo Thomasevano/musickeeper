@@ -1,5 +1,5 @@
 import type { Writable } from 'svelte/store'
-import { PaginatedPlaylistsInfos } from '../../../src/domain/playlist'
+import type { PaginatedPlaylistsInfos } from '../../../src/domain/playlist'
 
 export default async function loadMore(
   data: Writable<PaginatedPlaylistsInfos>,
