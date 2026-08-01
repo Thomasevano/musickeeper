@@ -3,6 +3,12 @@
 > [!NOTE]
 > THIS PROJECT IS STILL IN DEVELOPMENT
 
+MusicKeeper lets you keep the music you find outside your streaming platform. Paste a link to a track, album, or playlist and it resolves the same item across platforms via MusicBrainz, so you can save it to a listen-later list without losing it when a friend shares a Spotify link but you use Apple Music.
+
+**Live demo:** [musickeeper.app](https://musickeeper.app)
+
+**Stack:** Svelte + Inertia on AdonisJS (hexagonal architecture — domain/application/infrastructure layers), TypeScript, unit + functional + E2E tests (Playwright), self-hosted via Docker.
+
 ## Use it on your own
 
 Generate an app key with AdonisJS
@@ -30,7 +36,7 @@ services:
       - MB_APP_CONTACT_EMAIL= # contact email for MusicBrainz
 ```
 
-###  Use Locally
+### Use Locally
 
 ```bash
 git clone https://github.com/thomasevano/musickeeper.git
@@ -39,15 +45,17 @@ pnpm install
 cp .env.example .env
 ```
 
-Edit the `.env` file with the Spotify credentials of the app you created on the Spotify developer dashboard([you can find documentation to create one here](https://github.com/thomasevano/musickeeper/wiki/How-to-create-a-Spotify-app))
+Edit the `.env` file with the Spotify credentials of the app you created on the Spotify developer dashboard ([you can find documentation to create one here](https://github.com/thomasevano/musickeeper/wiki/How-to-create-a-Spotify-app))
 
-Then run the app
+Then run the dev server
 
 ```bash
-pnpm build
+pnpm dev
 ```
 
 You can now access the app on <http://127.0.0.1:3333>
+
+To build and run a production bundle instead, use `pnpm build` then `pnpm start`.
 
 ## FAQ
 
