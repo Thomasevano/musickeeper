@@ -998,3 +998,77 @@ test.describe('mobile navigation', () => {
       .toEqual(['mobile-item-new-apple', 'mobile-item-old-zebra', 'mobile-item-middle-mango'])
   })
 })
+
+test.describe('add performance', () => {
+  const searchResult = {
+    id: '11111111-2222-3333-4444-555555555555',
+    title: 'Instant Add Track',
+    releaseDate: '2020-01-01',
+    length: 210000,
+    artists: ['Test Artist'],
+    albumName: 'Test Album',
+    itemType: 'track',
+    coverArt: 'https://coverartarchive.org/test-cover.jpg',
+  }
+
+  test('adds the item to the list without waiting for external links', async ({ page }) => {
+    // Hold /api/links open for the whole first half of the test. If the add path
+    // awaits link resolution before writing, the row never renders and this
+    // fails on timeout — no wall-clock budget needed to catch the regression.
+    let releaseLinks: () => void = () => {}
+    const linksHeld = new Promise<void>((resolve) => {
+      releaseLinks = resolve
+    })
+    let linksRequested = false
+
+    await page.route('**/api/links*', async (route) => {
+      linksRequested = true
+      await linksHeld
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          externalLinks: [
+            {
+              platform: 'qobuz',
+              label: 'Qobuz',
+              url: 'https://www.qobuz.com/album/test',
+              category: 'buy',
+              source: 'platform-search',
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.route('**/library/listen-later*', async (route) => {
+      const url = new URL(route.request().url())
+      if (!url.searchParams.has('type')) {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ serializedItems: [searchResult] }),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Song or album title', { exact: true }).fill('Instant Add')
+
+    const result = page.getByRole('option', { name: 'Add Instant Add Track to listen later' })
+    await expect(result).toBeVisible()
+    await result.click()
+
+    // The row must be in the saved list while the links request is still in flight.
+    const itemRow = page.getByRole('row').filter({ hasText: 'Instant Add Track' })
+    await expect(itemRow).toBeVisible()
+    expect(linksRequested).toBe(true)
+
+    // Releasing the links response must then patch the stored record in place.
+    releaseLinks()
+    await expect(itemRow.getByRole('link', { name: /Qobuz/ })).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: 'Instant Add Track' })).toHaveCount(1)
+  })
+})
