@@ -19,6 +19,10 @@
     },
   ] as const
   let mobileNavOpen = $state(false)
+
+  $effect(() => {
+    if (!isMobile.current) mobileNavOpen = false
+  })
 </script>
 
 {#snippet navigationLink(
@@ -79,15 +83,15 @@
   <Sheet.Root bind:open={mobileNavOpen}>
     <Sheet.Trigger class="md:hidden">
       {#snippet child({ props })}
-        <Button {...props} variant="outline" size="icon" class="size-11" aria-label="Open navigation">
+        <Button {...props} variant="outline" size="icon" class="md:hidden" aria-label="Open navigation">
           <MenuIcon class="size-5" aria-hidden="true" />
         </Button>
       {/snippet}
     </Sheet.Trigger>
     <Sheet.Content side="right" class="w-[min(20rem,calc(100%-1rem))]">
-      <Sheet.Header>
-        <Sheet.Title>MusicKeeper</Sheet.Title>
-        <Sheet.Description>Navigate MusicKeeper.</Sheet.Description>
+      <Sheet.Header class="sr-only">
+        <Sheet.Title>Navigation</Sheet.Title>
+        <Sheet.Description>Site links and theme settings.</Sheet.Description>
       </Sheet.Header>
       <nav class="flex flex-col gap-2 px-2 pt-4" aria-label="Mobile navigation">
         {#each navigationLinks as link (link.href)}

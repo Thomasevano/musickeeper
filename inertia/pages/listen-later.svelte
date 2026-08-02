@@ -564,7 +564,7 @@
 
     <Separator class="my-4" />
 
-    <div class="mb-4 flex items-center gap-4" class:opacity-50={isOffline}>
+    <div class="mb-2 flex items-center gap-4" class:opacity-50={isOffline}>
       <label for="search-type" class="text-sm font-medium">Type:</label>
       <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
         <Select.Trigger id="search-type" class="w-full sm:w-[180px]">{triggerContent}</Select.Trigger>
@@ -583,7 +583,7 @@
       </Select.Root>
     </div>
 
-    <div class="rounded-lg border shadow-md mb-4" class:opacity-50={isOffline}>
+    <div class="rounded-lg border shadow-md" class:opacity-50={isOffline}>
       <div class="flex w-full flex-col gap-0 border-b sm:flex-row">
         <div class="flex min-w-0 flex-1 items-center gap-2 p-3 sm:h-12 sm:py-1.5">
           <Search class="size-4 shrink-0 opacity-50" aria-hidden="true" />
@@ -647,6 +647,9 @@
         </div>
       {/if}
     </div>
+
+    <Separator class="my-6" />
+
     <div>
       {#if listenLaterItems.length > 0}
         <ListenLaterListTable

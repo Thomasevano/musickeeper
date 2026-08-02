@@ -79,6 +79,15 @@ async function expectAllMinTouchTargets(locator: Locator) {
   }
 }
 
+async function expectStacked(first: Locator, second: Locator) {
+  await expect
+    .poll(async () => {
+      const [firstBox, secondBox] = await Promise.all([first.boundingBox(), second.boundingBox()])
+      return !!firstBox && !!secondBox && secondBox.y >= firstBox.y + firstBox.height
+    })
+    .toBe(true)
+}
+
 async function addSpotifyItem(page: Page) {
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
   await addLinkButton(page).click()
@@ -645,6 +654,20 @@ test.describe('desktop sorting', () => {
   })
 })
 
+test.describe('desktop navigation', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('hides the compact navigation trigger', async ({ page }) => {
+    await page.goto('/')
+
+    // The trigger's `md:hidden` is forwarded through a bits-ui child snippet, so
+    // a stray `class` on the Button silently drops it and ships the burger on
+    // desktop next to the inline links.
+    await expect(page.getByRole('button', { name: 'Open navigation' })).not.toBeVisible()
+    await expect(page.getByRole('link', { name: 'Features' })).toBeVisible()
+  })
+})
+
 test.describe('reduced motion', () => {
   test.use({ viewport: { width: 320, height: 568 } })
 
@@ -762,7 +785,18 @@ test.describe('mobile navigation', () => {
     await expect(navigation).not.toBeVisible()
   })
 
-  test('hides desktop controls and presents mobile cards', async ({ page }) => {
+  test('closes the compact navigation sheet at the desktop breakpoint', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
+    await expect(navigation).toBeVisible()
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(navigation).not.toBeVisible()
+    await expect(page.getByRole('link', { name: 'Features' })).toBeVisible()
+  })
+
+  test('keeps both filters full width and filters mobile cards', async ({ page }) => {
     await page.goto('/library/listen-later')
     await seedListenLaterItems(page, [
       listenLaterSeed({
@@ -830,9 +864,16 @@ test.describe('mobile navigation', () => {
     await expect(mobileCard.getByText('Not listened', { exact: true })).toBeVisible()
     await expect(mobileCard.getByRole('button', { name: 'Open menu' })).toBeVisible()
     await expect(platformLink).toBeVisible()
+    await expectMinTouchTarget(platformLink)
+    await expectStacked(page.locator('#link-url'), addLinkButton(page))
+    await expectStacked(page.locator('#search-title'), page.locator('#search-artist'))
     await expect
-      .poll(() => platformLink.evaluate((link) => link.getBoundingClientRect().height))
-      .toBeGreaterThanOrEqual(44)
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+        )
+      )
+      .toBe(true)
   })
 
   test('opens a Deezer album from a mobile card', async ({ page }) => {

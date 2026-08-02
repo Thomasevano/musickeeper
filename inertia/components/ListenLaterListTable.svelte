@@ -306,7 +306,7 @@
   <div class="flex flex-wrap items-center gap-2 py-4">
     <!-- Status filter -->
     <Select.Root type="single" value={statusFilter} onValueChange={handleStatusFilterChange}>
-      <Select.Trigger class="min-h-11 w-full sm:min-h-10 sm:w-[160px]">
+      <Select.Trigger class="w-full md:w-[160px]">
         <span>Status: {statusFilterLabel}</span>
       </Select.Trigger>
       <Select.Content>
@@ -320,7 +320,7 @@
 
     <!-- Type filter -->
     <Select.Root type="single" value={typeFilter} onValueChange={handleTypeFilterChange}>
-      <Select.Trigger class="min-h-11 w-full sm:min-h-10 sm:w-[150px]">
+      <Select.Trigger class="w-full md:w-[150px]">
         <span>Type: {typeFilterLabel}</span>
       </Select.Trigger>
       <Select.Content>
