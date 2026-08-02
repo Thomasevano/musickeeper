@@ -1,8 +1,6 @@
 import { MusicItem, SearchType } from '#domain/music_item.js'
 import { SearchPort } from '#application/ports/search.port.js'
 
-const BLANK_COVER_ART = '../../../../resources/images/Blank_album.svg'
-
 export class EnrichMusicItemUseCase {
   constructor(private search: SearchPort) {}
 
@@ -47,14 +45,15 @@ export class EnrichMusicItemUseCase {
     }
   }
 
+  /** Pick the closest matching album cover already returned by search. */
   private async fetchAlbumCoverArt(
     albumName: string,
     artist: string,
     releaseDate?: string
-  ): Promise<string | null> {
+  ): Promise<string | undefined> {
     try {
       const releases = await this.search.searchItem(albumName, SearchType.album, artist)
-      if (!releases.length) return null
+      if (!releases.length) return undefined
 
       // Prefer artwork from a release in the recording's release year.
       const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null
@@ -64,14 +63,9 @@ export class EnrichMusicItemUseCase {
         return aMatch - bMatch
       })
 
-      for (const release of sorted) {
-        if (release.coverArt && release.coverArt !== BLANK_COVER_ART) {
-          return release.coverArt
-        }
-      }
-      return null
+      return sorted.find((release) => release.coverArt)?.coverArt
     } catch {
-      return null
+      return undefined
     }
   }
 }

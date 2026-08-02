@@ -1072,3 +1072,48 @@ test.describe('add performance', () => {
     await expect(page.getByRole('row').filter({ hasText: 'Instant Add Track' })).toHaveCount(1)
   })
 })
+
+test.describe('cover art', () => {
+  test.use({ serviceWorkers: 'block' })
+
+  test('falls back to the placeholder when a release has no artwork', async ({ page }) => {
+    // Release-group URLs are derived without asking the archive whether art
+    // exists, so a 404 should finish with the placeholder rather than leave a
+    // skeleton that looks stuck.
+    await page.route('**/coverartarchive.org/**', (route) => route.fulfill({ status: 404 }))
+
+    await page.route('**/library/listen-later*', async (route) => {
+      const url = new URL(route.request().url())
+      if (!url.searchParams.has('type')) {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          serializedItems: [
+            {
+              id: 'artless-release',
+              title: 'Artless Release',
+              releaseDate: '2020-01-01',
+              artists: ['Nobody'],
+              albumName: 'Nothing',
+              itemType: 'track',
+              coverArt: 'https://coverartarchive.org/release-group/artless-release/front-250',
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Song or album title', { exact: true }).fill('Artless')
+
+    const cover = page.locator('#search-results-list img').first()
+    await expect(cover).toHaveAttribute('src', '/blank-album.svg')
+    // opacity-0 still counts as visible to Playwright, so assert the class that
+    // actually proves the skeleton cleared rather than a toBeVisible() no-op.
+    await expect(cover).toHaveClass(/opacity-100/)
+  })
+})

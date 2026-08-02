@@ -186,7 +186,11 @@
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-2">New item from link:</p>
           <div class="flex gap-4 p-3 rounded-md border">
-            <CoverArt src={musicItem?.coverArt} alt={`Cover of ${editableTitle}`} size="md" />
+            <CoverArt
+              src={musicItem?.coverArt}
+              alt={`Cover of ${editableTitle}`}
+              size="md"
+            />
             <div class="flex flex-col justify-center gap-2 flex-1">
               <label for="dup-title" class="sr-only">Title</label>
               <Input id="dup-title" bind:value={editableTitle} placeholder="Title" />
@@ -210,7 +214,11 @@
       </div>
     {:else if musicItem}
       <div class="flex gap-4">
-        <CoverArt src={musicItem.coverArt} alt={`Cover of ${editableTitle}`} size="lg" />
+        <CoverArt
+          src={musicItem.coverArt}
+          alt={`Cover of ${editableTitle}`}
+          size="lg"
+        />
         <div class="flex flex-col justify-center gap-1">
           {#if source === 'musicbrainz'}
             <Badge variant="secondary" class="w-fit">MusicBrainz Match</Badge>
