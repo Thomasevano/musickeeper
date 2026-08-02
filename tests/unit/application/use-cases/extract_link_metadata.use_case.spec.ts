@@ -1049,3 +1049,73 @@ test.group('ExtractLinkMetadataUseCase - Partial data handling', (group) => {
     }
   })
 })
+
+test.group('ExtractLinkMetadataUseCase - redundant lookups', (group) => {
+  group.each.teardown(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  class CountingSearchPort extends MockSearchPort {
+    public calls: SearchType[] = []
+
+    async searchItem(query: string, type: SearchType, artist?: string): Promise<MusicItem[]> {
+      this.calls.push(type)
+      return super.searchItem(query, type, artist)
+    }
+  }
+
+  // Spotify oEmbed omits author_name for tracks, so the album hint only ever
+  // reaches the use case through the page-HTML scrape. Mock both halves.
+  function mockSpotifyTrack(options: { thumbnail?: string }) {
+    const oEmbed: Record<string, unknown> = { title: 'Never Gonna Give You Up' }
+    if (options.thumbnail) oEmbed.thumbnail_url = options.thumbnail
+
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlString = url.toString()
+      if (urlString.includes('open.spotify.com/oembed')) {
+        return new Response(JSON.stringify(oEmbed), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      // "Artist · Album · Song · Year" — the hint is the second segment, and it
+      // deliberately differs from the album the MusicBrainz match reports.
+      const html =
+        '<meta property="og:description" content="Rick Astley \u00B7 A Completely Different Album \u00B7 Song \u00B7 1987">'
+      return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html' } })
+    }
+  }
+
+  test('skips the album lookup when platform artwork already wins', async ({ assert }) => {
+    mockSpotifyTrack({ thumbnail: 'https://i.scdn.co/image/abc123' })
+
+    const search = new CountingSearchPort()
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
+
+    // The album hint differs from the match, which is what normally triggers a
+    // second search purely to source cover art. That art would be overwritten
+    // by the platform thumbnail, so the lookup is pure latency.
+    assert.deepEqual(search.calls, [SearchType.track])
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.musicItem.coverArt, 'https://i.scdn.co/image/abc123')
+    }
+  })
+
+  test('still looks up album art when the platform supplies none', async ({ assert }) => {
+    mockSpotifyTrack({})
+
+    const search = new CountingSearchPort()
+    const useCase = makeUseCase(search)
+    const result = await useCase.execute('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')
+
+    assert.deepEqual(search.calls, [SearchType.track, SearchType.album])
+
+    assert.isFalse(isLinkMetadataError(result))
+    if (!isLinkMetadataError(result)) {
+      assert.equal(result.musicItem.coverArt, 'https://coverartarchive.org/test-cover.jpg')
+    }
+  })
+})

@@ -38,7 +38,10 @@ export class ExtractLinkMetadataUseCase {
         linkMetadata.title,
         linkMetadata.artist,
         linkMetadata.type,
-        linkMetadata.albumName
+        // The hint only makes the enricher search again for better cover art.
+        // Platform artwork overwrites that result below, so passing the hint
+        // when we already have a thumbnail buys a round trip and nothing else.
+        linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName
       )
 
       if (musicItem) {
