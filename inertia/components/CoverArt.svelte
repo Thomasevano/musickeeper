@@ -10,9 +10,30 @@
     class?: string
   }
 
-  let { src, alt, size = 'md', class: className, ...restProps }: CoverArtProps = $props()
+  let {
+    src,
+    alt,
+    size = 'md',
+    class: className,
+    ...restProps
+  }: CoverArtProps = $props()
 
-  let isLoading = $state(true)
+  // Derived archive URLs can legitimately 404. In that case, finish loading
+  // with the placeholder instead of leaving the skeleton on screen.
+  const PLACEHOLDER = '/blank-album.svg'
+
+  const INITIAL_LOAD_STATE = { failed: false, settled: false }
+  let imageLoadState = $state({ key: '', ...INITIAL_LOAD_STATE })
+
+  const currentSourceLoadState = $derived(
+    imageLoadState.key === (src ?? '')
+      ? imageLoadState
+      : { key: src ?? '', ...INITIAL_LOAD_STATE }
+  )
+  const resolvedSrc = $derived(
+    currentSourceLoadState.failed ? PLACEHOLDER : (src ?? PLACEHOLDER)
+  )
+  const isLoading = $derived(!currentSourceLoadState.settled)
 
   const sizeClasses = {
     sm: 'h-16 w-16',
@@ -23,7 +44,11 @@
   const sizeClass = $derived(sizeClasses[size])
 
   function handleLoad() {
-    isLoading = false
+    imageLoadState = { ...currentSourceLoadState, settled: true }
+  }
+
+  function handleError() {
+    imageLoadState = { ...currentSourceLoadState, failed: true, settled: true }
   }
 </script>
 
@@ -33,7 +58,7 @@
       <Skeleton class={cn(sizeClass)} />
     {/if}
     <img
-      {src}
+      src={resolvedSrc}
       {alt}
       class={cn(
         'object-cover rounded-md transition-opacity duration-150',
@@ -41,6 +66,7 @@
         isLoading ? 'opacity-0' : 'opacity-100'
       )}
       onload={handleLoad}
+      onerror={handleError}
     />
   {/key}
 </div>

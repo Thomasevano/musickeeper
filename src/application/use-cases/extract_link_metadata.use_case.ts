@@ -47,7 +47,7 @@ export class ExtractLinkMetadataUseCase {
           musicItem.albumName = linkMetadata.albumName
         }
 
-        // Prefer platform artwork; keep MusicBrainz artwork only as a fallback.
+        // Prefer artwork supplied by the platform the user pasted.
         if (linkMetadata.thumbnailUrl) {
           musicItem.coverArt = linkMetadata.thumbnailUrl
         }

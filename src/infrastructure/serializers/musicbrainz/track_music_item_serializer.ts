@@ -1,9 +1,9 @@
 import { IRecordingMatch, IReleaseMatch, IArtistCredit } from 'musicbrainz-api'
 import { MusicItem, SearchType } from '../../../domain/music_item.js'
+import { coverArtUrlForRelease } from './cover_art_url.js'
 
 export function serializeRecordingAsTrackMusicItem(
   recording: IRecordingMatch,
-  coverArtUrl: string = '../../../../resources/images/Blank_album.svg',
   bestRelease?: IReleaseMatch
 ): MusicItem {
   const release = bestRelease || (recording.releases?.[0] as IReleaseMatch | undefined)
@@ -17,6 +17,6 @@ export function serializeRecordingAsTrackMusicItem(
     ),
     albumName: release?.title,
     itemType: SearchType.track,
-    coverArt: coverArtUrl,
+    coverArt: release ? coverArtUrlForRelease(release) : undefined,
   })
 }
