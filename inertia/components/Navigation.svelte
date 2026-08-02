@@ -10,7 +10,7 @@
 
 <NavigationMenu.Root
   viewport={isMobile.current}
-  class="mx-auto w-full max-w-7xl px-8 flex flex-0 py-5 justify-between items-center md:px-12 lg:px-16"
+  class="mx-auto w-full max-w-screen-2xl px-8 flex flex-0 py-5 justify-between items-center md:px-12 lg:px-16"
 >
   <ModeWatcher />
   <a href="/" class="font-display font-bold flex items-center gap-2">
