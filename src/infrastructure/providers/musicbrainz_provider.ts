@@ -3,6 +3,7 @@ import { SearchPort } from '#application/ports/search.port.js'
 import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
 import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
 import { MusicBrainzSearchAdapter } from '#infrastructure/adapters/musicbrainz/musicbrainz_search.adapter.js'
+import { CachedSearchAdapter } from '#infrastructure/adapters/cached_search.adapter.js'
 import { MusicBrainzExternalLinksAdapter } from '#infrastructure/adapters/musicbrainz/musicbrainz_external_links.adapter.js'
 import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
 import { GetExternalLinksUseCase } from '#application/use-cases/get_external_links.use_case.js'
@@ -11,8 +12,9 @@ export default class MusicBrainzProvider {
   constructor(protected app: ApplicationService) {}
 
   async boot() {
-    this.app.container.singleton(SearchPort, () => {
-      return this.app.container.make(MusicBrainzSearchAdapter)
+    this.app.container.singleton(SearchPort, async () => {
+      const musicBrainzSearch = await this.app.container.make(MusicBrainzSearchAdapter)
+      return new CachedSearchAdapter(musicBrainzSearch)
     })
 
     this.app.container.singleton(MusicBrainzExternalLinksPort, () => {
