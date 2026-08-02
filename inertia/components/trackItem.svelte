@@ -32,12 +32,11 @@
   }
 
   async function addToListenLater(item: MusicItem) {
-    const externalLinks = await fetchExternalLinks(item)
     const itemTolistenLater: ListenLaterItem = {
       ...item,
       hasBeenListened: false,
       addedAt: new Date(),
-      externalLinks,
+      externalLinks: [],
     }
     const dbRequest = indexedDB.open('listenLaterDB', 3)
 
@@ -49,9 +48,38 @@
       const addRequest = store.add(itemTolistenLater)
       addRequest.onsuccess = () => {
         listenLaterItems = [...listenLaterItems, itemTolistenLater]
+        void backfillExternalLinks(item)
       }
       addRequest.onerror = (error) => {
         console.error('Error adding item to listen later list:', error)
+      }
+    }
+  }
+
+  // Link resolution hits third-party APIs and can take seconds. The item is
+  // already saved and on screen by then, so patch it in place when the links
+  // land — and skip the write if the user removed it while we waited.
+  async function backfillExternalLinks(item: MusicItem) {
+    const externalLinks = await fetchExternalLinks(item)
+    if (!externalLinks.length) return
+
+    const dbRequest = indexedDB.open('listenLaterDB', 3)
+    dbRequest.onsuccess = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result
+      const store = db.transaction('listenLaterList', 'readwrite').objectStore('listenLaterList')
+
+      const getRequest = store.get(item.id)
+      getRequest.onsuccess = () => {
+        const stored = getRequest.result
+        if (!stored) return
+
+        store.put({ ...stored, externalLinks })
+        listenLaterItems = listenLaterItems.map((existing: ListenLaterItem) =>
+          existing.id === item.id ? { ...existing, externalLinks } : existing
+        )
+      }
+      getRequest.onerror = (error) => {
+        console.error('Error backfilling external links:', error)
       }
     }
   }
