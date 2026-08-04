@@ -642,7 +642,11 @@ test.describe('desktop sorting', () => {
     )
     await expect(descendingButton).toBeVisible()
 
+    const columnChooser = page.getByRole('button', { name: 'Columns', exact: true })
+    await expect(columnChooser).toBeVisible()
+
     await page.setViewportSize({ width: 320, height: 568 })
+    await expect(columnChooser).not.toBeVisible()
     const customSort = page.getByRole('button', {
       name: 'Sort: Artists (descending)',
       exact: true,
@@ -725,7 +729,6 @@ test.describe('mobile breakpoint controls', () => {
       page.getByRole('button', { name: 'Status: All', exact: true }),
       page.getByRole('button', { name: 'Type: All', exact: true }),
       page.getByRole('button', { name: 'Sort: None', exact: true }),
-      page.getByRole('button', { name: 'Columns', exact: true }),
       mobileCard.getByRole('button', { name: 'Open menu' }),
       mobileCard.getByRole('link', { name: 'Deezer' }),
       page.getByRole('button', { name: 'Previous' }),
@@ -749,10 +752,6 @@ test.describe('mobile breakpoint controls', () => {
       )
       await page.keyboard.press('Escape')
     }
-
-    await page.getByRole('button', { name: 'Columns', exact: true }).click()
-    await expectAllMinTouchTargets(page.getByRole('menuitemcheckbox'))
-    await page.keyboard.press('Escape')
 
     await mobileCard.getByRole('button', { name: 'Open menu' }).click()
     await expectAllMinTouchTargets(page.getByRole('menuitem'))
@@ -854,7 +853,6 @@ test.describe('mobile navigation', () => {
       }),
     ])
 
-    await expect(page.getByRole('button', { name: 'Columns', exact: true })).toBeVisible()
     const mobileCard = page.locator('#mobile-item-column-chooser-item')
     const platformLink = mobileCard.getByRole('link', { name: 'Spotify' })
 
