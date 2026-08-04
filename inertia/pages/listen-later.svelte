@@ -15,6 +15,10 @@
   import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
+  import {
+    findDuplicate,
+    listenLaterStorage,
+  } from '../../src/infrastructure/storage/listen_later_storage'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let { serializedItems = [] } = $props()
@@ -24,7 +28,6 @@
   let listenLaterItems = $state([]) as ListenLaterItem[]
   let isSearching = $state(false)
   let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
-  let db: IDBDatabase
 
   // Listen for online/offline events
   $effect(() => {
@@ -169,133 +172,39 @@
     return () => clearTimeout(timeout)
   })
 
-  const request = indexedDB.open('listenLaterDB', 3)
+  $effect(() => {
+    void loadListenLaterItems()
+  })
 
-  request.onupgradeneeded = (event) => {
-    db = event.target?.result
-    const oldVersion = event.oldVersion
-
-    // Create object store for fresh installs
-    if (oldVersion < 1) {
-      db.createObjectStore('listenLaterList', {
-        keyPath: 'id',
-        autoIncrement: true,
-      })
-    }
-
-    // Migration from version 1 to 2: add type field to existing items
-    if (oldVersion < 2) {
-      const transaction = event.target.transaction
-      const objectStore = transaction.objectStore('listenLaterList')
-      let counter = 0
-
-      objectStore.openCursor().onsuccess = (cursorEvent: IDBCursor) => {
-        const cursor = cursorEvent.target.result
-        if (cursor) {
-          const item = cursor.value
-          // Add type field to existing items (default to 'track')
-          if (!item.type) {
-            item.type = 'track'
-          }
-          // Add addedAt field to existing items (use counter to preserve order)
-          if (!item.addedAt) {
-            item.addedAt = counter++
-          }
-          cursor.update(item)
-          cursor.continue()
-        }
-      }
-    }
-
-    // Migration from version 2 to 3: add externalLinks field to existing items
-    if (oldVersion < 3) {
-      const transaction = event.target.transaction
-      const objectStore = transaction.objectStore('listenLaterList')
-
-      objectStore.openCursor().onsuccess = (cursorEvent: IDBCursor) => {
-        const cursor = cursorEvent.target.result
-        if (cursor) {
-          const item = cursor.value
-          if (!item.externalLinks) {
-            item.externalLinks = []
-            cursor.update(item)
-          }
-          cursor.continue()
-        }
-      }
+  async function loadListenLaterItems() {
+    try {
+      listenLaterItems = await listenLaterStorage.getAll()
+    } catch (error) {
+      console.error('Error loading listen later list:', error)
+      toast.error('Failed to load your list')
     }
   }
 
-  request.onsuccess = (event) => {
-    db = event.target.result
-    const transaction = db.transaction('listenLaterList', 'readwrite')
-    const store = transaction.objectStore('listenLaterList')
-
-    const getRequest = store.getAll()
-    getRequest.onsuccess = () => {
-      sortListenLaterItems(getRequest)
+  async function handleListen(item: ListenLaterItem) {
+    try {
+      const updated = await listenLaterStorage.toggleListened(item.id)
+      if (updated) {
+        listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
+      }
+    } catch (error) {
+      console.error('Error updating item:', error)
+      toast.error(`Could not update "${item.title}"`)
     }
   }
 
-  function handleListen(item: ListenLaterItem): void {
-    // Toggle hasBeenListened status
-    const transaction = db.transaction(['listenLaterList'], 'readwrite')
-    const objectStore = transaction.objectStore('listenLaterList')
-
-    const getRequest = objectStore.get(item.id)
-    getRequest.onsuccess = () => {
-      const data = getRequest.result
-
-      if (data) {
-        // Toggle the hasBeenListened value
-        data.hasBeenListened = !data.hasBeenListened
-
-        // Update the item in the database
-        const updateRequest = objectStore.put(data)
-
-        updateRequest.onsuccess = () => {
-          // Refresh the list after successful update
-          const refreshTransaction = db.transaction('listenLaterList', 'readonly')
-          const refreshStore = refreshTransaction.objectStore('listenLaterList')
-          const getAllRequest = refreshStore.getAll()
-
-          getAllRequest.onsuccess = () => {
-            sortListenLaterItems(getAllRequest)
-          }
-        }
-        updateRequest.onerror = (error) => {
-          console.error('Error updating item:', error)
-        }
-      }
-    }
-
-    getRequest.onerror = (error) => {
-      console.error('Error getting item:', error)
-    }
-  }
-
-  function handleDelete(item: ListenLaterItem): void {
-    // Delete item from IndexedDB
-    const transaction = db.transaction(['listenLaterList'], 'readwrite')
-    const objectStore = transaction.objectStore('listenLaterList')
-
-    const deleteRequest = objectStore.delete(item.id)
-
-    deleteRequest.onsuccess = () => {
-      // Refresh the list after successful deletion
-      const refreshTransaction = db.transaction('listenLaterList', 'readonly')
-      const refreshStore = refreshTransaction.objectStore('listenLaterList')
-      const getAllRequest = refreshStore.getAll()
-
-      getAllRequest.onsuccess = () => {
-        sortListenLaterItems(getAllRequest)
-      }
-
+  async function handleDelete(item: ListenLaterItem) {
+    try {
+      await listenLaterStorage.remove(item.id)
+      listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
       toast.success(`"${item.title}" removed from your list`)
-    }
-
-    deleteRequest.onerror = (error) => {
+    } catch (error) {
       console.error('Error deleting item:', error)
+      toast.error(`Could not remove "${item.title}"`)
     }
   }
 
@@ -307,16 +216,6 @@
   const triggerContent = $derived(
     types.find((t) => t.value === searchType)?.label ?? 'Select a type'
   )
-
-  function sortListenLaterItems(getAllRequest: IDBRequest<any[]>) {
-    // TODO: remove this condition when I can export and import the list
-    // this condition exists only for legacy reasons, I should remove it later
-    listenLaterItems = getAllRequest.result.sort((a: ListenLaterItem, b: ListenLaterItem) =>
-      a.addedAt instanceof Date && b.addedAt instanceof Date
-        ? a.addedAt.getTime() - b.addedAt.getTime()
-        : ((a.addedAt as unknown as number) || 0) - ((b.addedAt as unknown as number) || 0)
-    )
-  }
 
   function isValidUrl(urlString: string): boolean {
     try {
@@ -374,7 +273,7 @@
       const title = data.musicItem?.title || data.linkMetadata?.title || ''
       const artists =
         data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
-      const duplicate = findDuplicate(title, artists)
+      const duplicate = findDuplicate(listenLaterItems, title, artists)
 
       // Update dialog with fetched data
       pendingMusicItem = data.musicItem
@@ -429,41 +328,31 @@
 
     const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
 
-    // Create ListenLaterItem from confirmed (and possibly edited) data
-    const newItem: ListenLaterItem = new ListenLaterItem({
-      id: pendingMusicItem.id,
-      title: title,
-      releaseDate: pendingMusicItem.releaseDate,
-      length: pendingMusicItem.length,
-      artists: artists,
-      albumName: albumName,
-      itemType: itemType,
-      coverArt: pendingMusicItem.coverArt,
-      hasBeenListened: false,
-      addedAt: new Date(),
-      sourceUrl: linkUrl || undefined,
-      externalLinks,
-    })
+    try {
+      const stored = await listenLaterStorage.add({
+        id: pendingMusicItem.id,
+        title,
+        releaseDate: pendingMusicItem.releaseDate,
+        length: pendingMusicItem.length,
+        artists,
+        albumName,
+        itemType,
+        coverArt: pendingMusicItem.coverArt,
+        sourceUrl: linkUrl || undefined,
+        externalLinks,
+      })
 
-    // Save to IndexedDB
-    const transaction = db.transaction('listenLaterList', 'readwrite')
-    const store = transaction.objectStore('listenLaterList')
+      // ponytail: appending assumes the store's oldest-first order, which puts a
+      // new item last. If that default order ever changes, replace this with a
+      // getAll().
+      listenLaterItems = [...listenLaterItems, stored]
 
-    const addRequest = store.add(newItem)
-
-    addRequest.onsuccess = () => {
-      // Add to the list immediately so it appears in the UI
-      listenLaterItems = [...listenLaterItems, newItem]
-
-      // Close dialog and reset state
       isConfirmDialogOpen = false
       resetPendingState()
       linkUrl = ''
 
       toast.success(`"${title}" added to your list`)
-    }
-
-    addRequest.onerror = (error) => {
+    } catch (error) {
       console.error('Error saving item to listen later list:', error)
       dialogError = 'Failed to save item. Please try again.'
     }
@@ -481,24 +370,6 @@
     existingDuplicate = null
     dialogError = null
     isDialogLoading = false
-  }
-
-  function findDuplicate(title: string, artists: string[]): ListenLaterItem | null {
-    const normalizedTitle = title.toLowerCase().trim()
-    const normalizedArtists = artists.map((a) => a.toLowerCase().trim()).sort()
-
-    return (
-      listenLaterItems.find((item) => {
-        const itemTitle = item.title.toLowerCase().trim()
-        const itemArtists = item.artists.map((a: string) => a.toLowerCase().trim()).sort()
-
-        // Match if title and at least one artist matches
-        if (itemTitle !== normalizedTitle) return false
-
-        // Check if any artist overlaps
-        return normalizedArtists.some((artist) => itemArtists.includes(artist))
-      }) || null
-    )
   }
 
   function handleViewExisting() {

@@ -4,6 +4,8 @@
   import type { ExternalLink } from '../../src/domain/music_item'
   import CoverArt from '~/components/CoverArt.svelte'
   import Skeleton from 'boneyard-js/svelte'
+  import { toast } from 'svelte-sonner'
+  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
 
   let {
     listenLaterItems = $bindable(),
@@ -32,27 +34,29 @@
   }
 
   async function addToListenLater(item: MusicItem) {
-    const itemTolistenLater: ListenLaterItem = {
-      ...item,
-      hasBeenListened: false,
-      addedAt: new Date(),
-      externalLinks: [],
-    }
-    const dbRequest = indexedDB.open('listenLaterDB', 3)
+    // Links resolve in the background: the item is saved and on screen first.
+    try {
+      const stored = await listenLaterStorage.add({
+        id: item.id,
+        title: item.title,
+        releaseDate: item.releaseDate,
+        length: item.length,
+        artists: item.artists,
+        albumName: item.albumName,
+        itemType: item.itemType,
+        coverArt: item.coverArt,
+        externalLinks: [],
+      })
 
-    dbRequest.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-      const transaction = db.transaction('listenLaterList', 'readwrite')
-      const store = transaction.objectStore('listenLaterList')
-
-      const addRequest = store.add(itemTolistenLater)
-      addRequest.onsuccess = () => {
-        listenLaterItems = [...listenLaterItems, itemTolistenLater]
-        void backfillExternalLinks(item)
-      }
-      addRequest.onerror = (error) => {
-        console.error('Error adding item to listen later list:', error)
-      }
+      // ponytail: appending assumes the store's oldest-first order, which puts a
+      // new item last. If that default order ever changes, replace this with a
+      // getAll().
+      listenLaterItems = [...listenLaterItems, stored]
+      toast.success(`"${item.title}" added to your list`)
+      void backfillExternalLinks(item)
+    } catch (error) {
+      console.error('Error adding item to listen later list:', error)
+      toast.error(`Could not add "${item.title}"`)
     }
   }
 
@@ -63,48 +67,31 @@
     const externalLinks = await fetchExternalLinks(item)
     if (!externalLinks.length) return
 
-    const dbRequest = indexedDB.open('listenLaterDB', 3)
-    dbRequest.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-      const store = db.transaction('listenLaterList', 'readwrite').objectStore('listenLaterList')
-
-      const getRequest = store.get(item.id)
-      getRequest.onsuccess = () => {
-        const stored = getRequest.result
-        if (!stored) return
-
-        store.put({ ...stored, externalLinks })
-        listenLaterItems = listenLaterItems.map((existing: ListenLaterItem) =>
-          existing.id === item.id ? { ...existing, externalLinks } : existing
-        )
-      }
-      getRequest.onerror = (error) => {
-        console.error('Error backfilling external links:', error)
-      }
+    try {
+      const updated = await listenLaterStorage.updateExternalLinks(item.id, externalLinks)
+      if (!updated) return
+      listenLaterItems = listenLaterItems.map((existing: ListenLaterItem) =>
+        existing.id === item.id ? { ...existing, externalLinks } : existing
+      )
+    } catch (error) {
+      console.error('Error backfilling external links:', error)
     }
   }
 
-  function removeFromListenLater(itemId: string) {
-    const dbRequest = indexedDB.open('listenLaterDB', 3)
-
-    dbRequest.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-      const transaction = db.transaction('listenLaterList', 'readwrite')
-      const store = transaction.objectStore('listenLaterList')
-
-      const deleteRequest = store.delete(itemId)
-      deleteRequest.onsuccess = () => {
-        listenLaterItems = listenLaterItems.filter((item: ListenLaterItem) => item.id !== itemId)
-      }
-      deleteRequest.onerror = (error) => {
-        console.error('Error removing item from listen later list:', error)
-      }
+  async function removeFromListenLater(item: MusicItem) {
+    try {
+      await listenLaterStorage.remove(item.id)
+      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
+      toast.success(`"${item.title}" removed from your list`)
+    } catch (error) {
+      console.error('Error removing item from listen later list:', error)
+      toast.error(`Could not remove "${item.title}"`)
     }
   }
 
   function toggleListenLater(item: MusicItem) {
     if (listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)) {
-      removeFromListenLater(item.id)
+      removeFromListenLater(item)
     } else {
       addToListenLater(item)
     }

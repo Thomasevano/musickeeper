@@ -45,7 +45,7 @@ export class MusicItem {
   }
 }
 
-interface ListenLaterItemProperties extends MusicItemProperties {
+export interface ListenLaterItemProperties extends MusicItemProperties {
   hasBeenListened: boolean
   addedAt: Date
   sourceUrl?: string
