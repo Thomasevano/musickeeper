@@ -348,12 +348,12 @@
       </Select.Root>
     </div>
 
-    <!-- Column visibility toggle -->
-    <div class="w-full md:ml-auto md:w-auto">
+    <!-- Column visibility toggle (desktop table only; mobile cards ignore column visibility) -->
+    <div class="hidden md:ml-auto md:block">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           {#snippet child({ props })}
-            <Button {...props} variant="outline" class="w-full sm:ml-auto sm:w-auto">
+            <Button {...props} variant="outline">
               Columns <ChevronDownIcon class="ml-2 size-4" />
             </Button>
           {/snippet}
