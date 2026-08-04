@@ -1,24 +1,42 @@
 import 'fake-indexeddb/auto'
 import { test } from '@japa/runner'
-import { SearchType } from '../../../../src/domain/music_item.js'
 import {
-  openDatabase,
-  getAllItems,
-  getItem,
-  addItem,
-  removeItem,
-  toggleItemListened,
-  itemExists,
-  getItemCount,
-  createListenLaterItem,
-  sortListenLaterItems,
+  ListenLaterItem,
+  SearchType,
+  type ExternalLink,
+} from '../../../../src/domain/music_item.js'
+import {
+  createListenLaterStorage,
+  findDuplicate,
   DB_CONFIG,
+  type NewListenLaterItem,
 } from '../../../../src/infrastructure/storage/listen_later_storage.js'
 
-// Helper to create a test MusicItem
-function createTestMusicItem(overrides = {}) {
+/**
+ * One store for the whole file: the factory opens a connection lazily and keeps
+ * it, so deleting the database between tests would be blocked by that
+ * connection. Emptying the list through the interface isolates tests without
+ * ever racing a close.
+ *
+ * The clock is sequenced, one second per write: two items added in the same
+ * millisecond sort in an unspecified order, which is what made order assertions
+ * flaky when they leaned on real time.
+ */
+let tick = 0
+const storage = createListenLaterStorage(
+  indexedDB,
+  () => new Date(1_700_000_000_000 + tick++ * 1000)
+)
+
+async function emptyList() {
+  for (const item of await storage.getAll()) {
+    await storage.remove(item.id)
+  }
+}
+
+function describeItem(overrides: Partial<NewListenLaterItem> = {}): NewListenLaterItem {
   return {
-    id: `test-id-${Date.now()}-${Math.random()}`,
+    id: 'test-id',
     title: 'Test Track',
     releaseDate: '2024-01-15',
     artists: ['Test Artist'],
@@ -29,485 +47,301 @@ function createTestMusicItem(overrides = {}) {
   }
 }
 
-// Clean up IndexedDB between tests
-async function cleanupDatabase() {
-  const deleteRequest = indexedDB.deleteDatabase(DB_CONFIG.name)
-  await new Promise<void>((resolve, reject) => {
-    deleteRequest.onsuccess = () => resolve()
-    deleteRequest.onerror = () => reject(deleteRequest.error)
+/**
+ * Writes a row the way versions before 2 did: `addedAt` as a migration counter
+ * instead of a Date. Only the migration ever produces these, so the store's own
+ * `add` cannot.
+ */
+async function seedLegacyRow(id: string, title: string, addedAt: number) {
+  const { promise, resolve, reject } = Promise.withResolvers<IDBDatabase>()
+  const request = indexedDB.open(DB_CONFIG.name, DB_CONFIG.version)
+  request.onsuccess = () => resolve(request.result)
+  request.onerror = () => reject(request.error)
+  const db = await promise
+
+  const write = Promise.withResolvers<void>()
+  const transaction = db.transaction(DB_CONFIG.storeName, 'readwrite')
+  transaction.objectStore(DB_CONFIG.storeName).add({
+    id,
+    title,
+    releaseDate: '2020-01-01',
+    artists: ['Legacy Artist'],
+    itemType: SearchType.track,
+    hasBeenListened: false,
+    addedAt,
   })
+  transaction.oncomplete = () => write.resolve()
+  transaction.onerror = () => write.reject(transaction.error)
+  await write.promise
+
+  db.close()
 }
 
-test.group('Listen Later Storage - Database Operations', (group) => {
-  group.each.teardown(async () => {
-    await cleanupDatabase()
+test.group('Listen Later Storage - writes', (group) => {
+  group.each.teardown(emptyList)
+
+  test('add stores the described item and owns addedAt and hasBeenListened', async ({ assert }) => {
+    const stored = await storage.add(describeItem({ id: 'add-test-1' }))
+
+    assert.equal(stored.id, 'add-test-1')
+    assert.equal(stored.title, 'Test Track')
+    assert.deepEqual(stored.artists, ['Test Artist'])
+    assert.isFalse(stored.hasBeenListened)
+    assert.instanceOf(stored.addedAt, Date)
   })
 
-  test('openDatabase creates and opens the database successfully', async ({ assert }) => {
-    const db = await openDatabase()
+  test('add keeps sourceUrl and externalLinks', async ({ assert }) => {
+    await storage.add(
+      describeItem({
+        id: 'add-test-2',
+        sourceUrl: 'https://open.spotify.com/track/abc',
+        externalLinks: [
+          {
+            platform: 'deezer',
+            label: 'Deezer',
+            url: 'https://deezer.com/track/1',
+            category: 'stream',
+            source: 'platform-search',
+          },
+        ],
+      })
+    )
 
-    assert.isNotNull(db)
-    assert.equal(db.name, DB_CONFIG.name)
-    assert.equal(db.version, DB_CONFIG.version)
-    assert.isTrue(db.objectStoreNames.contains(DB_CONFIG.storeName))
+    const result = await storage.get('add-test-2')
 
-    db.close()
+    assert.equal(result!.sourceUrl, 'https://open.spotify.com/track/abc')
+    assert.lengthOf(result!.externalLinks!, 1)
+    assert.equal(result!.externalLinks![0].platform, 'deezer')
   })
 
-  test('openDatabase creates object store with correct configuration', async ({ assert }) => {
-    const db = await openDatabase()
+  test('add defaults externalLinks to an empty array', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'add-test-3' }))
 
-    const transaction = db.transaction(DB_CONFIG.storeName, 'readonly')
-    const store = transaction.objectStore(DB_CONFIG.storeName)
+    const result = await storage.get('add-test-3')
 
-    assert.equal(store.keyPath, 'id')
-    assert.isTrue(store.autoIncrement)
+    assert.deepEqual(result!.externalLinks, [])
+  })
 
-    db.close()
+  test('add stores a structured-cloneable copy, not the caller object', async ({ assert }) => {
+    const artists = ['Kavinsky']
+    const input = describeItem({ id: 'add-test-4', artists })
+
+    const stored = await storage.add(input)
+    artists.push('Mutated After Save')
+
+    assert.deepEqual(stored.artists, ['Kavinsky'])
+    assert.deepEqual((await storage.get('add-test-4'))!.artists, ['Kavinsky'])
+  })
+
+  test('remove deletes the item', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'remove-test-1' }))
+
+    await storage.remove('remove-test-1')
+
+    assert.isNull(await storage.get('remove-test-1'))
+  })
+
+  test('toggleListened flips the flag and returns the updated item', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'toggle-test-1' }))
+
+    const listened = await storage.toggleListened('toggle-test-1')
+    assert.isTrue(listened!.hasBeenListened)
+
+    const unlistened = await storage.toggleListened('toggle-test-1')
+    assert.isFalse(unlistened!.hasBeenListened)
+  })
+
+  test('toggleListened persists the new value', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'toggle-test-2' }))
+
+    await storage.toggleListened('toggle-test-2')
+
+    assert.isTrue((await storage.get('toggle-test-2'))!.hasBeenListened)
+  })
+
+  test('toggleListened returns null for an unknown id', async ({ assert }) => {
+    assert.isNull(await storage.toggleListened('non-existent-id'))
+  })
+
+  const deezerLink: ExternalLink = {
+    platform: 'deezer',
+    label: 'Deezer',
+    url: 'https://deezer.com/track/1',
+    category: 'stream',
+    source: 'platform-search',
+  }
+
+  test('updateExternalLinks replaces the links and persists them', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'links-test-1' }))
+
+    const updated = await storage.updateExternalLinks('links-test-1', [deezerLink])
+
+    assert.isNotNull(updated)
+    assert.lengthOf(updated!.externalLinks!, 1)
+    assert.equal((await storage.get('links-test-1'))!.externalLinks![0].platform, 'deezer')
+  })
+
+  test('updateExternalLinks returns null when the item was removed', async ({ assert }) => {
+    assert.isNull(await storage.updateExternalLinks('non-existent-id', [deezerLink]))
+  })
+
+  test('get returns null for an unknown id', async ({ assert }) => {
+    assert.isNull(await storage.get('non-existent-id'))
   })
 })
 
-test.group('Listen Later Storage - CRUD Operations', (group) => {
-  let db: IDBDatabase
+test.group('Listen Later Storage - reads', (group) => {
+  group.each.teardown(emptyList)
 
-  group.each.setup(async () => {
-    db = await openDatabase()
-  })
-
-  group.each.teardown(async () => {
-    db.close()
-    await cleanupDatabase()
-  })
-
-  test('addItem adds a music item to the database', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'add-test-1' })
-
-    const result = await addItem(db, musicItem)
-
-    assert.equal(result.id, musicItem.id)
-    assert.equal(result.title, musicItem.title)
-    assert.equal(result.hasBeenListened, false)
-    assert.instanceOf(result.addedAt, Date)
-  })
-
-  test('getItem retrieves an item by ID', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'get-test-1' })
-    await addItem(db, musicItem)
-
-    const result = await getItem(db, 'get-test-1')
-
-    assert.isNotNull(result)
-    assert.equal(result!.id, 'get-test-1')
-    assert.equal(result!.title, musicItem.title)
-  })
-
-  test('getItem returns null for non-existent item', async ({ assert }) => {
-    const result = await getItem(db, 'non-existent-id')
-
-    assert.isNull(result)
-  })
-
-  test('getAllItems returns all items sorted by addedAt', async ({ assert }) => {
-    const item1 = createTestMusicItem({ id: 'all-test-1', title: 'First' })
-    const item2 = createTestMusicItem({ id: 'all-test-2', title: 'Second' })
-    const item3 = createTestMusicItem({ id: 'all-test-3', title: 'Third' })
-
-    await addItem(db, item1)
-    // Small delay to ensure different timestamps
-    await new Promise((resolve) => setTimeout(resolve, 10))
-    await addItem(db, item2)
-    await new Promise((resolve) => setTimeout(resolve, 10))
-    await addItem(db, item3)
-
-    const results = await getAllItems(db)
-
-    assert.lengthOf(results, 3)
-    assert.equal(results[0].title, 'First')
-    assert.equal(results[1].title, 'Second')
-    assert.equal(results[2].title, 'Third')
-  })
-
-  test('getAllItems returns empty array when no items exist', async ({ assert }) => {
-    const results = await getAllItems(db)
+  test('getAll returns an empty array when nothing is stored', async ({ assert }) => {
+    const results = await storage.getAll()
 
     assert.isArray(results)
     assert.lengthOf(results, 0)
   })
 
-  test('removeItem deletes an item from the database', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'remove-test-1' })
-    await addItem(db, musicItem)
+  test('getAll returns items oldest first', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'order-1', title: 'First' }))
+    await storage.add(describeItem({ id: 'order-2', title: 'Second' }))
+    await storage.add(describeItem({ id: 'order-3', title: 'Third' }))
 
-    // Verify item exists
-    let exists = await itemExists(db, 'remove-test-1')
-    assert.isTrue(exists)
+    const stored = await storage.getAll()
+    const titles = stored.map((item) => item.title)
 
-    // Remove item
-    await removeItem(db, 'remove-test-1')
-
-    // Verify item is removed
-    exists = await itemExists(db, 'remove-test-1')
-    assert.isFalse(exists)
+    assert.deepEqual(titles, ['First', 'Second', 'Third'])
   })
 
-  test('toggleItemListened toggles hasBeenListened from false to true', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'toggle-test-1' })
-    await addItem(db, musicItem)
+  test('getAll sorts regardless of insertion order', async ({ assert }) => {
+    // Keys sort before addedAt would, so ids are deliberately reversed.
+    await storage.add(describeItem({ id: 'zzz', title: 'First' }))
+    await storage.add(describeItem({ id: 'aaa', title: 'Second' }))
 
-    const result = await toggleItemListened(db, 'toggle-test-1')
+    const stored = await storage.getAll()
+    const titles = stored.map((item) => item.title)
 
-    assert.isNotNull(result)
-    assert.equal(result!.hasBeenListened, true)
+    assert.deepEqual(titles, ['First', 'Second'])
   })
 
-  test('toggleItemListened toggles hasBeenListened from true to false', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'toggle-test-2' })
-    await addItem(db, musicItem)
+  test('getAll sorts legacy numeric addedAt before dated items', async ({ assert }) => {
+    await storage.add(describeItem({ id: 'modern', title: 'Modern' }))
+    await seedLegacyRow('legacy-2', 'Legacy Two', 2)
+    await seedLegacyRow('legacy-1', 'Legacy One', 1)
 
-    // Toggle to true
-    await toggleItemListened(db, 'toggle-test-2')
-    // Toggle back to false
-    const result = await toggleItemListened(db, 'toggle-test-2')
+    const stored = await storage.getAll()
+    const titles = stored.map((item) => item.title)
 
-    assert.isNotNull(result)
-    assert.equal(result!.hasBeenListened, false)
+    assert.deepEqual(titles, ['Legacy One', 'Legacy Two', 'Modern'])
   })
 
-  test('toggleItemListened returns null for non-existent item', async ({ assert }) => {
-    const result = await toggleItemListened(db, 'non-existent-id')
+  test('stores both track and album items', async ({ assert }) => {
+    await storage.add(
+      describeItem({ id: 'track-type', itemType: SearchType.track, albumName: 'Greatest Hits' })
+    )
+    await storage.add(
+      describeItem({ id: 'album-type', itemType: SearchType.album, title: 'Amazing Album' })
+    )
 
-    assert.isNull(result)
+    assert.equal((await storage.get('track-type'))!.itemType, SearchType.track)
+    assert.equal((await storage.get('track-type'))!.albumName, 'Greatest Hits')
+    assert.equal((await storage.get('album-type'))!.itemType, SearchType.album)
   })
 
-  test('itemExists returns true for existing item', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'exists-test-1' })
-    await addItem(db, musicItem)
+  test('stores multiple artists', async ({ assert }) => {
+    await storage.add(
+      describeItem({ id: 'multi-artist', artists: ['Artist One', 'Artist Two', 'Artist Three'] })
+    )
 
-    const exists = await itemExists(db, 'exists-test-1')
+    const result = await storage.get('multi-artist')
 
-    assert.isTrue(exists)
-  })
-
-  test('itemExists returns false for non-existent item', async ({ assert }) => {
-    const exists = await itemExists(db, 'non-existent-id')
-
-    assert.isFalse(exists)
-  })
-
-  test('getItemCount returns correct count', async ({ assert }) => {
-    // Initially empty
-    let count = await getItemCount(db)
-    assert.equal(count, 0)
-
-    // Add items
-    await addItem(db, createTestMusicItem({ id: 'count-test-1' }))
-    await addItem(db, createTestMusicItem({ id: 'count-test-2' }))
-    await addItem(db, createTestMusicItem({ id: 'count-test-3' }))
-
-    count = await getItemCount(db)
-    assert.equal(count, 3)
-
-    // Remove one item
-    await removeItem(db, 'count-test-2')
-
-    count = await getItemCount(db)
-    assert.equal(count, 2)
-  })
-})
-
-test.group('Listen Later Storage - Helper Functions', () => {
-  test('createListenLaterItem creates item with correct properties', async ({ assert }) => {
-    const musicItem = createTestMusicItem({ id: 'helper-test-1' })
-
-    const listenLaterItem = createListenLaterItem(musicItem)
-
-    assert.equal(listenLaterItem.id, musicItem.id)
-    assert.equal(listenLaterItem.title, musicItem.title)
-    assert.deepEqual(listenLaterItem.artists, musicItem.artists)
-    assert.equal(listenLaterItem.hasBeenListened, false)
-    assert.instanceOf(listenLaterItem.addedAt, Date)
-  })
-
-  test('sortListenLaterItems sorts by Date objects in ascending order', async ({ assert }) => {
-    const items = [
-      {
-        id: '3',
-        title: 'Third',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: new Date('2024-01-03'),
-      },
-      {
-        id: '1',
-        title: 'First',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: new Date('2024-01-01'),
-      },
-      {
-        id: '2',
-        title: 'Second',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: new Date('2024-01-02'),
-      },
-    ]
-
-    const sorted = sortListenLaterItems(items)
-
-    // Verify exact order - oldest first
-    assert.equal(sorted[0].title, 'First')
-    assert.equal(sorted[1].title, 'Second')
-    assert.equal(sorted[2].title, 'Third')
-
-    // Verify it's actually sorted by comparing timestamps
-    const firstTime = (sorted[0].addedAt as Date).getTime()
-    const secondTime = (sorted[1].addedAt as Date).getTime()
-    const thirdTime = (sorted[2].addedAt as Date).getTime()
-    assert.isTrue(firstTime < secondTime, 'First item should have earlier timestamp than second')
-    assert.isTrue(secondTime < thirdTime, 'Second item should have earlier timestamp than third')
-  })
-
-  test('sortListenLaterItems returns items in ascending order (oldest first)', async ({
-    assert,
-  }) => {
-    // This test uses items that would fail if sort is broken (e.g., reversed or unsorted)
-    const oldest = {
-      id: 'oldest',
-      title: 'Oldest',
-      releaseDate: '2024-01-01',
-      artists: ['Artist'],
-      itemType: SearchType.track,
-      hasBeenListened: false,
-      addedAt: new Date('2020-01-01'),
-    }
-    const newest = {
-      id: 'newest',
-      title: 'Newest',
-      releaseDate: '2024-01-01',
-      artists: ['Artist'],
-      itemType: SearchType.track,
-      hasBeenListened: false,
-      addedAt: new Date('2025-01-01'),
-    }
-    const middle = {
-      id: 'middle',
-      title: 'Middle',
-      releaseDate: '2024-01-01',
-      artists: ['Artist'],
-      itemType: SearchType.track,
-      hasBeenListened: false,
-      addedAt: new Date('2022-06-15'),
-    }
-
-    // Input in random order
-    const items = [newest, oldest, middle]
-    const sorted = sortListenLaterItems(items)
-
-    // Must be: oldest, middle, newest
-    assert.equal(sorted[0].id, 'oldest')
-    assert.equal(sorted[1].id, 'middle')
-    assert.equal(sorted[2].id, 'newest')
-  })
-
-  test('sortListenLaterItems sorts by numeric timestamps (legacy data)', async ({ assert }) => {
-    const items = [
-      {
-        id: '3',
-        title: 'Third',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: 3 as unknown as Date, // Legacy numeric format
-      },
-      {
-        id: '1',
-        title: 'First',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: 1 as unknown as Date, // Legacy numeric format
-      },
-      {
-        id: '2',
-        title: 'Second',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: 2 as unknown as Date, // Legacy numeric format
-      },
-    ]
-
-    const sorted = sortListenLaterItems(items)
-
-    assert.equal(sorted[0].title, 'First')
-    assert.equal(sorted[1].title, 'Second')
-    assert.equal(sorted[2].title, 'Third')
-  })
-
-  test('sortListenLaterItems handles empty array', async ({ assert }) => {
-    const sorted = sortListenLaterItems([])
-
-    assert.isArray(sorted)
-    assert.lengthOf(sorted, 0)
-  })
-
-  test('sortListenLaterItems does not mutate original array', async ({ assert }) => {
-    const items = [
-      {
-        id: '2',
-        title: 'Second',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: new Date('2024-01-02'),
-      },
-      {
-        id: '1',
-        title: 'First',
-        releaseDate: '2024-01-01',
-        artists: ['Artist'],
-        itemType: SearchType.track,
-        hasBeenListened: false,
-        addedAt: new Date('2024-01-01'),
-      },
-    ]
-
-    const sorted = sortListenLaterItems(items)
-
-    // Original array should maintain order
-    assert.equal(items[0].title, 'Second')
-    assert.equal(items[1].title, 'First')
-
-    // Sorted array should be in order
-    assert.equal(sorted[0].title, 'First')
-    assert.equal(sorted[1].title, 'Second')
-  })
-})
-
-test.group('Listen Later Storage - Item Types', (group) => {
-  let db: IDBDatabase
-
-  group.each.setup(async () => {
-    db = await openDatabase()
-  })
-
-  group.each.teardown(async () => {
-    db.close()
-    await cleanupDatabase()
-  })
-
-  test('can add and retrieve track items', async ({ assert }) => {
-    const trackItem = createTestMusicItem({
-      id: 'track-type-test',
-      itemType: SearchType.track,
-      title: 'My Favorite Song',
-      albumName: 'Greatest Hits',
-    })
-
-    await addItem(db, trackItem)
-    const result = await getItem(db, 'track-type-test')
-
-    assert.isNotNull(result)
-    assert.equal(result!.itemType, SearchType.track)
-    assert.equal(result!.albumName, 'Greatest Hits')
-  })
-
-  test('can add and retrieve album items', async ({ assert }) => {
-    const albumItem = createTestMusicItem({
-      id: 'album-type-test',
-      itemType: SearchType.album,
-      title: 'Amazing Album',
-      albumName: 'Amazing Album',
-    })
-
-    await addItem(db, albumItem)
-    const result = await getItem(db, 'album-type-test')
-
-    assert.isNotNull(result)
-    assert.equal(result!.itemType, SearchType.album)
-    assert.equal(result!.title, 'Amazing Album')
-  })
-
-  test('can store items with multiple artists', async ({ assert }) => {
-    const multiArtistItem = createTestMusicItem({
-      id: 'multi-artist-test',
-      artists: ['Artist One', 'Artist Two', 'Artist Three'],
-    })
-
-    await addItem(db, multiArtistItem)
-    const result = await getItem(db, 'multi-artist-test')
-
-    assert.isNotNull(result)
     assert.deepEqual(result!.artists, ['Artist One', 'Artist Two', 'Artist Three'])
-    assert.lengthOf(result!.artists, 3)
-  })
-})
-
-test.group('Listen Later Storage - Edge Cases', (group) => {
-  let db: IDBDatabase
-
-  group.each.setup(async () => {
-    db = await openDatabase()
   })
 
-  group.each.teardown(async () => {
-    db.close()
-    await cleanupDatabase()
-  })
-
-  test('handles items without optional coverArt field', async ({ assert }) => {
-    const itemWithoutCover = {
-      id: 'no-cover-test',
-      title: 'No Cover Track',
-      releaseDate: '2024-01-01',
-      artists: ['Artist'],
-      itemType: SearchType.track,
-    }
-
-    await addItem(db, itemWithoutCover)
-    const result = await getItem(db, 'no-cover-test')
-
-    assert.isNotNull(result)
-    assert.isUndefined(result!.coverArt)
-  })
-
-  test('handles items without optional albumName field', async ({ assert }) => {
-    const itemWithoutAlbum = {
-      id: 'no-album-test',
+  test('stores items without optional fields', async ({ assert }) => {
+    await storage.add({
+      id: 'no-optionals',
       title: 'Single Track',
       releaseDate: '2024-01-01',
-      artists: ['Solo Artist'],
-      itemType: SearchType.track,
-    }
-
-    await addItem(db, itemWithoutAlbum)
-    const result = await getItem(db, 'no-album-test')
-
-    assert.isNotNull(result)
-    assert.isUndefined(result!.albumName)
-  })
-
-  test('handles empty artists array', async ({ assert }) => {
-    const itemWithNoArtists = createTestMusicItem({
-      id: 'no-artists-test',
       artists: [],
+      itemType: SearchType.track,
     })
 
-    await addItem(db, itemWithNoArtists)
-    const result = await getItem(db, 'no-artists-test')
+    const result = await storage.get('no-optionals')
 
-    assert.isNotNull(result)
+    assert.isUndefined(result!.coverArt)
+    assert.isUndefined(result!.albumName)
     assert.deepEqual(result!.artists, [])
+  })
+})
+
+test.group('Listen Later Storage - injection', () => {
+  test('createListenLaterStorage uses the IDBFactory it is given', async ({ assert }) => {
+    const injected = createListenLaterStorage(indexedDB)
+
+    await injected.add(describeItem({ id: 'injected-1' }))
+    assert.isNotNull(await injected.get('injected-1'))
+
+    await injected.remove('injected-1')
+  })
+})
+
+test.group('Listen Later Storage - duplicate rule', () => {
+  function item(title: string, artists: string[]): ListenLaterItem {
+    return {
+      id: `${title}-${artists.join('-')}`,
+      title,
+      releaseDate: '2024-01-01',
+      artists,
+      itemType: SearchType.track,
+      hasBeenListened: false,
+      addedAt: new Date(),
+    }
+  }
+
+  test('matches on identical title and artist set', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky'])]
+
+    const found = findDuplicate(items, 'Nightcall', ['Kavinsky'])
+
+    assert.equal(found!.id, 'Nightcall-Kavinsky')
+  })
+
+  test('ignores case and surrounding whitespace', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky'])]
+
+    assert.isNotNull(findDuplicate(items, '  NIGHTCALL ', [' kavinsky']))
+  })
+
+  test('ignores artist order', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky', 'Angèle'])]
+
+    assert.isNotNull(findDuplicate(items, 'Nightcall', ['Angèle', 'Kavinsky']))
+  })
+
+  test('a repeated artist name does not make it another version', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky', 'Kavinsky'])]
+
+    assert.isNotNull(findDuplicate(items, 'Nightcall', ['Kavinsky']))
+  })
+
+  test('a shared title with extra artists is another version, not a duplicate', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky'])]
+
+    assert.isNull(findDuplicate(items, 'Nightcall', ['Kavinsky', 'Angèle', 'Phoenix']))
+  })
+
+  test('a shared title with fewer artists is another version, not a duplicate', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky', 'Angèle', 'Phoenix'])]
+
+    assert.isNull(findDuplicate(items, 'Nightcall', ['Kavinsky']))
+  })
+
+  test('same artists but a different title is not a duplicate', ({ assert }) => {
+    const items = [item('Nightcall', ['Kavinsky'])]
+
+    assert.isNull(findDuplicate(items, 'Odd Look', ['Kavinsky']))
+  })
+
+  test('returns null on an empty list', ({ assert }) => {
+    assert.isNull(findDuplicate([], 'Nightcall', ['Kavinsky']))
   })
 })

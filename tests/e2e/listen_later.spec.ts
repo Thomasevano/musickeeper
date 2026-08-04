@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
+import { DB_CONFIG } from '../../src/infrastructure/storage/listen_later_storage.js'
 
 const SPOTIFY_URL = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
 
@@ -96,30 +97,36 @@ async function addSpotifyItem(page: Page) {
   await expect(page.getByRole('dialog')).not.toBeVisible()
 }
 async function seedListenLaterItems(page: Page, items: ListenLaterItemSeed[]) {
-  await page.evaluate(async (seed) => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('listenLaterDB', 3)
+  // The evaluate body runs in the browser and cannot import the store, so the
+  // schema is passed in: DB_CONFIG stays the single source of the name and
+  // version, and a bump cannot leave this seed opening an older database.
+  await page.evaluate(
+    async ({ config, seed }) => {
+      const opening = Promise.withResolvers<IDBDatabase>()
+      const request = indexedDB.open(config.name, config.version)
       request.onupgradeneeded = () => {
         const database = request.result
-        if (!database.objectStoreNames.contains('listenLaterList')) {
-          database.createObjectStore('listenLaterList', { keyPath: 'id', autoIncrement: true })
+        if (!database.objectStoreNames.contains(config.storeName)) {
+          database.createObjectStore(config.storeName, { keyPath: 'id', autoIncrement: true })
         }
       }
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
+      request.onsuccess = () => opening.resolve(request.result)
+      request.onerror = () => opening.reject(request.error)
+      const db = await opening.promise
 
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction('listenLaterList', 'readwrite')
-      const store = transaction.objectStore('listenLaterList')
+      const writing = Promise.withResolvers<void>()
+      const transaction = db.transaction(config.storeName, 'readwrite')
+      const store = transaction.objectStore(config.storeName)
       store.clear()
       for (const item of seed) store.add(item)
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-    })
+      transaction.oncomplete = () => writing.resolve()
+      transaction.onerror = () => writing.reject(transaction.error)
+      await writing.promise
 
-    db.close()
-  }, items)
+      db.close()
+    },
+    { config: DB_CONFIG, seed: items }
+  )
   await page.reload()
 }
 
@@ -557,6 +564,56 @@ test.describe('artist-only search', () => {
     const requestUrl = new URL(searchUrls[0])
     expect(requestUrl.searchParams.get('artist')).toBe('angele')
     expect(requestUrl.searchParams.has('q')).toBe(false)
+  })
+})
+
+test.describe('search results - add and remove', () => {
+  test('adding then removing from the search results toasts and updates the list', async ({
+    page,
+  }) => {
+    await page.route('**/api/links*', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ externalLinks: [] }),
+      })
+    })
+
+    await page.route('**/library/listen-later*', async (route) => {
+      const url = new URL(route.request().url())
+
+      if (!url.searchParams.has('type')) {
+        await route.continue()
+        return
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ serializedItems: [mockMetadataResponse.musicItem] }),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Artist name', { exact: true }).fill('Rick Astley')
+
+    const searchResult = page.getByRole('option', {
+      name: 'Add Never Gonna Give You Up to listen later',
+    })
+    await searchResult.click()
+
+    await expect(page.getByText('"Never Gonna Give You Up" added to your list')).toBeVisible()
+
+    const itemRow = page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })
+    await expect(itemRow).toBeVisible()
+
+    const savedResult = page.getByRole('option', {
+      name: 'Remove Never Gonna Give You Up from listen later',
+    })
+    await savedResult.click()
+
+    await expect(page.getByText('"Never Gonna Give You Up" removed from your list')).toBeVisible()
+    await expect(itemRow).not.toBeVisible()
   })
 })
 
