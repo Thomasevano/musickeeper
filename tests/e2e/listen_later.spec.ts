@@ -647,14 +647,23 @@ test.describe('desktop sorting', () => {
 
     await page.setViewportSize({ width: 320, height: 568 })
     await expect(columnChooser).not.toBeVisible()
-    const customSort = page.getByRole('button', {
-      name: 'Sort: Artists (descending)',
+    const mobileSortTrigger = page.getByRole('button', {
+      name: 'Sort: Artists (Z–A)',
       exact: true,
     })
-    await expect(customSort).toBeVisible()
-    await customSort.click()
-    await page.getByRole('option', { name: 'None', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Sort: None', exact: true })).toBeVisible()
+    await expect(mobileSortTrigger).toBeVisible()
+    await mobileSortTrigger.click()
+    await page.getByRole('option', { name: 'Added (oldest)', exact: true }).click()
+    await expect(
+      page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true })
+    ).toBeVisible()
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.getByRole('button', { name: 'Title, not sorted', exact: true }).click()
+    await page.setViewportSize({ width: 320, height: 568 })
+    await expect(
+      page.getByRole('button', { name: 'Sort: Title (ascending)', exact: true })
+    ).toBeVisible()
   })
 })
 
@@ -728,7 +737,7 @@ test.describe('mobile breakpoint controls', () => {
       page.locator('#search-artist'),
       page.getByRole('button', { name: 'Status: All', exact: true }),
       page.getByRole('button', { name: 'Type: All', exact: true }),
-      page.getByRole('button', { name: 'Sort: None', exact: true }),
+      page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true }),
       mobileCard.getByRole('button', { name: 'Open menu' }),
       mobileCard.getByRole('link', { name: 'Deezer' }),
       page.getByRole('button', { name: 'Previous' }),
@@ -743,7 +752,7 @@ test.describe('mobile breakpoint controls', () => {
       page.locator('#search-type'),
       page.getByRole('button', { name: 'Status: All', exact: true }),
       page.getByRole('button', { name: 'Type: All', exact: true }),
-      page.getByRole('button', { name: 'Sort: None', exact: true }),
+      page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true }),
     ]
     for (const trigger of selectTriggers) {
       await trigger.click()
@@ -970,7 +979,7 @@ test.describe('mobile navigation', () => {
     ])
     const mobileItems = page.locator('article[id^="mobile-item-"]')
 
-    await page.getByRole('button', { name: 'Sort: None', exact: true }).click()
+    await page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true }).click()
     await page.getByRole('option', { name: 'Artists (A–Z)', exact: true }).click()
     await expect
       .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))

@@ -30,7 +30,6 @@
   } from '$lib/components/ui/data-table/index.js'
   import type { ListenLaterItem } from '../../src/domain/music_item'
 
-
   let {
     items,
     onDelete,
@@ -55,10 +54,10 @@
     { value: 'album', label: 'Albums' },
   ]
 
-  type MobileSort = 'none' | 'artists_asc' | 'added_desc' | 'added_asc'
+  type MobileSort = 'artists_desc' | 'artists_asc' | 'added_desc' | 'added_asc'
 
   const mobileSortOptions: { value: MobileSort; label: string; sorting: SortingState }[] = [
-    { value: 'none', label: 'None', sorting: [] },
+    { value: 'artists_desc', label: 'Artists (Z–A)', sorting: [{ id: 'artists', desc: true }] },
     { value: 'artists_asc', label: 'Artists (A–Z)', sorting: [{ id: 'artists', desc: false }] },
     { value: 'added_desc', label: 'Added (newest)', sorting: [{ id: 'addedAt', desc: true }] },
     { value: 'added_asc', label: 'Added (oldest)', sorting: [{ id: 'addedAt', desc: false }] },
@@ -129,15 +128,25 @@
       accessorKey: 'addedAt',
       header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Added' }),
       sortingFn: (a, b) => {
-        const aDate = a.original.addedAt instanceof Date ? a.original.addedAt.getTime() : Number(a.original.addedAt)
-        const bDate = b.original.addedAt instanceof Date ? b.original.addedAt.getTime() : Number(b.original.addedAt)
+        const aDate =
+          a.original.addedAt instanceof Date
+            ? a.original.addedAt.getTime()
+            : Number(a.original.addedAt)
+        const bDate =
+          b.original.addedAt instanceof Date
+            ? b.original.addedAt.getTime()
+            : Number(b.original.addedAt)
         return aDate - bDate
       },
       cell: ({ row }) => {
         const d = row.original.addedAt
         if (!d) return '-'
         const date = d instanceof Date ? d : new Date(d)
-        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        return date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
       },
     },
     {
@@ -153,7 +162,9 @@
         const d = row.original.releaseDate
         if (!d) return '-'
         const date = new Date(d)
-        return isNaN(date.getTime()) ? '-' : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        return isNaN(date.getTime())
+          ? '-'
+          : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
       },
     },
     {
@@ -273,14 +284,13 @@
       (option) =>
         option.sorting.length === sorting.length &&
         option.sorting.every(
-          (entry, index) =>
-            entry.id === sorting[index]?.id && entry.desc === sorting[index]?.desc
+          (entry, index) => entry.id === sorting[index]?.id && entry.desc === sorting[index]?.desc
         )
     )
   )
 
   const mobileSort = $derived<MobileSort | 'custom'>(
-    sorting.length === 0 ? 'none' : (selectedMobileSortOption?.value ?? 'custom')
+    sorting.length === 0 ? 'added_asc' : (selectedMobileSortOption?.value ?? 'custom')
   )
 
   const statusFilterLabel = $derived(
@@ -292,7 +302,7 @@
   )
 
   const mobileSortLabel = $derived(
-    selectedMobileSortOption?.label ??
+    mobileSortOptions.find((option) => option.value === mobileSort)?.label ??
       sorting
         .map(
           (entry) =>
@@ -379,15 +389,13 @@
           <Table.Row>
             {#each headerGroup.headers as header (header.id)}
               <Table.Head
-                aria-sort={
-                  header.column.getCanSort()
-                    ? header.column.getIsSorted() === 'asc'
-                      ? 'ascending'
-                      : header.column.getIsSorted() === 'desc'
-                        ? 'descending'
-                        : 'none'
-                    : undefined
-                }
+                aria-sort={header.column.getCanSort()
+                  ? header.column.getIsSorted() === 'asc'
+                    ? 'ascending'
+                    : header.column.getIsSorted() === 'desc'
+                      ? 'descending'
+                      : 'none'
+                  : undefined}
               >
                 {#if !header.isPlaceholder}
                   <FlexRender
@@ -449,17 +457,15 @@
           <div class="min-w-0 flex-1 leading-tight text-pretty">
             <DataTableTitleCell
               title={row.original.title}
-              albumName={row.original.itemType === 'track' ? (row.original.albumName ?? null) : null}
+              albumName={row.original.itemType === 'track'
+                ? (row.original.albumName ?? null)
+                : null}
             />
             <p class="text-muted-foreground mt-1 truncate text-sm text-pretty">
               {row.original.artists?.join(', ') || 'Unknown artist'}
             </p>
           </div>
-          <DataTableActions
-            item={row.original}
-            {onDelete}
-            {onToggleListen}
-          />
+          <DataTableActions item={row.original} {onDelete} {onToggleListen} />
         </div>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <DataTableTypeBadge type={row.original.itemType} />
