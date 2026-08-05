@@ -132,7 +132,7 @@
   {/snippet}
   {#snippet fallback()}
     <li class="flex p-2 rounded-sm gap-2">
-      <CoverArt src="" alt="Cover" size="md" />
+      <div class="h-32 w-32 shrink-0 rounded-md bg-muted animate-pulse"></div>
       <div class="flex gap-4">
         <div class="flex flex-col justify-between space-y-4 space-x-2">
           <div class="h-4 w-[200px] rounded bg-muted animate-pulse"></div>
