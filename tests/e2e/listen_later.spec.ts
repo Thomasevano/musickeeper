@@ -1116,4 +1116,38 @@ test.describe('cover art', () => {
     // actually proves the skeleton cleared rather than a toBeVisible() no-op.
     await expect(cover).toHaveClass(/opacity-100/)
   })
+
+  test('shows a pulsing block for the cover while the search is in flight', async ({ page }) => {
+    // The loading row used to render CoverArt with an empty src, which resolves
+    // straight to the "Album Artwork Not Available" placeholder — a finished
+    // looking image next to pulsing text bars.
+    let releaseSearch = () => {}
+    const searchHeld = new Promise<void>((resolve) => {
+      releaseSearch = resolve
+    })
+
+    await page.route('**/library/listen-later*', async (route) => {
+      const url = new URL(route.request().url())
+      if (!url.searchParams.has('type')) {
+        await route.continue()
+        return
+      }
+      await searchHeld
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ serializedItems: [] }),
+      })
+    })
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Song or album title', { exact: true }).fill('Held search')
+
+    const loadingRow = page.locator('ul[role="listbox"] li')
+    await expect(loadingRow).toBeVisible()
+    await expect(loadingRow.locator('img')).toHaveCount(0)
+    await expect(loadingRow.locator('div.animate-pulse.h-32.w-32')).toBeVisible()
+
+    releaseSearch()
+  })
 })
