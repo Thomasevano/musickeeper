@@ -162,7 +162,7 @@
       <div class="flex items-center gap-2 rounded-md border border-warning bg-warning/10 p-3 mb-4">
         <Copy class="h-5 w-5 text-warning" aria-hidden="true" />
         <p class="text-sm text-warning-foreground">
-          An item with the same title and artist already exists in your list.
+          An item with the same title and the same artists is already in your list.
         </p>
       </div>
 
