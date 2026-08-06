@@ -104,6 +104,15 @@
   * {
     @apply border-border;
   }
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role='button'] {
+    /* Kill the 300ms double-tap-zoom delay on touch. */
+    touch-action: manipulation;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings:
