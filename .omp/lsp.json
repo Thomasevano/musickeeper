@@ -1,0 +1,7 @@
+{
+  "servers": {
+    "tailwindcss": {
+      "fileTypes": [".html", ".css", ".scss", ".js", ".jsx", ".ts", ".tsx", ".vue"]
+    }
+  }
+}
