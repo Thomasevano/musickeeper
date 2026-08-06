@@ -36,7 +36,7 @@
 
 <Badge
   variant={hasBeenListened ? 'secondary' : 'outline'}
-  class="gap-1 transition-colors duration-150 ease-out {hasBeenListened ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}"
+  class="gap-1 transition-colors duration-150 ease-out {hasBeenListened ? 'text-green-800 dark:text-green-400' : 'text-muted-foreground'}"
 >
   <span class="inline-flex items-center gap-1">
     <span class="inline-flex size-3 shrink-0 items-center justify-center">

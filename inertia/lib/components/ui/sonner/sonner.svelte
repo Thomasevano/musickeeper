@@ -20,7 +20,7 @@
 		<Loader2Icon class="size-4 animate-spin" />
 	{/snippet}
 	{#snippet successIcon()}
-		<CircleCheckIcon class="size-4 text-green-500" />
+		<CircleCheckIcon class="size-4 text-green-800 dark:text-green-400" />
 	{/snippet}
 	{#snippet errorIcon()}
 		<OctagonXIcon class="size-4" />
