@@ -1,60 +1,13 @@
 import { test, expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
-import { DB_CONFIG } from '../../src/infrastructure/storage/listen_later_storage.js'
-
-const SPOTIFY_URL = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
-
-const mockMetadataResponse = {
-  musicItem: {
-    id: 'mb-track-456',
-    title: 'Never Gonna Give You Up',
-    releaseDate: '2023-06-15',
-    length: 180000,
-    artists: ['Rick Astley'],
-    albumName: 'Whenever You Need Somebody',
-    itemType: 'track',
-    coverArt: 'https://coverartarchive.org/test-cover.jpg',
-  },
-  source: 'musicbrainz',
-  linkMetadata: {
-    title: 'Never Gonna Give You Up',
-    artist: 'Rick Astley',
-    type: 'track',
-    thumbnailUrl:
-      'https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02255e131abc1410833be95673',
-    originalUrl: SPOTIFY_URL,
-    albumName: 'Whenever You Need Somebody',
-  },
-}
-
-interface ListenLaterItemSeed {
-  id: string
-  title: string
-  releaseDate?: string
-  artists: string[]
-  itemType: 'track' | 'album'
-  hasBeenListened: boolean
-  addedAt: number
-  externalLinks?: {
-    platform: string
-    label: string
-    url: string
-    category: 'stream' | 'buy'
-  }[]
-}
-
-type ListenLaterSeedOverrides = Pick<ListenLaterItemSeed, 'id' | 'title'> &
-  Partial<Omit<ListenLaterItemSeed, 'id' | 'title'>>
-
-function listenLaterSeed(overrides: ListenLaterSeedOverrides): ListenLaterItemSeed {
-  return {
-    artists: ['Artist'],
-    itemType: 'album',
-    hasBeenListened: false,
-    addedAt: 1,
-    ...overrides,
-  }
-}
+import {
+  SPOTIFY_URL,
+  heldRoute,
+  listenLaterSeed,
+  mockMetadataResponse,
+  seedListenLaterItems,
+  settleAnimations,
+} from './fixtures.js'
 
 // The "Add" link button shares its accessible-name prefix with the sortable
 // "Added" column header, so it must be matched exactly.
@@ -95,39 +48,6 @@ async function addSpotifyItem(page: Page) {
   await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
   await page.getByRole('button', { name: 'Add to List' }).click()
   await expect(page.getByRole('dialog')).not.toBeVisible()
-}
-async function seedListenLaterItems(page: Page, items: ListenLaterItemSeed[]) {
-  // The evaluate body runs in the browser and cannot import the store, so the
-  // schema is passed in: DB_CONFIG stays the single source of the name and
-  // version, and a bump cannot leave this seed opening an older database.
-  await page.evaluate(
-    async ({ config, seed }) => {
-      const opening = Promise.withResolvers<IDBDatabase>()
-      const request = indexedDB.open(config.name, config.version)
-      request.onupgradeneeded = () => {
-        const database = request.result
-        if (!database.objectStoreNames.contains(config.storeName)) {
-          database.createObjectStore(config.storeName, { keyPath: 'id', autoIncrement: true })
-        }
-      }
-      request.onsuccess = () => opening.resolve(request.result)
-      request.onerror = () => opening.reject(request.error)
-      const db = await opening.promise
-
-      const writing = Promise.withResolvers<void>()
-      const transaction = db.transaction(config.storeName, 'readwrite')
-      const store = transaction.objectStore(config.storeName)
-      store.clear()
-      for (const item of seed) store.add(item)
-      transaction.oncomplete = () => writing.resolve()
-      transaction.onerror = () => writing.reject(transaction.error)
-      await writing.promise
-
-      db.close()
-    },
-    { config: DB_CONFIG, seed: items }
-  )
-  await page.reload()
 }
 
 test.describe('listen later page', () => {
