@@ -52,7 +52,6 @@
     "eslint": "^9.39.4",
     "esm-env": "^1.2.2",
     "fake-indexeddb": "^6.2.5",
-    "focus-trap": "^7.8.0",
     "hot-hook": "^0.4.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.2.0",

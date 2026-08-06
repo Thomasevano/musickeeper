@@ -141,9 +141,6 @@ importers:
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5
-      focus-trap:
-        specifier: ^7.8.0
-        version: 7.8.0
       hot-hook:
         specifier: ^0.4.0
         version: 0.4.0
@@ -3133,9 +3130,6 @@ packages:
   flattie@1.1.1:
     resolution: {integrity: sha512-9UbaD6XdAL97+k/n+N7JwX46K/M6Zc6KcFYskrYL8wbBV/Uyk0CTAMY0VT+qiK5PM7AIc9aTWYtq65U7T+aCNQ==}
     engines: {node: '>=8'}
-
-  focus-trap@7.8.0:
-    resolution: {integrity: sha512-/yNdlIkpWbM0ptxno3ONTuf+2g318kh2ez3KSeZN5dZ8YC6AAmgeWz+GasYYiBJPFaYcSAPeu4GfhUaChzIJXA==}
 
   follow-redirects@1.15.11:
     resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
@@ -8430,10 +8424,6 @@ snapshots:
   flatted@3.4.2: {}
 
   flattie@1.1.1: {}
-
-  focus-trap@7.8.0:
-    dependencies:
-      tabbable: 6.4.0
 
   follow-redirects@1.15.11(debug@4.4.3(supports-color@10.2.2)):
     optionalDependencies:
