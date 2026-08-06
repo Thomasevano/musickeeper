@@ -60,27 +60,3 @@
 		</SheetPrimitive.Close>
 	</SheetPrimitive.Content>
 </SheetPrimitive.Portal>
-
-<style>
-	@keyframes sheet-fade-in {
-		from {
-			opacity: 0;
-		}
-	}
-
-	@keyframes sheet-fade-out {
-		to {
-			opacity: 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		:global([data-slot="sheet-content"][data-state="open"]) {
-			animation-name: sheet-fade-in !important;
-		}
-
-		:global([data-slot="sheet-content"][data-state="closed"]) {
-			animation-name: sheet-fade-out !important;
-		}
-	}
-</style>

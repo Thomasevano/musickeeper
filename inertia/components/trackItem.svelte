@@ -104,7 +104,7 @@
 
 <Skeleton name="track-item" {loading}>
   {#snippet fixture()}
-    <li class="flex items-center p-2 rounded-sm gap-2">
+    <li class="flex items-center p-2 rounded-sm gap-2" aria-hidden="true">
       <CoverArt src="" alt="Cover" size="md" />
       <div class="flex items-center gap-4">
         <div class="flex flex-col justify-between text-left">
@@ -118,7 +118,7 @@
     </li>
   {/snippet}
   {#snippet fallback()}
-    <li class="flex p-2 rounded-sm gap-2">
+    <li class="flex p-2 rounded-sm gap-2" aria-hidden="true">
       <div class="h-32 w-32 shrink-0 rounded-md bg-muted animate-pulse"></div>
       <div class="flex gap-4">
         <div class="flex flex-col justify-between space-y-4 space-x-2">
