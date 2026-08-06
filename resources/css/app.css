@@ -121,9 +121,39 @@
   }
 }
 
+/* Reduced motion: strip the travel, keep the fade that carries the state change.
+   tailwindcss-animate routes every animate-in/animate-out through these custom
+   properties, so neutralising them here covers the dropdown, select, tooltip,
+   navigation menu and sheet in one place instead of eight. This block is
+   unlayered, so it outranks the utilities that set them. --tw-*-opacity is
+   deliberately left alone: that is the meaning, not the motion. */
 @media (prefers-reduced-motion: reduce) {
-  [data-slot='dialog-content'],
-  [data-slot='dialog-overlay'] {
-    animation: none;
+  *,
+  ::before,
+  ::after {
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-enter-scale: 1;
+    --tw-enter-rotate: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-exit-scale: 1;
+    --tw-exit-rotate: 0;
+  }
+
+  /* dialog-in/out scale. overlay-in/out are the same curves and durations with
+     the scale removed, so the dialog still fades rather than snapping in. */
+  [data-slot='dialog-content'][data-state='open'] {
+    animation-name: overlay-in;
+  }
+
+  [data-slot='dialog-content'][data-state='closed'] {
+    animation-name: overlay-out;
+  }
+
+  /* A spinner is a rotating transform on an infinite loop. Pulsing still reads
+     as "working" without anything turning. */
+  .animate-spin {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 }
