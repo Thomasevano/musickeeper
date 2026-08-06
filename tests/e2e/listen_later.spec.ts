@@ -2,9 +2,11 @@ import { test, expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import {
   SPOTIFY_URL,
+  heldRoute,
   listenLaterSeed,
   mockMetadataResponse,
   seedListenLaterItems,
+  settleAnimations,
 } from './fixtures.js'
 
 // The "Add" link button shares its accessible-name prefix with the sortable
@@ -656,30 +658,215 @@ test.describe('desktop navigation', () => {
   })
 })
 
-test.describe('reduced motion', () => {
-  test.use({ viewport: { width: 320, height: 568 } })
+interface MotionReport {
+  observed: string[]
+  moving: string[]
+}
 
-  test('removes sheet travel under reduced motion', async ({ page }) => {
+/** The globals the init scripts below hang off `window` to report back through. */
+interface InstrumentedWindow {
+  __motion: MotionReport
+  __scrolls: string[]
+}
+
+/**
+ * Records animations as they start rather than sampling `getAnimations()`: a
+ * 150ms transition is over before a round trip can observe it. Patching
+ * `Element.animate` catches Svelte's transitions, `animationstart` catches the
+ * CSS keyframe animations, and `transitionstart` catches transformed
+ * transitions, which fire no animation event at all.
+ */
+async function recordMotion(page: Page) {
+  await page.addInitScript(() => {
+    // tailwindcss-animate writes its keyframes as `translate3d(var(--tw-enter-
+    // translate-x), ...) scale3d(...) rotate(...)`, so a motionless enter still
+    // reads as a long transform string. Resolve it instead of matching text.
+    const stillsInPlace = (transform: string) => {
+      if (transform === '' || transform === 'none') return true
+      try {
+        return new DOMMatrix(transform).isIdentity
+      } catch {
+        return false
+      }
+    }
+    const report: MotionReport = { observed: [], moving: [] }
+    Object.assign(window, { __motion: report })
+
+    const name = (element: Element) => {
+      const tag = element.tagName.toLowerCase()
+      // SVG elements carry an `SVGAnimatedString` here, not a string.
+      const classes = typeof element.className === 'string' ? element.className : ''
+      const first = classes.split(' ')[0]
+      return first ? `${tag}.${first}` : tag
+    }
+
+    const record = (animation: Animation, element: Element) => {
+      if (!(animation.effect instanceof KeyframeEffect)) return
+      report.observed.push(name(element))
+      for (const frame of animation.effect.getKeyframes()) {
+        const transform = String(frame.transform ?? 'none')
+        if (!stillsInPlace(transform)) report.moving.push(`${name(element)} -> ${transform}`)
+      }
+    }
+
+    document.addEventListener(
+      'animationstart',
+      (event) => {
+        const element = event.target
+        if (!(element instanceof Element)) return
+        for (const animation of element.getAnimations()) record(animation, element)
+      },
+      true
+    )
+
+    document.addEventListener(
+      'transitionstart',
+      (event) => {
+        const element = event.target
+        if (!(element instanceof Element)) return
+        if (event.propertyName.includes('transform')) {
+          report.moving.push(`${name(element)} -> transition:${event.propertyName}`)
+        }
+      },
+      true
+    )
+
+    const animate = Element.prototype.animate
+    Element.prototype.animate = function (this: Element, ...args: Parameters<Element['animate']>) {
+      const animation = animate.apply(this, args)
+      record(animation, this)
+      return animation
+    }
+  })
+}
+
+/**
+ * Reads the recording once the surfaces have both started and finished moving.
+ * Playwright calls a dialog visible on the frame it mounts, which is before
+ * `animationstart` fires, so an unguarded read can catch an empty recording and
+ * pass while a transform is still queued.
+ */
+async function settledMotionReport(page: Page) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          // Hung off `window` by recordMotion's init script, which runs first.
+          const instrumented = window as unknown as InstrumentedWindow
+          return instrumented.__motion.observed.length
+        }),
+      { message: 'no animation ran at all, so the recording proves nothing' }
+    )
+    .toBeGreaterThan(0)
+  await settleAnimations(page)
+  return page.evaluate(() => {
+    const instrumented = window as unknown as InstrumentedWindow
+    return instrumented.__motion
+  })
+}
+
+test.describe('reduced motion', () => {
+  test('no surface travels once the OS asks for reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
+    await recordMotion(page)
+    const answerMetadata = await heldRoute(page, (url) => url.pathname === '/api/link/metadata')
+    await page.goto('/library/listen-later')
+    // Two rows: deleting the only one empties the list and tears the table
+    // down, and Svelte skips a local `out:` when its parent block goes with it.
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'reduced-motion-item', title: 'Discovery' }),
+      listenLaterSeed({ id: 'reduced-motion-survivor', title: 'Homework' }),
+    ])
+
+    // The add dialog scales in at rest, and holds a spinning loader while the
+    // metadata request is in flight.
+    await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+    await addLinkButton(page).click()
+    await expect(page.getByText('Loading metadata...')).toBeVisible()
+    // A full turn starts and ends on an identity matrix, so the transform
+    // recorder below is blind to it. Assert the swap where it happens.
+    await expect(page.locator('.animate-spin')).toHaveCSS('animation-name', 'pulse')
+    answerMetadata({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockMetadataResponse),
+    })
+    await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+
+    // The row menu zooms and slides in; the status badge spins its icon.
+    const row = page.getByRole('row').filter({ hasText: 'Discovery' })
+    await row.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('menuitem', { name: 'Mark as listened' }).click()
+    await expect(row.getByText('Listened', { exact: true })).toBeVisible()
+
+    // The delete confirmation is a second dialog on top of the first surface.
+    // Confirming it takes the row out and raises a toast - the two newest
+    // moving surfaces in the app.
+    await row.getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(page.getByText('"Discovery" removed from your list')).toBeVisible()
+    await expect(row).toHaveCount(0)
+
+    const { moving } = await settledMotionReport(page)
+    expect(moving).toEqual([])
+  })
+
+  test('the navigation sheet fades instead of sliding', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await recordMotion(page)
     await page.goto('/')
     await page.getByRole('button', { name: 'Open navigation' }).click()
-    const sheet = page.getByRole('dialog')
+    await expect(page.getByRole('dialog')).toBeVisible()
 
-    await expect(sheet).toBeVisible()
-    const motion = await sheet.evaluate((element) => ({
-      reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-      transforms: element.getAnimations().flatMap((animation) => {
-        if (!(animation.effect instanceof KeyframeEffect)) return []
-        return animation.effect.getKeyframes().map((frame) => String(frame.transform ?? 'none'))
-      }),
-    }))
-    expect(motion.reduced).toBe(true)
-    expect(motion.transforms.length).toBeGreaterThan(0)
-    expect(
-      motion.transforms.filter(
-        (transform) => transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)'
+    const { moving } = await settledMotionReport(page)
+    expect(moving).toEqual([])
+  })
+
+  test('the highlight scroll jumps instead of gliding', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.addInitScript(() => {
+      const scrollIntoView = Element.prototype.scrollIntoView
+      const behaviours: string[] = []
+      Object.assign(window, { __scrolls: behaviours })
+      Element.prototype.scrollIntoView = function (
+        this: Element,
+        options?: boolean | ScrollIntoViewOptions
+      ) {
+        behaviours.push(typeof options === 'object' ? String(options.behavior) : 'auto')
+        return scrollIntoView.call(this, options)
+      }
+    })
+    await page.route('**/api/link/metadata', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockMetadataResponse),
+      })
+    )
+    await page.goto('/library/listen-later')
+    await addSpotifyItem(page)
+
+    // Re-pasting the same link reports a duplicate, and "View Existing" is the
+    // only path that scrolls the list on the user's behalf.
+    await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+    await addLinkButton(page).click()
+    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+    await page.getByRole('button', { name: 'View Existing' }).click()
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          // Hung off `window` by the scrollIntoView patch installed above.
+          const instrumented = window as unknown as InstrumentedWindow
+          return instrumented.__scrolls
+        })
       )
-    ).toEqual([])
+      .toEqual(['auto'])
   })
 })
 

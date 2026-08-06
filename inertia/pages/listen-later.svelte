@@ -162,7 +162,14 @@
 
     const element = document.getElementById(`item-${highlightedItemId}`)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // An explicit `smooth` overrides the CSS scroll-behavior, so the
+      // preference has to be honoured here rather than in a stylesheet.
+      element.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'center',
+      })
     }
 
     const timeout = setTimeout(() => {
@@ -227,6 +234,11 @@
   }
 
   async function handlePasteLink() {
+    // A disabled button is unfocusable, so disabling this one mid-request
+    // would blur it and leave the dialog with nowhere to put focus back on
+    // close. It stays enabled and turns the second press into a no-op.
+    if (isProcessingLink) return
+
     linkError = ''
 
     if (!linkUrl.trim()) {
@@ -415,14 +427,15 @@
           bind:value={linkUrl}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
-          disabled={isProcessingLink}
+          readonly={isProcessingLink}
           aria-describedby={linkError ? 'link-url-error' : undefined}
           aria-invalid={linkError ? 'true' : undefined}
         />
         <Button
           class="w-full sm:w-auto"
           onclick={handlePasteLink}
-          disabled={isProcessingLink || !linkUrl.trim()}
+          disabled={!linkUrl.trim()}
+          aria-busy={isProcessingLink}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
           {isProcessingLink ? 'Processing...' : 'Add'}
@@ -492,7 +505,11 @@
             <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
               {searchType === 'track' ? 'Tracks' : 'Albums'}
             </div>
-            <ul role="listbox" aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}>
+            <ul
+              role="listbox"
+              aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}
+              aria-busy="true"
+            >
               <TrackItem loading={true} type={searchType} />
             </ul>
           {:else if serializedItems && serializedItems.length > 0}
