@@ -288,7 +288,7 @@ test.describe('paste link - duplicate detection', () => {
     // Dialog shows duplicate state
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
-    await expect(page.getByText('already exists in your list')).toBeVisible()
+    await expect(page.getByText('the same title and the same artists')).toBeVisible()
 
     // Shows existing item info
     await expect(page.getByText('Existing item in your list')).toBeVisible()
