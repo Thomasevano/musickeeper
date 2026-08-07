@@ -273,8 +273,10 @@
       <div class="flex items-center gap-4">
         <span id="item-type-label" class="text-sm font-medium">Item Type:</span>
         <Select.Root type="single" bind:value={selectedType}>
-          <Select.Trigger class="w-[140px]" aria-labelledby="item-type-label"
-            >{triggerContent}</Select.Trigger
+          <Select.Trigger
+            id="item-type-trigger"
+            class="w-[140px]"
+            aria-labelledby="item-type-label item-type-trigger">{triggerContent}</Select.Trigger
           >
           <Select.Content>
             <Select.Group>

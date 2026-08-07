@@ -14,9 +14,11 @@ import {
 const addLinkButton = (page: Page) => page.getByRole('button', { name: 'Add', exact: true })
 
 // The search combobox is labelled "Song or album title", which contains both
-// "Title" and "Album" as substrings. Scope editable-field lookups to the dialog.
+// "Title" and "Album" as substrings, and the item-type trigger is named after
+// the type it holds - "Album" once an album is selected. Scope editable-field
+// lookups to the text boxes inside the dialog.
 const dialogField = (page: Page, label: string) =>
-  page.getByRole('dialog').getByLabel(label, { exact: true })
+  page.getByRole('dialog').getByRole('textbox', { name: label, exact: true })
 
 async function expectMinTouchTarget(locator: Locator) {
   await expect(locator).toBeVisible()
