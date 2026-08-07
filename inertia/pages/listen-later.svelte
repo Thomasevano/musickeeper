@@ -449,10 +449,18 @@
     <Separator class="my-4" />
 
     <div class="mb-2 flex items-center gap-4" class:opacity-50={isOffline}>
-      <label for="search-type" class="text-sm font-medium">Type:</label>
+      <span id="search-type-label" class="text-sm font-medium">Type:</span>
       <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
-        <Select.Trigger id="search-type" class="w-full sm:w-[180px]">{triggerContent}</Select.Trigger>
-
+        <!--
+          A `<label for>` cannot label a button, and where it is honoured it
+          replaces the name instead of prefixing it - the chosen type goes unread.
+          Pointing at the trigger itself appends its own content to the label.
+        -->
+        <Select.Trigger
+          id="search-type"
+          class="w-full sm:w-[180px]"
+          aria-labelledby="search-type-label search-type">{triggerContent}</Select.Trigger
+        >
         <Select.Content>
           <Select.Group>
             <Select.Label>Types</Select.Label>
