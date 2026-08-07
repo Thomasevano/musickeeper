@@ -197,6 +197,13 @@
       const updated = await listenLaterStorage.toggleListened(item.id)
       if (updated) {
         listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
+        // Every other list write confirms itself. This one changed a badge on a row
+        // the reader has already moved past, so it needs saying out loud too.
+        toast.success(
+          `"${updated.title}" by ${updated.artists.join(', ')} marked as ${
+            updated.hasBeenListened ? 'listened' : 'not listened'
+          }`
+        )
       }
     } catch (error) {
       console.error('Error updating item:', error)

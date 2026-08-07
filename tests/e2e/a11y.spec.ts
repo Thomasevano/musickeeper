@@ -430,6 +430,18 @@ test.describe('announcements', () => {
     await expect(announcement).toHaveText('Sorted by Title, descending')
   })
 })
+test('marking an item listened says so out loud', async ({ page }) => {
+  await page.goto('/library/listen-later')
+  await seedListenLaterItems(page, [
+    listenLaterSeed({ id: 'listened-item', title: 'Discovery', artists: ['Daft Punk'] }),
+  ])
+
+  // The write only repaints a badge on a row the reader has already passed.
+  await page.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('menuitem', { name: 'Mark as listened' }).click()
+
+  await expect(page.getByText('"Discovery" by Daft Punk marked as listened')).toBeVisible()
+})
 
 test.describe('accessible names', () => {
   // A `<label for>` cannot label a button. Where a browser honours it anyway it
