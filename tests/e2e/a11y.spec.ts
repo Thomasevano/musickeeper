@@ -480,3 +480,13 @@ test.describe('accessible names', () => {
     ).toBeVisible()
   })
 })
+test('the title cell heads its row', async ({ page }) => {
+  await page.goto('/library/listen-later')
+  await seedListenLaterItems(page, [
+    listenLaterSeed({ id: 'header-row', title: 'Discovery', artists: ['Daft Punk'] }),
+  ])
+
+  // Reading across a row, a screen reader prefixes each cell with its row
+  // header. Without one the cells arrive unattached to anything.
+  await expect(page.getByRole('rowheader', { name: 'Discovery' })).toBeVisible()
+})
