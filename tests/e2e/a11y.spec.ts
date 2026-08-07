@@ -204,7 +204,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await openAddDialog(page)
       await page.getByRole('button', { name: 'Add to List' }).click()
 
-      await expect(page.getByText('"Never Gonna Give You Up" added to your list')).toBeVisible()
+      await expect(
+        page.getByText('"Never Gonna Give You Up" by Rick Astley added to your list')
+      ).toBeVisible()
       await expectAccessible(page, `toast (${colorScheme})`)
     })
 
@@ -370,7 +372,7 @@ test.describe('announcements', () => {
     await page.getByRole('button', { name: 'Add to List' }).click()
 
     const toast = notifications.locator('[data-sonner-toast][aria-live="polite"]', {
-      hasText: '"Never Gonna Give You Up" added to your list',
+      hasText: '"Never Gonna Give You Up" by Rick Astley added to your list',
     })
     await expect(toast).toBeVisible()
   })

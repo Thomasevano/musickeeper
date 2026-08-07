@@ -104,7 +104,9 @@ test.describe('paste link - add valid link', () => {
     await expect(addedRow).toContainText('Rick Astley')
 
     // Success toast appears
-    await expect(page.getByText('"Never Gonna Give You Up" added to your list')).toBeVisible()
+    await expect(
+      page.getByText('"Never Gonna Give You Up" by Rick Astley added to your list')
+    ).toBeVisible()
   })
 })
 
@@ -322,7 +324,9 @@ test.describe('paste link - edit fields before saving', () => {
     await expect(editedRow).toContainText('Hold Me in Your Arms')
 
     // Toast shows the edited title
-    await expect(page.getByText('"Together Forever" added to your list')).toBeVisible()
+    await expect(
+      page.getByText('"Together Forever" by Rick Astley, Someone Else added to your list')
+    ).toBeVisible()
   })
 
   test('add to list button is disabled when title is cleared', async ({ page }) => {
@@ -460,7 +464,9 @@ test.describe('delete item', () => {
     await expect(page.getByText('Add your first item by searching above')).toBeVisible()
 
     // Success toast appears
-    await expect(page.getByText('"Never Gonna Give You Up" removed from your list')).toBeVisible()
+    await expect(
+      page.getByText('"Never Gonna Give You Up" by Rick Astley removed from your list')
+    ).toBeVisible()
   })
 })
 
@@ -530,7 +536,9 @@ test.describe('search results - add and remove', () => {
     })
     await searchResult.click()
 
-    await expect(page.getByText('"Never Gonna Give You Up" added to your list')).toBeVisible()
+    await expect(
+      page.getByText('"Never Gonna Give You Up" by Rick Astley added to your list')
+    ).toBeVisible()
 
     const itemRow = page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })
     await expect(itemRow).toBeVisible()
@@ -540,7 +548,9 @@ test.describe('search results - add and remove', () => {
     })
     await savedResult.click()
 
-    await expect(page.getByText('"Never Gonna Give You Up" removed from your list')).toBeVisible()
+    await expect(
+      page.getByText('"Never Gonna Give You Up" by Rick Astley removed from your list')
+    ).toBeVisible()
     await expect(itemRow).not.toBeVisible()
   })
 })
@@ -816,7 +826,7 @@ test.describe('reduced motion', () => {
     await page.getByRole('menuitem', { name: 'Delete' }).click()
     await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
     await page.getByRole('button', { name: 'Confirm' }).click()
-    await expect(page.getByText('"Discovery" removed from your list')).toBeVisible()
+    await expect(page.getByText('"Discovery" by Artist removed from your list')).toBeVisible()
     await expect(row).toHaveCount(0)
 
     const { moving } = await settledMotionReport(page)
