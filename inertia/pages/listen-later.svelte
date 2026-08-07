@@ -597,7 +597,8 @@
     <Dialog.Header>
       <Dialog.Title>Are you sure?</Dialog.Title>
       <Dialog.Description>
-        "{deleteTarget?.title}" will be permanently removed from your listen later list.
+        "{deleteTarget?.title}" by {deleteTarget?.artists.join(', ')} will be permanently removed
+        from your listen later list.
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer>
@@ -614,7 +615,9 @@
           }
         }}
       >
-        Confirm
+        Confirm<span class="sr-only">
+          , permanently remove "{deleteTarget?.title}" by {deleteTarget?.artists.join(', ')}</span
+        >
       </Button>
     </Dialog.Footer>
   </Dialog.Content>
