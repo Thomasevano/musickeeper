@@ -444,4 +444,22 @@ test.describe('accessible names', () => {
       'Add Nightcall by Kavinsky, Angèle, Phoenix to listen later'
     )
   })
+
+  test('the results listbox owns its options directly', async ({ page }) => {
+    await searchResultsRoute(page, [{ id: 'result-one', title: 'Result 1' }])
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Song or album title', { exact: true }).fill('Result')
+    await expect(page.getByRole('option')).toHaveCount(1)
+
+    // `listbox` may only own `option` children. A wrapper in between - the
+    // loading skeleton used to leave two divs there - costs the option its
+    // position in the set and VoiceOver reads it as an unnamed selectable.
+    const strays = await page.getByRole('listbox').evaluate((list) =>
+      Array.from(list.children)
+        .filter((child) => child.getAttribute('role') !== 'option')
+        .map((child) => child.tagName.toLowerCase())
+    )
+    expect(strays).toEqual([])
+  })
 })
