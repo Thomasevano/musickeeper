@@ -462,4 +462,21 @@ test.describe('accessible names', () => {
     )
     expect(strays).toEqual([])
   })
+
+  test('a row action trigger is named after its item', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'row-a', title: 'Discovery', artists: ['Daft Punk'] }),
+      listenLaterSeed({ id: 'row-b', title: 'Homework', artists: ['Daft Punk'] }),
+    ])
+
+    // Every row carried the same "Open menu". Out of the table's reading order
+    // - the rotor lists them all - identical names name nothing.
+    await expect(
+      page.getByRole('button', { name: 'Open menu for "Discovery" by Daft Punk' })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Open menu for "Homework" by Daft Punk' })
+    ).toBeVisible()
+  })
 })
