@@ -399,4 +399,22 @@ test.describe('announcements', () => {
       'Review the extracted music information before adding.'
     )
   })
+
+  test('the duplicate state is announced after the dialog has opened', async ({ page }) => {
+    await mockMetadataRoute(page)
+    await page.goto('/library/listen-later')
+
+    await openAddDialog(page)
+    await page.getByRole('button', { name: 'Add to List' }).click()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+
+    // The dialog opens on "Processing Link" and its title is rewritten when the
+    // fetch lands. A dialog name is spoken once, on focus, so without a live
+    // region the reader is still holding the loading state.
+    await openAddDialog(page)
+    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+    await expect(page.getByRole('dialog').getByRole('status')).toHaveText(
+      'Duplicate found. An item with the same title and the same artists is already in your list.'
+    )
+  })
 })
