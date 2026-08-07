@@ -65,6 +65,27 @@ export async function mockMetadataRoute(page: Page) {
   )
 }
 
+/**
+ * Answers the search request the combobox fires, with results built on top of
+ * `mockMetadataResponse.musicItem` so only what a test cares about is spelled out.
+ */
+export async function searchResultsRoute(
+  page: Page,
+  items: Array<Partial<(typeof mockMetadataResponse)['musicItem']> & { id: string }>
+) {
+  await page.route(
+    (url) => url.pathname === '/library/listen-later' && url.searchParams.has('type'),
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          serializedItems: items.map((item) => ({ ...mockMetadataResponse.musicItem, ...item })),
+        }),
+      })
+  )
+}
+
 export async function seedListenLaterItems(page: Page, items: ListenLaterItemSeed[]) {
   // The evaluate body runs in the browser and cannot import the store, so the
   // schema is passed in: DB_CONFIG stays the single source of the name and
