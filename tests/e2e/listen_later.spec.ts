@@ -526,7 +526,7 @@ test.describe('search results - add and remove', () => {
     await page.getByLabel('Artist name', { exact: true }).fill('Rick Astley')
 
     const searchResult = page.getByRole('option', {
-      name: 'Add Never Gonna Give You Up to listen later',
+      name: 'Add Never Gonna Give You Up by Rick Astley to listen later',
     })
     await searchResult.click()
 
@@ -536,7 +536,7 @@ test.describe('search results - add and remove', () => {
     await expect(itemRow).toBeVisible()
 
     const savedResult = page.getByRole('option', {
-      name: 'Remove Never Gonna Give You Up from listen later',
+      name: 'Remove Never Gonna Give You Up by Rick Astley from listen later',
     })
     await savedResult.click()
 
@@ -1227,7 +1227,9 @@ test.describe('add performance', () => {
     await page.goto('/library/listen-later')
     await page.getByLabel('Song or album title', { exact: true }).fill('Instant Add')
 
-    const result = page.getByRole('option', { name: 'Add Instant Add Track to listen later' })
+    const result = page.getByRole('option', {
+      name: 'Add Instant Add Track by Test Artist to listen later',
+    })
     await expect(result).toBeVisible()
     await result.click()
 
