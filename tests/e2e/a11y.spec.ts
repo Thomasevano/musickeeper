@@ -381,4 +381,22 @@ test.describe('announcements', () => {
     })
     await expect(toast).toBeVisible()
   })
+
+  test('the dialog itself takes focus, so its name and its description are read', async ({
+    page,
+  }) => {
+    await mockMetadataRoute(page)
+    await page.goto('/library/listen-later')
+    await openAddDialog(page)
+
+    // Left to bits-ui, focus lands on the first tabbable child and a screen
+    // reader opens with "Title, edit text" - the dialog's own name and
+    // description are never spoken. Only the container carries both.
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeFocused()
+    await expect(dialog).toHaveAccessibleName('Add to Listen Later')
+    await expect(dialog).toHaveAccessibleDescription(
+      'Review the extracted music information before adding.'
+    )
+  })
 })

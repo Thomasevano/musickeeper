@@ -23,6 +23,13 @@
 	<Dialog.Overlay />
 	<DialogPrimitive.Content
 		bind:ref
+		onOpenAutoFocus={(e) => {
+			// bits-ui focuses the first tabbable child, so a screen reader lands on
+			// "Cancel, button" and never hears the dialog's own name or description.
+			// The content itself carries both, and is already `tabindex="-1"`.
+			e.preventDefault()
+			ref?.focus()
+		}}
 		data-slot="dialog-content"
 		style="translate: -50% -50%"
 		class={cn(
