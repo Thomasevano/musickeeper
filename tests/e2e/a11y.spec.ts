@@ -523,3 +523,21 @@ test('the title cell heads its row', async ({ page }) => {
   // header. Without one the cells arrive unattached to anything.
   await expect(page.getByRole('rowheader', { name: 'Discovery' })).toBeVisible()
 })
+test('the delete confirmation names what it will remove', async ({ page }) => {
+  await page.goto('/library/listen-later')
+  await seedListenLaterItems(page, [
+    listenLaterSeed({ id: 'delete-target', title: 'Discovery', artists: ['Daft Punk'] }),
+  ])
+
+  await page.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('menuitem', { name: 'Delete' }).click()
+
+  // "Are you sure?" and "Confirm" describe nothing on their own, and the
+  // dialog is the one place the item being destroyed has to be stated.
+  await expect(page.getByRole('dialog')).toHaveAccessibleDescription(
+    '"Discovery" by Daft Punk will be permanently removed from your listen later list.'
+  )
+  await expect(page.getByRole('button', { name: /^Confirm/ })).toHaveAccessibleName(
+    'Confirm , permanently remove "Discovery" by Daft Punk'
+  )
+})
