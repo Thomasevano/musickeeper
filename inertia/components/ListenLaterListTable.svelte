@@ -111,6 +111,8 @@
     },
     {
       accessorKey: 'title',
+      // The title is the row header, so hiding it would leave rows unidentifiable.
+      enableHiding: false,
       header: ({ column }) => renderComponent(DataTableSortHeader, { column, label: 'Title' }),
       cell: ({ row }) =>
         renderComponent(DataTableTitleCell, {
@@ -310,9 +312,24 @@
         )
         .join(', ')
   )
+
+  // Sorting rewrites the row order under the reader with no focus change, so the
+  // new order has to be spoken. Empty until the first sort: a live region that
+  // arrives already full announces nothing anyway.
+  const sortAnnouncement = $derived(
+    sorting
+      .map(
+        (entry) =>
+          `Sorted by ${columnLabels[entry.id] ?? entry.id}, ${
+            entry.desc ? 'descending' : 'ascending'
+          }`
+      )
+      .join(', ')
+  )
 </script>
 
 <div class="w-full">
+  <p class="sr-only" role="status">{sortAnnouncement}</p>
   <div class="flex flex-wrap items-center gap-2 py-4">
     <!-- Status filter -->
     <Select.Root type="single" value={statusFilter} onValueChange={handleStatusFilterChange}>
@@ -424,9 +441,22 @@
             out:rowOut
           >
             {#each row.getVisibleCells() as cell (cell.id)}
-              <Table.Cell>
-                <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
-              </Table.Cell>
+              {#if cell.column.id === 'title'}
+                <!-- Raw <th scope="row"> instead of <Table.Cell>: the title is what names the
+                     row, so reading down any other column announces it first. Classes mirror
+                     table-cell.svelte, plus the font-normal that undoes a <th>'s default bold. -->
+                <th
+                  scope="row"
+                  data-slot="table-cell"
+                  class="p-2 text-left align-middle font-normal whitespace-nowrap"
+                >
+                  <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                </th>
+              {:else}
+                <Table.Cell>
+                  <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                </Table.Cell>
+              {/if}
             {/each}
           </tr>
         {:else}

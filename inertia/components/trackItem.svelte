@@ -52,11 +52,11 @@
       // new item last. If that default order ever changes, replace this with a
       // getAll().
       listenLaterItems = [...listenLaterItems, stored]
-      toast.success(`"${item.title}" added to your list`)
+      toast.success(`"${item.title}" by ${item.artists.join(', ')} added to your list`)
       void backfillExternalLinks(item)
     } catch (error) {
       console.error('Error adding item to listen later list:', error)
-      toast.error(`Could not add "${item.title}"`)
+      toast.error(`Could not add "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -82,10 +82,10 @@
     try {
       await listenLaterStorage.remove(item.id)
       listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
-      toast.success(`"${item.title}" removed from your list`)
+      toast.success(`"${item.title}" by ${item.artists.join(', ')} removed from your list`)
     } catch (error) {
       console.error('Error removing item from listen later list:', error)
-      toast.error(`Could not remove "${item.title}"`)
+      toast.error(`Could not remove "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -100,79 +100,83 @@
   let isInListenLaterList = $derived(
     listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
   )
+
+  // Two recordings can share a title and differ only by their artists, so the
+  // name a screen reader reads has to carry both to tell the options apart.
+  let optionName = $derived(item ? `${item.title} by ${item.artists.join(', ')}` : '')
 </script>
 
-<Skeleton name="track-item" {loading}>
-  {#snippet fixture()}
-    <li class="flex items-center p-2 rounded-sm gap-2">
-      <CoverArt src="" alt="Cover" size="md" />
-      <div class="flex items-center gap-4">
-        <div class="flex flex-col justify-between text-left">
-          <p class="px-4 py-2">Title: Never Gonna Give You Up</p>
-          <p class="px-4 py-2">Artists: Rick Astley</p>
-          <p class="px-4 py-2">Album: Whenever You Need Somebody</p>
-          <p class="px-4 py-2">Release Date: 1987</p>
+<!--
+  `role="listbox"` may only own `option` children, so the Skeleton wrapper - two
+  generic divs deep - can never be in the tree at the same time as a real row.
+  While loading the list holds only placeholders, and those are `aria-hidden`.
+-->
+{#if loading}
+  <Skeleton name="track-item" {loading}>
+    {#snippet fixture()}
+      <li class="flex items-center p-2 rounded-sm gap-2" aria-hidden="true">
+        <CoverArt src="" alt="Cover" size="md" />
+        <div class="flex items-center gap-4">
+          <div class="flex flex-col justify-between text-left">
+            <p class="px-4 py-2">Title: Never Gonna Give You Up</p>
+            <p class="px-4 py-2">Artists: Rick Astley</p>
+            <p class="px-4 py-2">Album: Whenever You Need Somebody</p>
+            <p class="px-4 py-2">Release Date: 1987</p>
+          </div>
         </div>
-      </div>
-      <div class="ml-auto"><Plus class="size-4" /></div>
-    </li>
-  {/snippet}
-  {#snippet fallback()}
-    <li class="flex p-2 rounded-sm gap-2">
-      <div class="h-32 w-32 shrink-0 rounded-md bg-muted animate-pulse"></div>
-      <div class="flex gap-4">
-        <div class="flex flex-col justify-between space-y-4 space-x-2">
-          <div class="h-4 w-[200px] rounded bg-muted animate-pulse"></div>
-          <div class="h-4 w-[260px] rounded bg-muted animate-pulse"></div>
-          {#if type === 'track'}
-            <div class="h-4 w-[180px] rounded bg-muted animate-pulse"></div>
-          {/if}
-          <div class="h-4 w-[240px] rounded bg-muted animate-pulse"></div>
+        <div class="ml-auto"><Plus class="size-4" /></div>
+      </li>
+    {/snippet}
+    {#snippet fallback()}
+      <li class="flex p-2 rounded-sm gap-2" aria-hidden="true">
+        <div class="h-32 w-32 shrink-0 rounded-md bg-muted animate-pulse"></div>
+        <div class="flex gap-4">
+          <div class="flex flex-col justify-between space-y-4 space-x-2">
+            <div class="h-4 w-[200px] rounded bg-muted animate-pulse"></div>
+            <div class="h-4 w-[260px] rounded bg-muted animate-pulse"></div>
+            {#if type === 'track'}
+              <div class="h-4 w-[180px] rounded bg-muted animate-pulse"></div>
+            {/if}
+            <div class="h-4 w-[240px] rounded bg-muted animate-pulse"></div>
+          </div>
         </div>
-      </div>
-    </li>
-  {/snippet}
-  {#if item}
-    <li
-      role="option"
-      aria-selected={isInListenLaterList}
-      aria-label={isInListenLaterList
-        ? `Remove ${item.title} from listen later`
-        : `Add ${item.title} to listen later`}
-      class="cursor-pointer flex items-center p-2 rounded-sm hover:bg-accent hover:text-accent-foreground outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
-      tabindex={focused ? 0 : -1}
-      onclick={() => toggleListenLater(item)}
-      onkeydown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          toggleListenLater(item)
-        }
-      }}
-    >
-      <CoverArt
-        src={item.coverArt}
-        alt={`Cover of ${item.title}`}
-        size="md"
-      />
-      <div class="flex items-center gap-4">
-        <div class="flex flex-col justify-between text-left">
-          <p class="px-4 py-2">Title: {item.title}</p>
-          <p class="px-4 py-2">
-            Artists: {item.artists.map((artist: string) => artist).join(', ')}
-          </p>
-          {#if type === 'track'}
-            <p class="px-4 py-2">Album: {item.albumName}</p>
-          {/if}
-          <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
-        </div>
-      </div>
-      <div class="ml-auto" aria-hidden="true">
-        {#if isInListenLaterList}
-          <Check class="size-4" />
-        {:else}
-          <Plus class="size-4" />
+      </li>
+    {/snippet}
+  </Skeleton>
+{:else if item}
+  <li
+    role="option"
+    aria-selected={isInListenLaterList}
+    aria-label={isInListenLaterList
+      ? `Remove ${optionName} from listen later`
+      : `Add ${optionName} to listen later`}
+    class="cursor-pointer flex items-center p-2 rounded-sm hover:bg-accent hover:text-accent-foreground outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
+    tabindex={focused ? 0 : -1}
+    onclick={() => toggleListenLater(item)}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        toggleListenLater(item)
+      }
+    }}
+  >
+    <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
+    <div class="flex items-center gap-4">
+      <div class="flex flex-col justify-between text-left">
+        <p class="px-4 py-2">Title: {item.title}</p>
+        <p class="px-4 py-2">Artists: {item.artists.join(', ')}</p>
+        {#if type === 'track'}
+          <p class="px-4 py-2">Album: {item.albumName}</p>
         {/if}
+        <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
       </div>
-    </li>
-  {/if}
-</Skeleton>
+    </div>
+    <div class="ml-auto" aria-hidden="true">
+      {#if isInListenLaterList}
+        <Check class="size-4" />
+      {:else}
+        <Plus class="size-4" />
+      {/if}
+    </div>
+  </li>
+{/if}

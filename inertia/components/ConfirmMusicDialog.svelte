@@ -70,6 +70,16 @@
     types.find((t) => t.value === selectedType)?.label ?? 'Select type'
   )
 
+  // The error branch already carries `role="alert"`; announcing it twice would
+  // interrupt the alert with a duplicate.
+  const resolution = $derived(
+    isLoading || error
+      ? ''
+      : existingItem
+        ? 'Duplicate found. An item with the same title and the same artists is already in your list.'
+        : 'Music information ready. Review before adding.'
+  )
+
   function handleConfirm() {
     const parsedArtists = editableArtists
       .split(',')
@@ -112,6 +122,13 @@
         {/if}
       </Dialog.Description>
     </Dialog.Header>
+
+    <!--
+      The dialog opens while the fetch is still in flight, and its own name is
+      only spoken when focus arrives. The title changing from "Processing Link"
+      to "Duplicate Found" behind the reader is silent without this.
+    -->
+    <p class="sr-only" role="status">{resolution}</p>
 
     {#if isLoading}
       <Skeleton name="confirm-dialog" loading={true}>
@@ -162,7 +179,7 @@
       <div class="flex items-center gap-2 rounded-md border border-warning bg-warning/10 p-3 mb-4">
         <Copy class="h-5 w-5 text-warning" aria-hidden="true" />
         <p class="text-sm text-warning-foreground">
-          An item with the same title and artist already exists in your list.
+          An item with the same title and the same artists is already in your list.
         </p>
       </div>
 
@@ -256,8 +273,10 @@
       <div class="flex items-center gap-4">
         <span id="item-type-label" class="text-sm font-medium">Item Type:</span>
         <Select.Root type="single" bind:value={selectedType}>
-          <Select.Trigger class="w-[140px]" aria-labelledby="item-type-label"
-            >{triggerContent}</Select.Trigger
+          <Select.Trigger
+            id="item-type-trigger"
+            class="w-[140px]"
+            aria-labelledby="item-type-label item-type-trigger">{triggerContent}</Select.Trigger
           >
           <Select.Content>
             <Select.Group>

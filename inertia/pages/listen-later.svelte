@@ -162,7 +162,14 @@
 
     const element = document.getElementById(`item-${highlightedItemId}`)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // An explicit `smooth` overrides the CSS scroll-behavior, so the
+      // preference has to be honoured here rather than in a stylesheet.
+      element.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'center',
+      })
     }
 
     const timeout = setTimeout(() => {
@@ -190,10 +197,17 @@
       const updated = await listenLaterStorage.toggleListened(item.id)
       if (updated) {
         listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
+        // Every other list write confirms itself. This one changed a badge on a row
+        // the reader has already moved past, so it needs saying out loud too.
+        toast.success(
+          `"${updated.title}" by ${updated.artists.join(', ')} marked as ${
+            updated.hasBeenListened ? 'listened' : 'not listened'
+          }`
+        )
       }
     } catch (error) {
       console.error('Error updating item:', error)
-      toast.error(`Could not update "${item.title}"`)
+      toast.error(`Could not update "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -201,10 +215,10 @@
     try {
       await listenLaterStorage.remove(item.id)
       listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
-      toast.success(`"${item.title}" removed from your list`)
+      toast.success(`"${item.title}" by ${item.artists.join(', ')} removed from your list`)
     } catch (error) {
       console.error('Error deleting item:', error)
-      toast.error(`Could not remove "${item.title}"`)
+      toast.error(`Could not remove "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -227,6 +241,11 @@
   }
 
   async function handlePasteLink() {
+    // A disabled button is unfocusable, so disabling this one mid-request
+    // would blur it and leave the dialog with nowhere to put focus back on
+    // close. It stays enabled and turns the second press into a no-op.
+    if (isProcessingLink) return
+
     linkError = ''
 
     if (!linkUrl.trim()) {
@@ -351,7 +370,7 @@
       resetPendingState()
       linkUrl = ''
 
-      toast.success(`"${title}" added to your list`)
+      toast.success(`"${title}" by ${stored.artists.join(', ')} added to your list`)
     } catch (error) {
       console.error('Error saving item to listen later list:', error)
       dialogError = 'Failed to save item. Please try again.'
@@ -415,14 +434,15 @@
           bind:value={linkUrl}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
-          disabled={isProcessingLink}
+          readonly={isProcessingLink}
           aria-describedby={linkError ? 'link-url-error' : undefined}
           aria-invalid={linkError ? 'true' : undefined}
         />
         <Button
           class="w-full sm:w-auto"
           onclick={handlePasteLink}
-          disabled={isProcessingLink || !linkUrl.trim()}
+          disabled={!linkUrl.trim()}
+          aria-busy={isProcessingLink}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
           {isProcessingLink ? 'Processing...' : 'Add'}
@@ -436,10 +456,18 @@
     <Separator class="my-4" />
 
     <div class="mb-2 flex items-center gap-4" class:opacity-50={isOffline}>
-      <label for="search-type" class="text-sm font-medium">Type:</label>
+      <span id="search-type-label" class="text-sm font-medium">Type:</span>
       <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
-        <Select.Trigger id="search-type" class="w-full sm:w-[180px]">{triggerContent}</Select.Trigger>
-
+        <!--
+          A `<label for>` cannot label a button, and where it is honoured it
+          replaces the name instead of prefixing it - the chosen type goes unread.
+          Pointing at the trigger itself appends its own content to the label.
+        -->
+        <Select.Trigger
+          id="search-type"
+          class="w-full sm:w-[180px]"
+          aria-labelledby="search-type-label search-type">{triggerContent}</Select.Trigger
+        >
         <Select.Content>
           <Select.Group>
             <Select.Label>Types</Select.Label>
@@ -469,6 +497,7 @@
             aria-expanded={!!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
             aria-controls="search-results-list"
             aria-autocomplete="list"
+            aria-describedby="search-hint"
             onkeydown={handleInputKeydown}
             class={searchInputClasses}
           />
@@ -481,9 +510,17 @@
             bind:value={artistName}
             placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional)...'}
             disabled={isOffline}
+            aria-describedby="search-hint"
+            onkeydown={handleInputKeydown}
             class={searchInputClasses}
           />
         </div>
+
+        <!-- The options carry tabindex="-1" until focused, so Tab never reaches them.
+             Nothing on screen says which key does. -->
+        <p id="search-hint" class="sr-only">
+          Results appear below as you type. Press the down arrow key to reach them.
+        </p>
       </div>
 
       {#if isAboveThreshold || isSearching}
@@ -492,7 +529,11 @@
             <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
               {searchType === 'track' ? 'Tracks' : 'Albums'}
             </div>
-            <ul role="listbox" aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}>
+            <ul
+              role="listbox"
+              aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}
+              aria-busy="true"
+            >
               <TrackItem loading={true} type={searchType} />
             </ul>
           {:else if serializedItems && serializedItems.length > 0}
@@ -565,7 +606,8 @@
     <Dialog.Header>
       <Dialog.Title>Are you sure?</Dialog.Title>
       <Dialog.Description>
-        "{deleteTarget?.title}" will be permanently removed from your listen later list.
+        "{deleteTarget?.title}" by {deleteTarget?.artists.join(', ')} will be permanently removed
+        from your listen later list.
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer>
@@ -582,7 +624,9 @@
           }
         }}
       >
-        Confirm
+        Confirm<span class="sr-only">
+          , permanently remove "{deleteTarget?.title}" by {deleteTarget?.artists.join(', ')}</span
+        >
       </Button>
     </Dialog.Footer>
   </Dialog.Content>

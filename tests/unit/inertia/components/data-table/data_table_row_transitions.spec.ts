@@ -31,12 +31,14 @@ function withReducedMotion<T>(reduced: boolean, run: () => T): T {
 const node = {} as Element
 
 test.group('Data table row transitions', () => {
-  test('drops row travel when the OS asks for reduced motion', async ({ assert }) => {
+  test('fades rows without moving them when the OS asks for reduced motion', async ({ assert }) => {
     withReducedMotion(true, () => {
-      assert.equal(rowIn(node).duration, 0)
-      assert.equal(rowOut(node).duration, 0)
-      assert.isUndefined(rowIn(node).css)
-      assert.isUndefined(rowOut(node).css)
+      for (const transition of [rowIn(node), rowOut(node)]) {
+        assert.isFunction(transition.css)
+        const midpoint = transition.css!(0.5, 0.5)
+        assert.include(midpoint, 'opacity')
+        assert.notInclude(midpoint, 'transform')
+      }
     })
   })
 
@@ -44,8 +46,8 @@ test.group('Data table row transitions', () => {
     withReducedMotion(false, () => {
       assert.equal(rowIn(node).duration, 180)
       assert.equal(rowOut(node).duration, 160)
-      assert.isFunction(rowIn(node).css)
-      assert.isFunction(rowOut(node).css)
+      assert.include(rowIn(node).css!(0.5, 0.5), 'transform')
+      assert.include(rowOut(node).css!(0.5, 0.5), 'transform')
     })
   })
 })
