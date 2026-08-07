@@ -20,7 +20,7 @@
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
         <Button {...props} variant="ghost" size="icon" class="relative p-0">
-          <span class="sr-only">Open menu</span>
+          <span class="sr-only">Open menu for "{item.title}" by {item.artists.join(', ')}</span>
           <EllipsisIcon />
         </Button>
       {/snippet}
