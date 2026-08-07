@@ -52,11 +52,11 @@
       // new item last. If that default order ever changes, replace this with a
       // getAll().
       listenLaterItems = [...listenLaterItems, stored]
-      toast.success(`"${item.title}" added to your list`)
+      toast.success(`"${item.title}" by ${item.artists.join(', ')} added to your list`)
       void backfillExternalLinks(item)
     } catch (error) {
       console.error('Error adding item to listen later list:', error)
-      toast.error(`Could not add "${item.title}"`)
+      toast.error(`Could not add "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -82,10 +82,10 @@
     try {
       await listenLaterStorage.remove(item.id)
       listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
-      toast.success(`"${item.title}" removed from your list`)
+      toast.success(`"${item.title}" by ${item.artists.join(', ')} removed from your list`)
     } catch (error) {
       console.error('Error removing item from listen later list:', error)
-      toast.error(`Could not remove "${item.title}"`)
+      toast.error(`Could not remove "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
