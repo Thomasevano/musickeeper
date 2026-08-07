@@ -418,3 +418,17 @@ test.describe('announcements', () => {
     )
   })
 })
+
+test.describe('accessible names', () => {
+  // A `<label for>` cannot label a button. Where a browser honours it anyway it
+  // replaces the name rather than prefixing it, and the chosen value is lost.
+  test('a select trigger is named by its label and its current value', async ({ page }) => {
+    await mockMetadataRoute(page)
+    await page.goto('/library/listen-later')
+
+    await expect(page.locator('#search-type')).toHaveAccessibleName('Type: Tracks')
+
+    await openAddDialog(page)
+    await expect(page.locator('#item-type-trigger')).toHaveAccessibleName('Item Type: Track')
+  })
+})
