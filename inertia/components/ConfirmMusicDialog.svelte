@@ -70,6 +70,16 @@
     types.find((t) => t.value === selectedType)?.label ?? 'Select type'
   )
 
+  // The error branch already carries `role="alert"`; announcing it twice would
+  // interrupt the alert with a duplicate.
+  const resolution = $derived(
+    isLoading || error
+      ? ''
+      : existingItem
+        ? 'Duplicate found. An item with the same title and the same artists is already in your list.'
+        : 'Music information ready. Review before adding.'
+  )
+
   function handleConfirm() {
     const parsedArtists = editableArtists
       .split(',')
@@ -112,6 +122,13 @@
         {/if}
       </Dialog.Description>
     </Dialog.Header>
+
+    <!--
+      The dialog opens while the fetch is still in flight, and its own name is
+      only spoken when focus arrives. The title changing from "Processing Link"
+      to "Duplicate Found" behind the reader is silent without this.
+    -->
+    <p class="sr-only" role="status">{resolution}</p>
 
     {#if isLoading}
       <Skeleton name="confirm-dialog" loading={true}>

@@ -208,7 +208,13 @@ test.describe('paste link - duplicate detection', () => {
     // Dialog shows duplicate state
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
-    await expect(page.getByText('the same title and the same artists')).toBeVisible()
+    // The exact match keeps this on the visible copy: the live region that
+    // announces the same resolution prefixes it with "Duplicate found."
+    await expect(
+      page.getByText('An item with the same title and the same artists is already in your list.', {
+        exact: true,
+      })
+    ).toBeVisible()
 
     // Shows existing item info
     await expect(page.getByText('Existing item in your list')).toBeVisible()
