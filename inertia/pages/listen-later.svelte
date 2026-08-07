@@ -207,7 +207,7 @@
       }
     } catch (error) {
       console.error('Error updating item:', error)
-      toast.error(`Could not update "${item.title}"`)
+      toast.error(`Could not update "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -215,10 +215,10 @@
     try {
       await listenLaterStorage.remove(item.id)
       listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
-      toast.success(`"${item.title}" removed from your list`)
+      toast.success(`"${item.title}" by ${item.artists.join(', ')} removed from your list`)
     } catch (error) {
       console.error('Error deleting item:', error)
-      toast.error(`Could not remove "${item.title}"`)
+      toast.error(`Could not remove "${item.title}" by ${item.artists.join(', ')}`)
     }
   }
 
@@ -370,7 +370,7 @@
       resetPendingState()
       linkUrl = ''
 
-      toast.success(`"${title}" added to your list`)
+      toast.success(`"${title}" by ${stored.artists.join(', ')} added to your list`)
     } catch (error) {
       console.error('Error saving item to listen later list:', error)
       dialogError = 'Failed to save item. Please try again.'
