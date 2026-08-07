@@ -355,6 +355,20 @@ test.describe('keyboard', () => {
     })
     expect(reach).toEqual({ scrolled: true, inView: true })
   })
+
+  // The artist field feeds the same listbox as the title field. Left without a
+  // key handler it was a dead end: results appeared, and no key reached them.
+  test('arrow keys reach the results from the artist field too', async ({ page }) => {
+    await searchResultsRoute(page, [{ id: 'result-one', title: 'Result 1' }])
+
+    await page.goto('/library/listen-later')
+    const artist = page.getByLabel('Artist name', { exact: true })
+    await artist.fill('Kavinsky')
+    await expect(page.getByRole('option')).toHaveCount(1)
+
+    await artist.press('ArrowDown')
+    await expect(page.getByRole('option').first()).toBeFocused()
+  })
 })
 
 test.describe('announcements', () => {
@@ -540,4 +554,14 @@ test('the delete confirmation names what it will remove', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Confirm/ })).toHaveAccessibleName(
     'Confirm , permanently remove "Discovery" by Daft Punk'
   )
+})
+test('both search fields point at the arrow-key hint', async ({ page }) => {
+  await page.goto('/library/listen-later')
+
+  // Nothing on screen says which key reaches the results.
+  const hint = 'Results appear below as you type. Press the down arrow key to reach them.'
+  await expect(page.getByLabel('Song or album title', { exact: true })).toHaveAccessibleDescription(
+    hint
+  )
+  await expect(page.getByLabel('Artist name', { exact: true })).toHaveAccessibleDescription(hint)
 })
