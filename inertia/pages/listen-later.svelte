@@ -497,6 +497,7 @@
             aria-expanded={!!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
             aria-controls="search-results-list"
             aria-autocomplete="list"
+            aria-describedby="search-hint"
             onkeydown={handleInputKeydown}
             class={searchInputClasses}
           />
@@ -509,9 +510,17 @@
             bind:value={artistName}
             placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional)...'}
             disabled={isOffline}
+            aria-describedby="search-hint"
+            onkeydown={handleInputKeydown}
             class={searchInputClasses}
           />
         </div>
+
+        <!-- The options carry tabindex="-1" until focused, so Tab never reaches them.
+             Nothing on screen says which key does. -->
+        <p id="search-hint" class="sr-only">
+          Results appear below as you type. Press the down arrow key to reach them.
+        </p>
       </div>
 
       {#if isAboveThreshold || isSearching}
