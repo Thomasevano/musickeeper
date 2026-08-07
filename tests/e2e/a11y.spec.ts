@@ -410,6 +410,25 @@ test.describe('announcements', () => {
       'Duplicate found. An item with the same title and the same artists is already in your list.'
     )
   })
+
+  test('a sort change is announced', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'sort-a', title: 'Discovery' }),
+      listenLaterSeed({ id: 'sort-b', title: 'Homework' }),
+    ])
+
+    // Sorting rewrites the row order with no focus change, so nothing else
+    // would tell a reader the list it is standing in has been rearranged.
+    const announcement = page.getByRole('status')
+    await expect(announcement).toHaveText('')
+
+    await page.getByRole('button', { name: 'Title, not sorted' }).click()
+    await expect(announcement).toHaveText('Sorted by Title, ascending')
+
+    await page.getByRole('button', { name: 'Title, sorted ascending' }).click()
+    await expect(announcement).toHaveText('Sorted by Title, descending')
+  })
 })
 
 test.describe('accessible names', () => {
