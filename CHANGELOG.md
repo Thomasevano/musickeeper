@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-07)
+
+
+### Features
+
+* **ui:** mobile-first library and touch targets ([7b08741](https://github.com/Thomasevano/musickeeper/commit/7b087414528fb34844d6f7bf28bfdd4163b91955))
+
+
+### Bug Fixes
+
+* **ci:** declare a build decision for core-js ([b529988](https://github.com/Thomasevano/musickeeper/commit/b52998874edc0aaad8e25759cc7feefbede76d4d))
+* **search:** pulse a skeleton block for the cover while results load ([82e89fd](https://github.com/Thomasevano/musickeeper/commit/82e89fda3273fdb00c832d103a5f5003b1d7074a))
+* **ui:** correct mobile list controls ([e121908](https://github.com/Thomasevano/musickeeper/commit/e1219086e541cefb6fd7c17e77550973d9f92e43))
+* **ui:** correct the default mobile sort label ([51c4500](https://github.com/Thomasevano/musickeeper/commit/51c45003363b5a8b22eb49a46838666f3b0ead2d))
+* **ui:** hide the column chooser on mobile ([04ebb5b](https://github.com/Thomasevano/musickeeper/commit/04ebb5b25daa8b4b9d165b290ed594b195ead73a))
+* **ui:** make library page mobile-first ([3a1480e](https://github.com/Thomasevano/musickeeper/commit/3a1480e067598021bd26acc81e16880b5435cb1c))
+* **ui:** refine mobile cards and list controls ([9001b91](https://github.com/Thomasevano/musickeeper/commit/9001b91a61946d0dd2f7e33d0dd9b8a130d7396f))
+* **ui:** widen max container width to screen-2xl ([091eaf3](https://github.com/Thomasevano/musickeeper/commit/091eaf39c6924a80b0299e803ffa570c9bf16530))
+
+
+### Performance Improvements
+
+* **link:** stop searching for cover art the platform already supplied ([1634366](https://github.com/Thomasevano/musickeeper/commit/1634366f44d946bcad958be20c40fcab3bf6c865))
+* **search:** cache MusicBrainz search results in memory ([29a3386](https://github.com/Thomasevano/musickeeper/commit/29a3386691b282c0b3f8bf89b5578308a245c722))
+* **search:** derive cover art urls instead of fetching them per result ([f8ee406](https://github.com/Thomasevano/musickeeper/commit/f8ee406da22760ee21505583a6db99ca8afa3704))
+* **ui:** render added items before external links resolve ([482f09a](https://github.com/Thomasevano/musickeeper/commit/482f09ae6df358d77d545ff66633f7c070084c0e))
+
 ## [0.8.1](https://github.com/Thomasevano/musickeeper/compare/v0.8.0...v0.8.1) (2026-07-30)
 
 
