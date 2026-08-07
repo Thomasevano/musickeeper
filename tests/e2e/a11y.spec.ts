@@ -8,6 +8,7 @@ import {
   listenLaterSeed,
   mockMetadataResponse,
   mockMetadataRoute,
+  searchResultsRoute,
   seedListenLaterItems,
   settleAnimations,
 } from './fixtures.js'
@@ -318,20 +319,12 @@ test.describe('keyboard', () => {
   // The options are reachable, just not with Tab: this is the journey axe cannot
   // see, and the reason `scrollable-region-focusable` is parked in docs/a11y.md.
   test('arrow keys reach and scroll the search results', async ({ page }) => {
-    await page.route(
-      (url) => url.pathname === '/library/listen-later' && url.searchParams.has('type'),
-      (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            serializedItems: ['one', 'two', 'three', 'four'].map((suffix, index) => ({
-              ...mockMetadataResponse.musicItem,
-              id: `result-${suffix}`,
-              title: `Result ${index + 1}`,
-            })),
-          }),
-        })
+    await searchResultsRoute(
+      page,
+      ['one', 'two', 'three', 'four'].map((suffix, index) => ({
+        id: `result-${suffix}`,
+        title: `Result ${index + 1}`,
+      }))
     )
 
     await page.goto('/library/listen-later')
@@ -430,5 +423,25 @@ test.describe('accessible names', () => {
 
     await openAddDialog(page)
     await expect(page.locator('#item-type-trigger')).toHaveAccessibleName('Item Type: Track')
+  })
+
+  test('a result option is named by its title and its artists', async ({ page }) => {
+    await searchResultsRoute(page, [
+      { id: 'result-solo', title: 'Nightcall', artists: ['Kavinsky'] },
+      { id: 'result-guests', title: 'Nightcall', artists: ['Kavinsky', 'Angèle', 'Phoenix'] },
+    ])
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Song or album title', { exact: true }).fill('Nightcall')
+    await expect(page.getByRole('option')).toHaveCount(2)
+
+    // Another Version shares its title with the first result, so a title-only
+    // name leaves a screen reader with two identical options to choose between.
+    await expect(page.getByRole('option').first()).toHaveAccessibleName(
+      'Add Nightcall by Kavinsky to listen later'
+    )
+    await expect(page.getByRole('option').last()).toHaveAccessibleName(
+      'Add Nightcall by Kavinsky, Angèle, Phoenix to listen later'
+    )
   })
 })

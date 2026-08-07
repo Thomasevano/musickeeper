@@ -100,6 +100,10 @@
   let isInListenLaterList = $derived(
     listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
   )
+
+  // Two recordings can share a title and differ only by their artists, so the
+  // name a screen reader reads has to carry both to tell the options apart.
+  let optionName = $derived(item ? `${item.title} by ${item.artists.join(', ')}` : '')
 </script>
 
 <Skeleton name="track-item" {loading}>
@@ -137,8 +141,8 @@
       role="option"
       aria-selected={isInListenLaterList}
       aria-label={isInListenLaterList
-        ? `Remove ${item.title} from listen later`
-        : `Add ${item.title} to listen later`}
+        ? `Remove ${optionName} from listen later`
+        : `Add ${optionName} to listen later`}
       class="cursor-pointer flex items-center p-2 rounded-sm hover:bg-accent hover:text-accent-foreground outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
       tabindex={focused ? 0 : -1}
       onclick={() => toggleListenLater(item)}
