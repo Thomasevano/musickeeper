@@ -312,9 +312,24 @@
         )
         .join(', ')
   )
+
+  // Sorting rewrites the row order under the reader with no focus change, so the
+  // new order has to be spoken. Empty until the first sort: a live region that
+  // arrives already full announces nothing anyway.
+  const sortAnnouncement = $derived(
+    sorting
+      .map(
+        (entry) =>
+          `Sorted by ${columnLabels[entry.id] ?? entry.id}, ${
+            entry.desc ? 'descending' : 'ascending'
+          }`
+      )
+      .join(', ')
+  )
 </script>
 
 <div class="w-full">
+  <p class="sr-only" role="status">{sortAnnouncement}</p>
   <div class="flex flex-wrap items-center gap-2 py-4">
     <!-- Status filter -->
     <Select.Root type="single" value={statusFilter} onValueChange={handleStatusFilterChange}>
