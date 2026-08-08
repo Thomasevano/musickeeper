@@ -510,6 +510,19 @@ test.describe('accessible names', () => {
     )
   })
 
+  test('every column header says which column it heads', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'scope-row', title: 'Discovery', artists: ['Daft Punk'] }),
+    ])
+
+    // `scope` is what pairs a value with its field name. Without it the reader
+    // walking a row reads "Daft Punk" and never says which column that was, and
+    // no accessibility-tree query exposes the pairing - only the markup does.
+    await expect(page.locator('table thead th:not([scope="col"])')).toHaveCount(0)
+    await expect(page.locator('table tbody th:not([scope="row"])')).toHaveCount(0)
+  })
+
   test('the results listbox owns its options directly', async ({ page }) => {
     await searchResultsRoute(page, [{ id: 'result-one', title: 'Result 1' }])
 
