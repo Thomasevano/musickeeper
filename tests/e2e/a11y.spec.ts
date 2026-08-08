@@ -8,6 +8,7 @@ import {
   listenLaterSeed,
   mockMetadataResponse,
   mockMetadataRoute,
+  resultOptions,
   searchResultsRoute,
   seedListenLaterItems,
   settleAnimations,
@@ -137,7 +138,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         body: JSON.stringify({ serializedItems: [mockMetadataResponse.musicItem] }),
       })
 
-      await expect(page.getByRole('option')).toHaveCount(1)
+      await expect(resultOptions(page)).toHaveCount(1)
       await expectAccessible(page, `search results (${colorScheme})`)
     })
 
@@ -361,12 +362,12 @@ test.describe('keyboard', () => {
     await page.goto('/library/listen-later')
     const combobox = page.getByLabel('Song or album title', { exact: true })
     await combobox.fill('Result')
-    await expect(page.getByRole('option')).toHaveCount(4)
+    await expect(resultOptions(page)).toHaveCount(4)
 
     await combobox.press('ArrowDown')
-    await expect(page.getByRole('option').first()).toBeFocused()
+    await expect(resultOptions(page).first()).toBeFocused()
 
-    const last = page.getByRole('option').last()
+    const last = resultOptions(page).last()
     for (let press = 0; press < 3; press += 1) await page.keyboard.press('ArrowDown')
     await expect(last).toBeFocused()
 
@@ -393,10 +394,10 @@ test.describe('keyboard', () => {
     await page.goto('/library/listen-later')
     const artist = page.getByLabel('Artist name', { exact: true })
     await artist.fill('Kavinsky')
-    await expect(page.getByRole('option')).toHaveCount(1)
+    await expect(resultOptions(page)).toHaveCount(1)
 
     await artist.press('ArrowDown')
-    await expect(page.getByRole('option').first()).toBeFocused()
+    await expect(resultOptions(page).first()).toBeFocused()
   })
 })
 
@@ -489,16 +490,25 @@ test('marking an item listened says so out loud', async ({ page }) => {
 })
 
 test.describe('accessible names', () => {
-  // A `<label for>` cannot label a button. Where a browser honours it anyway it
-  // replaces the name rather than prefixing it, and the chosen value is lost.
-  test('a select trigger is named by its label and its current value', async ({ page }) => {
+  // A native select carries its value in the accessibility tree, so its label
+  // only has to say what is being chosen. The pairing is the platform's; what
+  // is worth gating is that the label reaches the control at all.
+  test('a select is named by its label and exposes its value', async ({ page }) => {
     await mockMetadataRoute(page)
     await page.goto('/library/listen-later')
 
-    await expect(page.locator('#search-type')).toHaveAccessibleName('Type: Tracks')
+    const searchType = page.getByRole('combobox', { name: 'Type:', exact: true })
+    await expect(searchType).toHaveAccessibleName('Type:')
+    await expect(searchType).toHaveValue('track')
+
+    // The filters only exist once the table does.
+    await seedListenLaterItems(page, [listenLaterSeed({ id: 'named-select', title: 'Discovery' })])
+    for (const name of ['Status', 'Type']) {
+      await expect(page.getByRole('combobox', { name, exact: true })).toHaveValue('all')
+    }
 
     await openAddDialog(page)
-    await expect(page.locator('#item-type-trigger')).toHaveAccessibleName('Item Type: Track')
+    await expect(page.locator('#item-type')).toHaveAccessibleName('Item Type:')
   })
 
   test('a result option is named by everything it shows', async ({ page }) => {
@@ -509,15 +519,15 @@ test.describe('accessible names', () => {
 
     await page.goto('/library/listen-later')
     await page.getByLabel('Song or album title', { exact: true }).fill('Nightcall')
-    await expect(page.getByRole('option')).toHaveCount(2)
+    await expect(resultOptions(page)).toHaveCount(2)
 
     // An `aria-label` here replaced the four lines the option prints with a
     // summary of two of them, so the album and the release date were on screen
     // and unreadable. Another Version shares the title, so the artists decide.
-    await expect(page.getByRole('option').first()).toHaveAccessibleName(
+    await expect(resultOptions(page).first()).toHaveAccessibleName(
       'Title: Nightcall Artists: Kavinsky Album: Whenever You Need Somebody Release Date: 2023-06-15'
     )
-    await expect(page.getByRole('option').last()).toHaveAccessibleName(
+    await expect(resultOptions(page).last()).toHaveAccessibleName(
       'Title: Nightcall Artists: Kavinsky, Angèle, Phoenix Album: Whenever You Need Somebody Release Date: 2023-06-15'
     )
   })
@@ -530,7 +540,7 @@ test.describe('accessible names', () => {
 
     // A tick is the whole difference between the two states on screen, and
     // `aria-selected` renders it as "selected" - true of nothing else here.
-    const option = page.getByRole('option')
+    const option = resultOptions(page)
     await expect(option).toHaveAccessibleDescription('Press Enter to add it to your list.')
 
     await option.click()
@@ -631,7 +641,7 @@ test.describe('accessible names', () => {
 
     await page.goto('/library/listen-later')
     await page.getByLabel('Song or album title', { exact: true }).fill('Result')
-    await expect(page.getByRole('option')).toHaveCount(1)
+    await expect(resultOptions(page)).toHaveCount(1)
 
     // `listbox` may only own `option` children. A wrapper in between - the
     // loading skeleton used to leave two divs there - costs the option its

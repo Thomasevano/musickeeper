@@ -5,6 +5,7 @@ import {
   heldRoute,
   listenLaterSeed,
   mockMetadataResponse,
+  resultOptions,
   seedListenLaterItems,
   settleAnimations,
 } from './fixtures.js'
@@ -533,7 +534,7 @@ test.describe('search results - add and remove', () => {
 
     // One result, and clicking it toggles: the option is named by the lines it
     // prints, so both states answer to the same name.
-    const searchResult = page.getByRole('option')
+    const searchResult = resultOptions(page)
     await searchResult.click()
 
     await expect(
@@ -580,10 +581,8 @@ test.describe('table filters', () => {
       }),
     ])
 
-    await page.getByRole('button', { name: 'Type: All', exact: true }).click()
-    await page.getByRole('option', { name: 'Albums', exact: true }).click()
-    await page.getByRole('button', { name: 'Status: All', exact: true }).click()
-    await page.getByRole('option', { name: 'Not listened', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption('album')
+    await page.getByRole('combobox', { name: 'Status', exact: true }).selectOption('not_listened')
 
     await expect(page.getByText('1 item(s)')).toBeVisible()
     await expect(page.locator('#item-album-not-listened')).toBeVisible()
@@ -618,9 +617,9 @@ test.describe('desktop sorting', () => {
     await expect(ascendingButton).toBeVisible()
 
     await page.setViewportSize({ width: 320, height: 568 })
-    await expect(
-      page.getByRole('button', { name: 'Sort: Artists (A–Z)', exact: true })
-    ).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Sort', exact: true })).toHaveValue(
+      'artists_asc'
+    )
     await page.setViewportSize({ width: 1280, height: 800 })
 
     await ascendingButton.click()
@@ -639,23 +638,18 @@ test.describe('desktop sorting', () => {
 
     await page.setViewportSize({ width: 320, height: 568 })
     await expect(columnChooser).not.toBeVisible()
-    const mobileSortTrigger = page.getByRole('button', {
-      name: 'Sort: Artists (Z–A)',
-      exact: true,
-    })
-    await expect(mobileSortTrigger).toBeVisible()
-    await mobileSortTrigger.click()
-    await page.getByRole('option', { name: 'Added (oldest)', exact: true }).click()
-    await expect(
-      page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true })
-    ).toBeVisible()
+    const mobileSort = page.getByRole('combobox', { name: 'Sort', exact: true })
+    await expect(mobileSort).toHaveValue('artists_desc')
+    await mobileSort.selectOption('added_asc')
+    await expect(mobileSort).toHaveValue('added_asc')
 
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.getByRole('button', { name: 'Title, not sorted', exact: true }).click()
     await page.setViewportSize({ width: 320, height: 568 })
-    await expect(
-      page.getByRole('button', { name: 'Sort: Title (ascending)', exact: true })
-    ).toBeVisible()
+    // No phone option produces this order, so the select names it and refuses it.
+    await expect(mobileSort).toHaveValue('custom')
+    const custom = mobileSort.getByRole('option', { name: 'Title (ascending)' })
+    await expect(custom).toHaveAttribute('disabled', '')
   })
 })
 
@@ -912,9 +906,9 @@ test.describe('mobile breakpoint controls', () => {
       page.locator('#search-type'),
       page.locator('#search-title'),
       page.locator('#search-artist'),
-      page.getByRole('button', { name: 'Status: All', exact: true }),
-      page.getByRole('button', { name: 'Type: All', exact: true }),
-      page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true }),
+      page.getByRole('combobox', { name: 'Status', exact: true }),
+      page.getByRole('combobox', { name: 'Type', exact: true }),
+      page.getByRole('combobox', { name: 'Sort', exact: true }),
       mobileCard.getByRole('button', { name: 'Open menu' }),
       mobileCard.getByRole('link', { name: 'Deezer' }),
       page.getByRole('button', { name: 'Previous' }),
@@ -925,19 +919,8 @@ test.describe('mobile breakpoint controls', () => {
 
     for (const control of controls) await expectMinTouchTarget(control)
 
-    const selectTriggers = [
-      page.locator('#search-type'),
-      page.getByRole('button', { name: 'Status: All', exact: true }),
-      page.getByRole('button', { name: 'Type: All', exact: true }),
-      page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true }),
-    ]
-    for (const trigger of selectTriggers) {
-      await trigger.click()
-      await expectAllMinTouchTargets(
-        page.locator('[data-slot="select-content"][data-state="open"]').getByRole('option')
-      )
-      await page.keyboard.press('Escape')
-    }
+    // The options themselves are the platform's picker - it is drawn outside the
+    // page and is not ours to size. Only the control that opens it is.
 
     await mobileCard.getByRole('button', { name: 'Open menu' }).click()
     await expectAllMinTouchTargets(page.getByRole('menuitem'))
@@ -996,26 +979,28 @@ test.describe('mobile navigation', () => {
       }),
     ])
 
-    for (const name of ['Status: All', 'Type: All']) {
-      const filter = page.getByRole('button', { name, exact: true })
+    const status = page.getByRole('combobox', { name: 'Status', exact: true })
+    const type = page.getByRole('combobox', { name: 'Type', exact: true })
+
+    // A visible label now sits beside each control, so the row is the filter:
+    // the desktop's 190px cap escaping to the phone would shrink it, not them.
+    for (const filter of [status, type]) {
       await expect(filter).toBeVisible()
+      const row = page.locator('label').filter({ has: filter })
       await expect
-        .poll(() => filter.evaluate((element) => element.getBoundingClientRect().width))
+        .poll(() => row.evaluate((element) => element.clientWidth))
         .toBeGreaterThanOrEqual(250)
     }
 
     const listenedTrack = page.locator('#mobile-item-filter-listened-track')
     const unlistenedAlbum = page.locator('#mobile-item-filter-unlistened-album')
 
-    await page.getByRole('button', { name: 'Status: All', exact: true }).click()
-    await page.getByRole('option', { name: 'Listened', exact: true }).click()
+    await status.selectOption('listened')
     await expect(listenedTrack).toBeVisible()
     await expect(unlistenedAlbum).not.toBeVisible()
 
-    await page.getByRole('button', { name: 'Status: Listened', exact: true }).click()
-    await page.getByRole('option', { name: 'All', exact: true }).click()
-    await page.getByRole('button', { name: 'Type: All', exact: true }).click()
-    await page.getByRole('option', { name: 'Albums', exact: true }).click()
+    await status.selectOption('all')
+    await type.selectOption('album')
     await expect(listenedTrack).not.toBeVisible()
     await expect(unlistenedAlbum).toBeVisible()
   })
@@ -1156,20 +1141,19 @@ test.describe('mobile navigation', () => {
     ])
     const mobileItems = page.locator('article[id^="mobile-item-"]')
 
-    await page.getByRole('button', { name: 'Sort: Added (oldest)', exact: true }).click()
-    await page.getByRole('option', { name: 'Artists (A–Z)', exact: true }).click()
+    const sort = page.getByRole('combobox', { name: 'Sort', exact: true })
+
+    await sort.selectOption('artists_asc')
     await expect
       .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))
       .toEqual(['mobile-item-new-apple', 'mobile-item-middle-mango', 'mobile-item-old-zebra'])
 
-    await page.getByRole('button', { name: 'Sort: Artists (A–Z)', exact: true }).click()
-    await page.getByRole('option', { name: 'Added (newest)', exact: true }).click()
+    await sort.selectOption('added_desc')
     await expect
       .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))
       .toEqual(['mobile-item-middle-mango', 'mobile-item-old-zebra', 'mobile-item-new-apple'])
 
-    await page.getByRole('button', { name: 'Sort: Added (newest)', exact: true }).click()
-    await page.getByRole('option', { name: 'Added (oldest)', exact: true }).click()
+    await sort.selectOption('added_asc')
     await expect
       .poll(() => mobileItems.evaluateAll((items) => items.map((item) => item.id)))
       .toEqual(['mobile-item-new-apple', 'mobile-item-old-zebra', 'mobile-item-middle-mango'])

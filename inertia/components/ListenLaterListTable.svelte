@@ -22,7 +22,7 @@
   import * as Table from '$lib/components/ui/table/index.js'
   import { Button } from '$lib/components/ui/button/index.js'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js'
-  import * as Select from '$lib/components/ui/select/index.js'
+  import { Select } from '$lib/components/ui/select/index.js'
   import {
     FlexRender,
     createSvelteTable,
@@ -309,14 +309,6 @@
     sorting.length === 0 ? 'added_asc' : (selectedMobileSortOption?.value ?? 'custom')
   )
 
-  const statusFilterLabel = $derived(
-    statusFilterOptions.find((option) => option.value === statusFilter)?.label ?? 'All'
-  )
-
-  const typeFilterLabel = $derived(
-    typeFilterOptions.find((option) => option.value === typeFilter)?.label ?? 'All'
-  )
-
   const mobileSortLabel = $derived(
     mobileSortOptions.find((option) => option.value === mobileSort)?.label ??
       sorting
@@ -346,48 +338,52 @@
   <p class="sr-only" role="status">{sortAnnouncement}</p>
   <div class="flex flex-wrap items-center gap-2 py-4">
     <!-- Status filter -->
-    <Select.Root type="single" value={statusFilter} onValueChange={handleStatusFilterChange}>
-      <Select.Trigger class="w-full md:w-[160px]">
-        <span>Status: {statusFilterLabel}</span>
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Group>
-          {#each statusFilterOptions as option (option.value)}
-            <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
-          {/each}
-        </Select.Group>
-      </Select.Content>
-    </Select.Root>
+    <label class="flex w-full items-center gap-2 md:w-[190px]">
+      <span class="text-sm font-medium">Status</span>
+      <Select
+        class="min-w-0 flex-1"
+        value={statusFilter}
+        onchange={(event) => handleStatusFilterChange(event.currentTarget.value)}
+      >
+        {#each statusFilterOptions as option (option.value)}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </Select>
+    </label>
 
     <!-- Type filter -->
-    <Select.Root type="single" value={typeFilter} onValueChange={handleTypeFilterChange}>
-      <Select.Trigger class="w-full md:w-[150px]">
-        <span>Type: {typeFilterLabel}</span>
-      </Select.Trigger>
-      <Select.Content>
-        <Select.Group>
-          {#each typeFilterOptions as option (option.value)}
-            <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
-          {/each}
-        </Select.Group>
-      </Select.Content>
-    </Select.Root>
+    <label class="flex w-full items-center gap-2 md:w-[180px]">
+      <span class="text-sm font-medium">Type</span>
+      <Select
+        class="min-w-0 flex-1"
+        value={typeFilter}
+        onchange={(event) => handleTypeFilterChange(event.currentTarget.value)}
+      >
+        {#each typeFilterOptions as option (option.value)}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </Select>
+    </label>
 
     <!-- Mobile sort -->
-    <div class="w-full md:hidden">
-      <Select.Root type="single" value={mobileSort} onValueChange={handleMobileSortChange}>
-        <Select.Trigger class="w-full">
-          <span>Sort: {mobileSortLabel}</span>
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Group>
-            {#each mobileSortOptions as option (option.value)}
-              <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
-            {/each}
-          </Select.Group>
-        </Select.Content>
-      </Select.Root>
-    </div>
+    <label class="flex w-full items-center gap-2 md:hidden">
+      <span class="text-sm font-medium">Sort</span>
+      <Select
+        class="min-w-0 flex-1"
+        value={mobileSort}
+        onchange={(event) => handleMobileSortChange(event.currentTarget.value)}
+      >
+        {#if mobileSort === 'custom'}
+          <!-- The desktop table can sort by a column the phone offers no option
+               for. Naming that order keeps the control honest; disabled because
+               choosing it again would change nothing. -->
+          <option value="custom" disabled>{mobileSortLabel}</option>
+        {/if}
+        {#each mobileSortOptions as option (option.value)}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </Select>
+    </label>
 
     <!-- Column visibility toggle (desktop table only; mobile cards ignore column visibility) -->
     <div class="hidden md:ml-auto md:block">
