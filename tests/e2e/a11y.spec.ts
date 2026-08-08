@@ -191,7 +191,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
       const row = page.getByRole('row').filter({ hasText: 'Discovery' })
       await row.getByRole('button', { name: 'Open menu' }).click()
-      await page.getByRole('menuitem', { name: 'Delete' }).click()
+      await page.getByRole('menuitem', { name: /^Delete/ }).click()
 
       await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
       await expectAccessibleDialog(page, `delete dialog (${colorScheme})`)
@@ -308,7 +308,7 @@ test.describe('keyboard', () => {
     const row = page.getByRole('row').filter({ hasText: 'Discovery' })
     const rowMenu = row.getByRole('button', { name: 'Open menu' })
     await rowMenu.click()
-    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await page.getByRole('menuitem', { name: /^Delete/ }).click()
     await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
 
     await page.keyboard.press('Escape')
@@ -454,7 +454,7 @@ test('marking an item listened says so out loud', async ({ page }) => {
 
   // The write only repaints a badge on a row the reader has already passed.
   await page.getByRole('button', { name: 'Open menu' }).click()
-  await page.getByRole('menuitem', { name: 'Mark as listened' }).click()
+  await page.getByRole('menuitem', { name: /as listened$/ }).click()
 
   await expect(page.getByText('"Discovery" by Daft Punk marked as listened')).toBeVisible()
 })
@@ -482,13 +482,14 @@ test.describe('accessible names', () => {
     await page.getByLabel('Song or album title', { exact: true }).fill('Nightcall')
     await expect(page.getByRole('option')).toHaveCount(2)
 
-    // Another Version shares its title with the first result, so a title-only
-    // name leaves a screen reader with two identical options to choose between.
+    // An `aria-label` here replaced the four lines the option prints with a
+    // summary of two of them, so the album and the release date were on screen
+    // and unreadable. Another Version shares the title, so the artists decide.
     await expect(page.getByRole('option').first()).toHaveAccessibleName(
-      'Add Nightcall by Kavinsky to listen later'
+      'Title: Nightcall Artists: Kavinsky Album: Whenever You Need Somebody Release Date: 2023-06-15'
     )
     await expect(page.getByRole('option').last()).toHaveAccessibleName(
-      'Add Nightcall by Kavinsky, Angèle, Phoenix to listen later'
+      'Title: Nightcall Artists: Kavinsky, Angèle, Phoenix Album: Whenever You Need Somebody Release Date: 2023-06-15'
     )
   })
 
@@ -507,6 +508,24 @@ test.describe('accessible names', () => {
     await expect(page.getByText('"Nightcall" by Rick Astley added to your list')).toBeVisible()
     await expect(option).toHaveAccessibleDescription(
       'In your list already. Press Enter to remove it.'
+    )
+  })
+
+  test('a row menu names the item its actions will act on', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'menu-row', title: 'Discovery', artists: ['Daft Punk'] }),
+    ])
+
+    await page.getByRole('button', { name: 'Open menu' }).click()
+
+    // The menu floats away from its row, so by the time it is read the row it
+    // belongs to is out of the reading order and cannot supply the name.
+    await expect(page.getByRole('menuitem').first()).toHaveAccessibleName(
+      'Mark "Discovery" by Daft Punk as listened'
+    )
+    await expect(page.getByRole('menuitem').last()).toHaveAccessibleName(
+      'Delete "Discovery" by Daft Punk'
     )
   })
 
@@ -598,7 +617,7 @@ test('the delete confirmation names what it will remove', async ({ page }) => {
   ])
 
   await page.getByRole('button', { name: 'Open menu' }).click()
-  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  await page.getByRole('menuitem', { name: /^Delete/ }).click()
 
   // "Are you sure?" and "Confirm" describe nothing on their own, and the
   // dialog is the one place the item being destroyed has to be stated.
