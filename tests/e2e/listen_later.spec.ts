@@ -451,7 +451,7 @@ test.describe('delete item', () => {
 
     // Open the row actions menu and choose Delete
     await itemRow.getByRole('button', { name: 'Open menu' }).click()
-    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await page.getByRole('menuitem', { name: /^Delete/ }).click()
 
     // Confirm deletion in the confirmation dialog
     await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
@@ -531,9 +531,9 @@ test.describe('search results - add and remove', () => {
     await page.goto('/library/listen-later')
     await page.getByLabel('Artist name', { exact: true }).fill('Rick Astley')
 
-    const searchResult = page.getByRole('option', {
-      name: 'Add Never Gonna Give You Up by Rick Astley to listen later',
-    })
+    // One result, and clicking it toggles: the option is named by the lines it
+    // prints, so both states answer to the same name.
+    const searchResult = page.getByRole('option')
     await searchResult.click()
 
     await expect(
@@ -543,10 +543,7 @@ test.describe('search results - add and remove', () => {
     const itemRow = page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })
     await expect(itemRow).toBeVisible()
 
-    const savedResult = page.getByRole('option', {
-      name: 'Remove Never Gonna Give You Up by Rick Astley from listen later',
-    })
-    await savedResult.click()
+    await searchResult.click()
 
     await expect(
       page.getByText('"Never Gonna Give You Up" by Rick Astley removed from your list')
@@ -816,14 +813,14 @@ test.describe('reduced motion', () => {
     // The row menu zooms and slides in; the status badge spins its icon.
     const row = page.getByRole('row').filter({ hasText: 'Discovery' })
     await row.getByRole('button', { name: 'Open menu' }).click()
-    await page.getByRole('menuitem', { name: 'Mark as listened' }).click()
+    await page.getByRole('menuitem', { name: /as listened$/ }).click()
     await expect(row.getByText('Listened', { exact: true })).toBeVisible()
 
     // The delete confirmation is a second dialog on top of the first surface.
     // Confirming it takes the row out and raises a toast - the two newest
     // moving surfaces in the app.
     await row.getByRole('button', { name: 'Open menu' }).click()
-    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await page.getByRole('menuitem', { name: /^Delete/ }).click()
     await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
     await page.getByRole('button', { name: 'Confirm' }).click()
     await expect(page.getByText('"Discovery" by Artist removed from your list')).toBeVisible()
@@ -1105,7 +1102,7 @@ test.describe('mobile navigation', () => {
     const mobileCard = page.locator('#mobile-item-mobile-listened-item')
     await expect(mobileCard.getByText('Not listened', { exact: true })).toBeVisible()
     await mobileCard.getByRole('button', { name: 'Open menu' }).click()
-    await page.getByRole('menuitem', { name: 'Mark as listened' }).click()
+    await page.getByRole('menuitem', { name: /as listened$/ }).click()
     await expect(mobileCard.getByText('Listened', { exact: true })).toBeVisible()
 
     await page.reload()
@@ -1123,7 +1120,7 @@ test.describe('mobile navigation', () => {
 
     const mobileCard = page.locator('#mobile-item-mobile-delete-item')
     await mobileCard.getByRole('button', { name: 'Open menu' }).click()
-    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await page.getByRole('menuitem', { name: /^Delete/ }).click()
     await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
     await page.getByRole('button', { name: 'Confirm' }).click()
     await expect(mobileCard).not.toBeVisible()
