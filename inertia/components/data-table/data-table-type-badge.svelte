@@ -9,12 +9,12 @@
 
 {#if type === 'track'}
   <Badge variant="outline" class="gap-1 text-blue-600 dark:text-blue-400">
-    <Music class="size-3" />
+    <Music class="size-3" aria-hidden="true" />
     Track
   </Badge>
 {:else}
   <Badge variant="outline" class="gap-1 text-purple-600 dark:text-purple-400">
-    <Disc3 class="size-3" />
+    <Disc3 class="size-3" aria-hidden="true" />
     Album
   </Badge>
 {/if}

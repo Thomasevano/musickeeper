@@ -39,9 +39,9 @@
              not play an intro for a block nested inside it. -->
         <span class="inline-flex" in:iconSwap={{ direction: hasBeenListened ? 1 : -1 }}>
           {#if hasBeenListened}
-            <Check class="size-3" />
+            <Check class="size-3" aria-hidden="true" />
           {:else}
-            <X class="size-3" />
+            <X class="size-3" aria-hidden="true" />
           {/if}
         </span>
       {/key}

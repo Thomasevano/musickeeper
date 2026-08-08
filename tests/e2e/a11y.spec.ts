@@ -523,6 +523,29 @@ test.describe('accessible names', () => {
     await expect(page.locator('table tbody th:not([scope="row"])')).toHaveCount(0)
   })
 
+  test('no icon in a row is read as a picture', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    // One row per icon in the table: the type badge branches on `itemType`, the
+    // status badge on `hasBeenListened`, and the links cell renders nothing
+    // without a link.
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'icon-track',
+        title: 'Discovery',
+        itemType: 'track',
+        hasBeenListened: true,
+        externalLinks: [
+          { platform: 'spotify', label: 'Spotify', url: 'https://x.test', category: 'stream' },
+        ],
+      }),
+      listenLaterSeed({ id: 'icon-album', title: 'Homework', itemType: 'album' }),
+    ])
+    // The badges pair an icon with the word it stands for, so the icon adds
+    // nothing but an "image" between the reader and the value. The cover is the
+    // exception - it is the only thing in its column, and carries the alt text.
+    await expect(page.locator('table tbody svg:not([aria-hidden="true"])')).toHaveCount(0)
+  })
+
   test('the results listbox owns its options directly', async ({ page }) => {
     await searchResultsRoute(page, [{ id: 'result-one', title: 'Result 1' }])
 
