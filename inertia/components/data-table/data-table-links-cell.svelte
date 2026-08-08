@@ -35,7 +35,7 @@
           rel="noopener noreferrer"
           class={presentation.classes}
         >
-          <Icon class="size-3 shrink-0" />
+          <Icon class="size-3 shrink-0" aria-hidden="true" />
           {link.label}
         </a>
       {/each}
