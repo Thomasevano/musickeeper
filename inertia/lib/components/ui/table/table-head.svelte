@@ -10,6 +10,8 @@
 	}: WithElementRef<HTMLThAttributes> = $props();
 </script>
 
-<th bind:this={ref} data-slot="table-head" class={cn("text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0", className)} {...restProps}>
+<!-- `scope="col"` is what pairs a value with its field name: without it a reader
+     walking the row says "Daft Punk" and never says which column that was. -->
+<th bind:this={ref} data-slot="table-head" scope="col" class={cn("text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0", className)} {...restProps}>
 	{@render children?.()}
 </th>
