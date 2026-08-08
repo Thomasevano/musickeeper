@@ -399,6 +399,7 @@
           {#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column.id)}
             <DropdownMenu.CheckboxItem
               class="capitalize"
+              closeOnSelect={false}
               bind:checked={() => column.getIsVisible(), (v) => column.toggleVisibility(!!v)}
             >
               {columnLabels[column.id] ?? column.id}

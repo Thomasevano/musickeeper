@@ -347,6 +347,25 @@ test.describe('keyboard', () => {
     expect(await opacityAtFocus).toBe('1')
   })
 
+  test('ticking a column keeps the menu open and the item focused', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [listenLaterSeed({ id: 'seed-columns', title: 'Discovery' })])
+
+    await page.getByRole('button', { name: 'Columns' }).click()
+    const cover = page.getByRole('menuitemcheckbox', { name: 'Cover' })
+    await expect(cover).toHaveAttribute('aria-checked', 'true')
+
+    // A menu that closes on the tick destroys the thing that changed: focus
+    // lands back on the trigger and the new state is never spoken. Held open,
+    // `aria-checked` flips under the reader's cursor and is read as it flips.
+    await page.keyboard.press('ArrowDown')
+    await expect(cover).toBeFocused()
+    await page.keyboard.press('Enter')
+
+    await expect(cover).toBeFocused()
+    await expect(cover).toHaveAttribute('aria-checked', 'false')
+  })
+
   // axe reports the results popup as a scroll region without tabbable content.
   // The options are reachable, just not with Tab: this is the journey axe cannot
   // see, and the reason `scrollable-region-focusable` is parked in docs/a11y.md.
