@@ -1237,9 +1237,7 @@ test.describe('add performance', () => {
     await page.goto('/library/listen-later')
     await page.getByLabel('Song or album title', { exact: true }).fill('Instant Add')
 
-    const result = page.getByRole('option', {
-      name: 'Add Instant Add Track by Test Artist to listen later',
-    })
+    const result = page.getByRole('option', { name: /Title: Instant Add Track/ })
     await expect(result).toBeVisible()
     await result.click()
 

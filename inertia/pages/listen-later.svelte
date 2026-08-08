@@ -521,6 +521,14 @@
         <p id="search-hint" class="sr-only">
           Results appear below as you type. Press the down arrow key to reach them.
         </p>
+
+        <!-- Described, not labelled: the option is named by the four lines it
+             prints, and the consequence of Enter belongs after that name. Both
+             sit here once - every option points at whichever one fits its state. -->
+        <p id="result-add-hint" class="sr-only">Press Enter to add it to your list.</p>
+        <p id="result-remove-hint" class="sr-only">
+          In your list already. Press Enter to remove it.
+        </p>
       </div>
 
       {#if isAboveThreshold || isSearching}

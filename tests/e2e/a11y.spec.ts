@@ -472,7 +472,7 @@ test.describe('accessible names', () => {
     await expect(page.locator('#item-type-trigger')).toHaveAccessibleName('Item Type: Track')
   })
 
-  test('a result option is named by its title and its artists', async ({ page }) => {
+  test('a result option is named by everything it shows', async ({ page }) => {
     await searchResultsRoute(page, [
       { id: 'result-solo', title: 'Nightcall', artists: ['Kavinsky'] },
       { id: 'result-guests', title: 'Nightcall', artists: ['Kavinsky', 'Angèle', 'Phoenix'] },
@@ -489,6 +489,24 @@ test.describe('accessible names', () => {
     )
     await expect(page.getByRole('option').last()).toHaveAccessibleName(
       'Add Nightcall by Kavinsky, Angèle, Phoenix to listen later'
+    )
+  })
+
+  test('a result option says what Enter will do, before and after adding', async ({ page }) => {
+    await searchResultsRoute(page, [{ id: 'result-one', title: 'Nightcall' }])
+
+    await page.goto('/library/listen-later')
+    await page.getByLabel('Song or album title', { exact: true }).fill('Nightcall')
+
+    // A tick is the whole difference between the two states on screen, and
+    // `aria-selected` renders it as "selected" - true of nothing else here.
+    const option = page.getByRole('option')
+    await expect(option).toHaveAccessibleDescription('Press Enter to add it to your list.')
+
+    await option.click()
+    await expect(page.getByText('"Nightcall" by Rick Astley added to your list')).toBeVisible()
+    await expect(option).toHaveAccessibleDescription(
+      'In your list already. Press Enter to remove it.'
     )
   })
 
