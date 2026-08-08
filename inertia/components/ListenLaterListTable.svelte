@@ -66,6 +66,31 @@
   let statusFilter = $state<string>('all')
   let typeFilter = $state<string>('all')
 
+  function formatDate(value: Date | number | string | null | undefined) {
+    if (!value) return '-'
+    const date = value instanceof Date ? value : new Date(value)
+    return isNaN(date.getTime())
+      ? '-'
+      : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  }
+
+  /**
+   * A row's only tab stops are its links and its menu, and a link names its
+   * platform and nothing else: "Spotify" never says which recording it streams,
+   * and the status, type, artists and date live in cells Tab jumps straight
+   * over. Every control in a row is described by this, so the row arrives with
+   * the control that belongs to it.
+   */
+  function rowSummary(item: ListenLaterItem) {
+    const album = item.itemType === 'track' && item.albumName ? ` from ${item.albumName}` : ''
+    return [
+      `${item.title}${album}`,
+      `${item.itemType} by ${item.artists?.join(', ') || 'Unknown artist'}`,
+      item.hasBeenListened ? 'listened' : 'not listened',
+      `added ${formatDate(item.addedAt)}`,
+    ].join(', ')
+  }
+
   const columns: ColumnDef<ListenLaterItem>[] = [
     {
       accessorKey: 'hasBeenListened',
@@ -140,16 +165,7 @@
             : Number(b.original.addedAt)
         return aDate - bDate
       },
-      cell: ({ row }) => {
-        const d = row.original.addedAt
-        if (!d) return '-'
-        const date = d instanceof Date ? d : new Date(d)
-        return date.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        })
-      },
+      cell: ({ row }) => formatDate(row.original.addedAt),
     },
     {
       accessorKey: 'releaseDate',
@@ -160,21 +176,18 @@
         const bDate = b.original.releaseDate ? new Date(b.original.releaseDate).getTime() : 0
         return aDate - bDate
       },
-      cell: ({ row }) => {
-        const d = row.original.releaseDate
-        if (!d) return '-'
-        const date = new Date(d)
-        return isNaN(date.getTime())
-          ? '-'
-          : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-      },
+      cell: ({ row }) => formatDate(row.original.releaseDate),
     },
     {
       id: 'links',
       header: 'Links',
       enableHiding: true,
       enableSorting: false,
-      cell: ({ row }) => renderComponent(DataTableLinksCell, { item: row.original }),
+      cell: ({ row }) =>
+        renderComponent(DataTableLinksCell, {
+          item: row.original,
+          describedBy: `row-summary-${row.original.id}`,
+        }),
     },
     {
       id: 'actions',
@@ -183,6 +196,7 @@
       cell: ({ row }) =>
         renderComponent(DataTableActions, {
           item: row.original,
+          describedBy: `row-summary-${row.original.id}`,
           onDelete,
           onToggleListen,
         }),
@@ -450,6 +464,13 @@
                   data-slot="table-cell"
                   class="p-2 text-left align-middle font-normal whitespace-nowrap"
                 >
+                  <!-- Hidden from the reading order but reachable by id: every control in the
+                       row points at it with aria-describedby, and a description target is
+                       still read when it is aria-hidden. Left in the order it would say the
+                       row twice to anyone walking the cells. -->
+                  <span id={`row-summary-${row.original.id}`} class="sr-only" aria-hidden="true"
+                    >{rowSummary(row.original)}</span
+                  >
                   <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
                 </th>
               {:else}
@@ -477,6 +498,9 @@
           highlightedItemId === row.original.id ? 'bg-warning/20' : '',
         ].join(' ')}
       >
+        <span id={`mobile-row-summary-${row.original.id}`} class="sr-only" aria-hidden="true"
+          >{rowSummary(row.original)}</span
+        >
         <div class="flex items-start gap-3">
           <CoverArt
             src={row.original.coverArt}
@@ -495,7 +519,12 @@
               {row.original.artists?.join(', ') || 'Unknown artist'}
             </p>
           </div>
-          <DataTableActions item={row.original} {onDelete} {onToggleListen} />
+          <DataTableActions
+            item={row.original}
+            describedBy={`mobile-row-summary-${row.original.id}`}
+            {onDelete}
+            {onToggleListen}
+          />
         </div>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <DataTableTypeBadge type={row.original.itemType} />
@@ -503,7 +532,10 @@
         </div>
         {#if row.original.externalLinks?.length}
           <div class="mt-3 border-t pt-3">
-            <DataTableLinksCell item={row.original} />
+            <DataTableLinksCell
+              item={row.original}
+              describedBy={`mobile-row-summary-${row.original.id}`}
+            />
           </div>
         {/if}
       </article>
