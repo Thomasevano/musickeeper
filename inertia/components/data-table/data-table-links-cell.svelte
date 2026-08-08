@@ -2,7 +2,7 @@
   import Music from '@lucide/svelte/icons/music'
   import ShoppingBag from '@lucide/svelte/icons/shopping-bag'
   import type { ListenLaterItem } from '../../../src/domain/music_item'
-  let { item }: { item: ListenLaterItem } = $props()
+  let { item, describedBy }: { item: ListenLaterItem; describedBy: string } = $props()
   const links = $derived(item.externalLinks ?? [])
   const stream = $derived(links.filter((link) => link.category === 'stream').sort((a, b) => a.label.localeCompare(b.label)))
   const buy = $derived(links.filter((link) => link.category === 'buy').sort((a, b) => a.label.localeCompare(b.label)))
@@ -33,6 +33,7 @@
           href={link.url}
           target="_blank"
           rel="noopener noreferrer"
+          aria-describedby={describedBy}
           class={presentation.classes}
         >
           <Icon class="size-3 shrink-0" aria-hidden="true" />

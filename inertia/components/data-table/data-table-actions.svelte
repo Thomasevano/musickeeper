@@ -6,10 +6,12 @@
 
   let {
     item,
+    describedBy,
     onDelete,
     onToggleListen,
   }: {
     item: ListenLaterItem
+    describedBy: string
     onDelete: (item: ListenLaterItem) => void
     onToggleListen: (item: ListenLaterItem) => void
   } = $props()
@@ -24,7 +26,7 @@
   <DropdownMenu.Root>
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
-        <Button {...props} variant="ghost" size="icon" class="relative p-0">
+        <Button {...props} aria-describedby={describedBy} variant="ghost" size="icon" class="relative p-0">
           <span class="sr-only">Open menu for {target}</span>
           <EllipsisIcon aria-hidden="true" />
         </Button>

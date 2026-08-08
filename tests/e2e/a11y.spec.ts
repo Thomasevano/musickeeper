@@ -558,6 +558,38 @@ test.describe('accessible names', () => {
     )
   })
 
+  test('every control in a row carries the row it belongs to', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({
+        id: 'described-row',
+        title: 'Discovery',
+        artists: ['Daft Punk'],
+        externalLinks: [
+          { platform: 'spotify', label: 'Spotify', url: SPOTIFY_URL, category: 'stream' },
+        ],
+      }),
+    ])
+
+    // Tab stops at the links and the menu and nowhere else in a row: the cover,
+    // status, type, artists and date sit in cells it jumps straight over, and
+    // "Spotify" never says which recording it streams. The date format follows
+    // the browser locale, so only its shape is pinned here.
+    const summary = /^Discovery, album by Daft Punk, not listened, added .+\d{4}$/
+
+    await expect(page.getByRole('link', { name: 'Spotify' })).toHaveAccessibleDescription(summary)
+    await expect(page.getByRole('button', { name: 'Open menu' })).toHaveAccessibleDescription(
+      summary
+    )
+
+    // The cards are a second copy of every row, with a second set of ids.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(page.getByRole('link', { name: 'Spotify' })).toHaveAccessibleDescription(summary)
+    await expect(page.getByRole('button', { name: 'Open menu' })).toHaveAccessibleDescription(
+      summary
+    )
+  })
+
   test('every column header says which column it heads', async ({ page }) => {
     await page.goto('/library/listen-later')
     await seedListenLaterItems(page, [
