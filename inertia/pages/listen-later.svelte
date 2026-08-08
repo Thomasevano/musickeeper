@@ -2,7 +2,7 @@
   import * as Alert from '$lib/components/ui/alert/index.js'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
   import { controlHeights } from '$lib/components/ui/control_heights.js'
-  import * as Select from '$lib/components/ui/select/index.js'
+  import { Select } from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
   import { Link2, Search, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
@@ -226,10 +226,6 @@
     { value: 'track', label: 'Tracks' },
     { value: 'album', label: 'Albums' },
   ]
-
-  const triggerContent = $derived(
-    types.find((t) => t.value === searchType)?.label ?? 'Select a type'
-  )
 
   function isValidUrl(urlString: string): boolean {
     try {
@@ -456,30 +452,17 @@
     <Separator class="my-4" />
 
     <div class="mb-2 flex items-center gap-4" class:opacity-50={isOffline}>
-      <span id="search-type-label" class="text-sm font-medium">Type:</span>
-      <Select.Root type="single" bind:value={searchType} disabled={isOffline}>
-        <!--
-          A `<label for>` cannot label a button, and where it is honoured it
-          replaces the name instead of prefixing it - the chosen type goes unread.
-          Pointing at the trigger itself appends its own content to the label.
-        -->
-        <Select.Trigger
-          id="search-type"
-          class="w-full sm:w-[180px]"
-          aria-labelledby="search-type-label search-type">{triggerContent}</Select.Trigger
-        >
-        <Select.Content>
-          <Select.Group>
-            <Select.Label>Types</Select.Label>
-
-            {#each types as type (type.value)}
-              <Select.Item value={type.value} label={type.label}>
-                {type.label}
-              </Select.Item>
-            {/each}
-          </Select.Group>
-        </Select.Content>
-      </Select.Root>
+      <label for="search-type" class="text-sm font-medium">Type:</label>
+      <Select
+        id="search-type"
+        class="w-full sm:w-[180px]"
+        bind:value={searchType}
+        disabled={isOffline}
+      >
+        {#each types as type (type.value)}
+          <option value={type.value}>{type.label}</option>
+        {/each}
+      </Select>
     </div>
 
     <div class="rounded-lg border shadow-md" class:opacity-50={isOffline}>

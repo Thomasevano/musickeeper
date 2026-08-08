@@ -3,6 +3,11 @@ import { DB_CONFIG } from '../../src/infrastructure/storage/listen_later_storage
 
 export const SPOTIFY_URL = 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'
 
+// The filters are native `<select>`s, whose `<option>`s carry the same role as
+// a search result. Only the results hang off a `listbox`; a select is a
+// `combobox`, so naming the owner is what separates them.
+export const resultOptions = (page: Page) => page.getByRole('listbox').getByRole('option')
+
 export const mockMetadataResponse = {
   musicItem: {
     id: 'mb-track-456',

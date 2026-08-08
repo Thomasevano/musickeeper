@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog/index.js'
-  import * as Select from '$lib/components/ui/select/index.js'
+  import { Select } from '$lib/components/ui/select/index.js'
   import { Badge } from '$lib/components/ui/badge/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
@@ -65,10 +65,6 @@
     { value: SearchType.track, label: 'Track' },
     { value: SearchType.album, label: 'Album' },
   ]
-
-  const triggerContent = $derived(
-    types.find((t) => t.value === selectedType)?.label ?? 'Select type'
-  )
 
   // The error branch already carries `role="alert"`; announcing it twice would
   // interrupt the alert with a duplicate.
@@ -271,23 +267,12 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <span id="item-type-label" class="text-sm font-medium">Item Type:</span>
-        <Select.Root type="single" bind:value={selectedType}>
-          <Select.Trigger
-            id="item-type-trigger"
-            class="w-[140px]"
-            aria-labelledby="item-type-label item-type-trigger">{triggerContent}</Select.Trigger
-          >
-          <Select.Content>
-            <Select.Group>
-              {#each types as type (type.value)}
-                <Select.Item value={type.value} label={type.label}>
-                  {type.label}
-                </Select.Item>
-              {/each}
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
+        <label for="item-type" class="text-sm font-medium">Item Type:</label>
+        <Select id="item-type" class="w-[140px]" bind:value={selectedType}>
+          {#each types as type (type.value)}
+            <option value={type.value}>{type.label}</option>
+          {/each}
+        </Select>
       </div>
     {/if}
 
