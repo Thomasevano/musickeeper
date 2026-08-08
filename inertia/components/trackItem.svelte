@@ -100,10 +100,6 @@
   let isInListenLaterList = $derived(
     listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
   )
-
-  // Two recordings can share a title and differ only by their artists, so the
-  // name a screen reader reads has to carry both to tell the options apart.
-  let optionName = $derived(item ? `${item.title} by ${item.artists.join(', ')}` : '')
 </script>
 
 <!--
@@ -144,12 +140,14 @@
     {/snippet}
   </Skeleton>
 {:else if item}
+  <!-- What the option is called is the lines printed inside it. An `aria-label`
+       would have replaced them with a summary, so the album and the release
+       date - on screen, and part of telling two recordings apart - would never
+       be read out. The cover repeats the title, so it stays out of the name. -->
   <li
     role="option"
     aria-selected={isInListenLaterList}
-    aria-label={isInListenLaterList
-      ? `Remove ${optionName} from listen later`
-      : `Add ${optionName} to listen later`}
+    aria-describedby={isInListenLaterList ? 'result-remove-hint' : 'result-add-hint'}
     class="cursor-pointer flex items-center p-2 rounded-sm hover:bg-accent hover:text-accent-foreground outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
     tabindex={focused ? 0 : -1}
     onclick={() => toggleListenLater(item)}
@@ -160,7 +158,7 @@
       }
     }}
   >
-    <CoverArt src={item.coverArt} alt={`Cover of ${item.title}`} size="md" />
+    <CoverArt src={item.coverArt} alt="" size="md" />
     <div class="flex items-center gap-4">
       <div class="flex flex-col justify-between text-left">
         <p class="px-4 py-2">Title: {item.title}</p>
