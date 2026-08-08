@@ -317,6 +317,35 @@ test.describe('keyboard', () => {
     await expect(row).toBeVisible()
   })
 
+  test('the row menu focuses its first item only once the menu is on screen', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [listenLaterSeed({ id: 'seed-focus', title: 'Discovery' })])
+
+    // Focus that arrives in the frame the menu is inserted is a move VoiceOver
+    // drops: it reads the menu appearing and never says the item focus landed
+    // on, so the first action of every row opens silent while the ones reached
+    // by an arrow key afterwards all read correctly.
+    const opacityAtFocus = page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          document.addEventListener(
+            'focusin',
+            (event) => {
+              const item = event.target as HTMLElement
+              if (item.getAttribute('role') !== 'menuitem') return
+              const menu = item.closest('[role="menu"]')
+              if (!menu) throw new Error('a menu item outside a menu')
+              resolve(getComputedStyle(menu).opacity)
+            },
+            { capture: true }
+          )
+        })
+    )
+
+    await page.getByRole('button', { name: 'Open menu' }).press('Enter')
+    expect(await opacityAtFocus).toBe('1')
+  })
+
   // axe reports the results popup as a scroll region without tabbable content.
   // The options are reachable, just not with Tab: this is the journey axe cannot
   // see, and the reason `scrollable-region-focusable` is parked in docs/a11y.md.
