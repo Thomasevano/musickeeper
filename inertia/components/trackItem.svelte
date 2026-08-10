@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Check, Plus } from '@lucide/svelte'
-  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import CoverArt from '~/components/CoverArt.svelte'
   import Skeleton from 'boneyard-js/svelte'
@@ -52,11 +52,11 @@
       // new item last. If that default order ever changes, replace this with a
       // getAll().
       listenLaterItems = [...listenLaterItems, stored]
-      toast.success(`"${item.title}" by ${item.artists.join(', ')} added to your list`)
+      toast.success(`${musicItemName(item)} added to your list`)
       void backfillExternalLinks(item)
     } catch (error) {
       console.error('Error adding item to listen later list:', error)
-      toast.error(`Could not add "${item.title}" by ${item.artists.join(', ')}`)
+      toast.error(`Could not add ${musicItemName(item)}`)
     }
   }
 
@@ -82,10 +82,10 @@
     try {
       await listenLaterStorage.remove(item.id)
       listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
-      toast.success(`"${item.title}" by ${item.artists.join(', ')} removed from your list`)
+      toast.success(`${musicItemName(item)} removed from your list`)
     } catch (error) {
       console.error('Error removing item from listen later list:', error)
-      toast.error(`Could not remove "${item.title}" by ${item.artists.join(', ')}`)
+      toast.error(`Could not remove ${musicItemName(item)}`)
     }
   }
 

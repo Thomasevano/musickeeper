@@ -45,6 +45,12 @@ export class MusicItem {
   }
 }
 
+// How a Music Item is named wherever someone is told about one - a toast, a row
+// menu, a delete confirmation. A screen reader reads all three, so they either
+// say it identically or the same item sounds like two different ones.
+export const musicItemName = ({ title, artists }: Pick<MusicItem, 'title' | 'artists'>) =>
+  `"${title}" by ${artists.join(', ')}`
+
 export interface ListenLaterItemProperties extends MusicItemProperties {
   hasBeenListened: boolean
   addedAt: Date
