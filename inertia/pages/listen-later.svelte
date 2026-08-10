@@ -515,7 +515,13 @@
       </div>
 
       {#if isAboveThreshold || isSearching}
-        <div class="max-h-[300px] overflow-y-auto overflow-x-hidden scroll-py-1">
+        <!-- Named so the a11y suite can park `scrollable-region-focusable` on
+             this node alone: its options leave the tab order by design, which
+             is not true of any other scroll region in the app. -->
+        <div
+          id="search-results-scroll"
+          class="max-h-[300px] overflow-y-auto overflow-x-hidden scroll-py-1"
+        >
           {#if isSearching || (isAboveThreshold && !serializedItems.length && !hasSearchTerm && !hasArtist)}
             <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
               {searchType === 'track' ? 'Tracks' : 'Albums'}
