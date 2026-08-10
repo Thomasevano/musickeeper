@@ -16,10 +16,14 @@ import {
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
-// A rule parked here owes an entry in docs/a11y.md saying why. The listbox
-// popup is the only entry: see the arrow-key test in this file for the journey
-// axe cannot see.
-const ALLOWED_RULES: string[] = ['scrollable-region-focusable']
+// A rule parked here owes an entry in docs/a11y.md saying why, and the node it
+// is parked on. Disabling a rule outright waves through every future instance
+// of it anywhere in the app, which is the opposite of what an allowlist is for.
+// The results popup is the only entry: see the arrow-key test in this file for
+// the journey axe cannot see.
+const PARKED_RULES: Record<string, string> = {
+  'scrollable-region-focusable': '#search-results-scroll',
+}
 
 // The acceptance bar is `serious`/`critical`. `moderate` and `minor` findings
 // are reported by axe but do not fail the suite: they are mostly best-practice
@@ -32,7 +36,7 @@ const BLOCKING_IMPACT: Record<string, true> = { serious: true, critical: true }
 async function expectAccessible(page: Page, surface: string, scope?: string) {
   await settleAnimations(page)
 
-  const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).disableRules(ALLOWED_RULES)
+  const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS)
   if (scope) builder.include(scope)
 
   const { violations } = await builder.analyze()
@@ -42,17 +46,20 @@ async function expectAccessible(page: Page, surface: string, scope?: string) {
   // contrast or the missing attribute.
   const blocking = violations
     .filter((violation) => BLOCKING_IMPACT[violation.impact ?? ''])
-    .flatMap((violation) =>
-      violation.nodes.map(
-        (node) =>
-          `${violation.id} [${violation.impact}] ${node.target.join(' ')} :: ${[
-            ...node.any,
-            ...node.all,
-          ]
-            .map((check) => check.message)
-            .join('; ')}`
-      )
-    )
+    .flatMap((violation) => {
+      const parked = PARKED_RULES[violation.id]
+      return violation.nodes
+        .filter((node) => !parked || !node.target.join(' ').includes(parked))
+        .map(
+          (node) =>
+            `${violation.id} [${violation.impact}] ${node.target.join(' ')} :: ${[
+              ...node.any,
+              ...node.all,
+            ]
+              .map((check) => check.message)
+              .join('; ')}`
+        )
+    })
 
   expect(blocking, `axe violations on ${surface}`).toEqual([])
 }
@@ -218,32 +225,39 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expectAccessible(page, `error toast (${colorScheme})`)
     })
   })
+
+  // Both surfaces only exist below `md`, and contrast differs between schemes
+  // exactly as it does on the desktop tree - so a phone gets the same two
+  // passes rather than one arbitrary one.
+  test.describe(`axe - mobile ${colorScheme}`, () => {
+    test.use({ colorScheme, viewport: { width: 390, height: 844 } })
+
+    test('listen later cards and the navigation sheet', async ({ page }) => {
+      await page.goto('/library/listen-later')
+      await seedListenLaterItems(page, [
+        listenLaterSeed({ id: 'seed-mobile', title: 'Discovery', hasBeenListened: true }),
+      ])
+      await expect(page.getByRole('article').filter({ hasText: 'Discovery' })).toBeVisible()
+      await expectAccessible(page, `listen later cards (mobile, ${colorScheme})`)
+
+      await page.getByRole('button', { name: 'Open navigation' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expectAccessibleDialog(page, `navigation sheet (mobile, ${colorScheme})`)
+    })
+
+    test('the add dialog at a phone width', async ({ page }) => {
+      await mockMetadataRoute(page)
+      await page.goto('/library/listen-later')
+
+      await openAddDialog(page)
+      await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+      await expectAccessibleDialog(page, `add dialog (mobile, ${colorScheme})`)
+    })
+  })
 }
 
-test.describe('axe - mobile', () => {
+test.describe('mobile keyboard', () => {
   test.use({ viewport: { width: 390, height: 844 } })
-
-  test('listen later cards and the navigation sheet', async ({ page }) => {
-    await page.goto('/library/listen-later')
-    await seedListenLaterItems(page, [
-      listenLaterSeed({ id: 'seed-mobile', title: 'Discovery', hasBeenListened: true }),
-    ])
-    await expect(page.getByRole('article').filter({ hasText: 'Discovery' })).toBeVisible()
-    await expectAccessible(page, 'listen later cards (mobile)')
-
-    await page.getByRole('button', { name: 'Open navigation' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible()
-    await expectAccessibleDialog(page, 'navigation sheet (mobile)')
-  })
-
-  test('the add dialog at a phone width', async ({ page }) => {
-    await mockMetadataRoute(page)
-    await page.goto('/library/listen-later')
-
-    await openAddDialog(page)
-    await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
-    await expectAccessibleDialog(page, 'add dialog (mobile)')
-  })
 
   test('the navigation sheet traps focus and gives it back', async ({ page }) => {
     await page.goto('/library/listen-later')
@@ -281,6 +295,90 @@ test.describe('keyboard', () => {
 
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(page.getByRole('row').filter({ hasText: 'Never Gonna Give You Up' })).toBeVisible()
+  })
+
+  // The other half of the journey #36 asks for: both row actions are icon-only
+  // buttons behind a menu, and both have to complete with no pointer at all.
+  // Every step here is a real keystroke - `locator.press()` would focus the
+  // target itself and prove nothing about reaching it.
+  test('an item is marked listened and then deleted without a mouse', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ id: 'seed-keyboard', title: 'Discovery', artists: ['Daft Punk'] }),
+    ])
+
+    const row = page.getByRole('row').filter({ hasText: 'Discovery' })
+    const rowMenu = row.getByRole('button', { name: 'Open menu' })
+
+    await tabUntilFocused(page, rowMenu)
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('menuitem', { name: /as listened$/ })).toBeFocused()
+    await page.keyboard.press('Enter')
+
+    await expect(page.getByText('"Discovery" by Daft Punk marked as listened')).toBeVisible()
+    await expect(rowMenu).toBeFocused()
+
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('menuitem', { name: /as not listened$/ })).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByRole('menuitem', { name: /^Delete/ })).toBeFocused()
+    await page.keyboard.press('Enter')
+
+    const confirm = page.getByRole('button', { name: /^Confirm/ })
+    await expect(page.getByRole('heading', { name: 'Are you sure?' })).toBeVisible()
+    await tabUntilFocused(page, confirm)
+    await page.keyboard.press('Enter')
+
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(row).toHaveCount(0)
+  })
+
+  // #36 asks for a visible focus indicator, and `--ring` existing in the theme
+  // is not the same as it reaching the element. Measured, not eyeballed: the
+  // ring is a box-shadow and the fallback an outline, so anything that paints
+  // counts as long as the resting state does not already paint it.
+  test('keyboard focus paints a visible indicator', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [listenLaterSeed({ id: 'seed-ring', title: 'Discovery' })])
+
+    // The ring is a box-shadow and the fallback an outline, and either can be
+    // `none` while the other paints, so both are read and normalised together.
+    const paint = (element: Element) => {
+      const { outlineStyle, outlineWidth, boxShadow } = getComputedStyle(element)
+      const outline = outlineStyle === 'none' ? '' : `${outlineStyle} ${outlineWidth}`
+      return `${outline}|${boxShadow === 'none' ? '' : boxShadow}`
+    }
+
+    // The Add button is disabled until the link field holds something, and a
+    // disabled button takes no focus at all - so the field is filled first,
+    // then left, before anything is measured.
+    const linkField = page.getByPlaceholder('Paste a link from Spotify')
+    await tabUntilFocused(page, linkField)
+    await page.keyboard.type(SPOTIFY_URL)
+    await page.keyboard.press('Shift+Tab')
+
+    // One of each shape a keyboard meets on this page, in tab order: a text
+    // field, a plain button, and the icon-only trigger inside a row.
+    const controls: [string, Locator][] = [
+      ['the link field', linkField],
+      ['the Add button', addLinkButton(page)],
+      [
+        'a row menu',
+        page
+          .getByRole('row')
+          .filter({ hasText: 'Discovery' })
+          .getByRole('button', { name: 'Open menu' }),
+      ],
+    ]
+
+    for (const [label, control] of controls) {
+      const resting = await control.evaluate(paint)
+      await tabUntilFocused(page, control)
+      const focused = await control.evaluate(paint)
+
+      expect(focused, `keyboard focus paints nothing on ${label}`).not.toBe('|')
+      expect(focused, `focus is indistinguishable from rest on ${label}`).not.toBe(resting)
+    }
   })
 
   test('the add dialog traps focus, closes on Escape, and restores focus', async ({ page }) => {
@@ -421,6 +519,28 @@ test.describe('keyboard', () => {
 })
 
 test.describe('announcements', () => {
+  // The page title is announced on arrival for the dullest reason available:
+  // nothing here navigates client-side, so the browser loads a document and
+  // says its title the way it does on any other site. The day a link takes
+  // `use:inertia` the title starts swapping under the reader in silence, and
+  // an announcement has to be built by hand. This is the tripwire for that day.
+  test('changing page loads a document, which is what speaks the title', async ({ page }) => {
+    await page.goto('/library/listen-later')
+    await expect(page).toHaveTitle('Listen Later - MusicKeeper')
+
+    await page.evaluate(() => {
+      ;(window as unknown as Record<string, boolean>).sameDocument = true
+    })
+
+    await page.getByRole('link', { name: 'MusicKeeper home' }).click()
+    await expect(page).toHaveTitle('MusicKeeper')
+
+    const sameDocument = await page.evaluate(
+      () => (window as unknown as Record<string, boolean>).sameDocument ?? false
+    )
+    expect(sameDocument, 'the navigation reused the document').toBe(false)
+  })
+
   test('a toast lands in a named live region', async ({ page }) => {
     await mockMetadataRoute(page)
     await page.goto('/library/listen-later')
