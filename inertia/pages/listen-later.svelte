@@ -12,7 +12,7 @@
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
   import {
@@ -58,6 +58,7 @@
   let existingDuplicate = $state<ListenLaterItem | null>(null)
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
+  const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
   let focusedResultIndex = $state<number>(-1)
   let resultsListEl = $state<HTMLUListElement | null>(null)
   let titleInputEl = $state<HTMLInputElement | null>(null)
@@ -200,14 +201,12 @@
         // Every other list write confirms itself. This one changed a badge on a row
         // the reader has already moved past, so it needs saying out loud too.
         toast.success(
-          `"${updated.title}" by ${updated.artists.join(', ')} marked as ${
-            updated.hasBeenListened ? 'listened' : 'not listened'
-          }`
+          `${musicItemName(updated)} marked as ${updated.hasBeenListened ? 'listened' : 'not listened'}`
         )
       }
     } catch (error) {
       console.error('Error updating item:', error)
-      toast.error(`Could not update "${item.title}" by ${item.artists.join(', ')}`)
+      toast.error(`Could not update ${musicItemName(item)}`)
     }
   }
 
@@ -215,10 +214,10 @@
     try {
       await listenLaterStorage.remove(item.id)
       listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
-      toast.success(`"${item.title}" by ${item.artists.join(', ')} removed from your list`)
+      toast.success(`${musicItemName(item)} removed from your list`)
     } catch (error) {
       console.error('Error deleting item:', error)
-      toast.error(`Could not remove "${item.title}" by ${item.artists.join(', ')}`)
+      toast.error(`Could not remove ${musicItemName(item)}`)
     }
   }
 
@@ -366,7 +365,7 @@
       resetPendingState()
       linkUrl = ''
 
-      toast.success(`"${title}" by ${stored.artists.join(', ')} added to your list`)
+      toast.success(`${musicItemName(stored)} added to your list`)
     } catch (error) {
       console.error('Error saving item to listen later list:', error)
       dialogError = 'Failed to save item. Please try again.'
@@ -603,8 +602,7 @@
     <Dialog.Header>
       <Dialog.Title>Are you sure?</Dialog.Title>
       <Dialog.Description>
-        "{deleteTarget?.title}" by {deleteTarget?.artists.join(', ')} will be permanently removed
-        from your listen later list.
+        {deleteTargetName} will be permanently removed from your listen later list.
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer>
@@ -621,9 +619,7 @@
           }
         }}
       >
-        Confirm<span class="sr-only">
-          , permanently remove "{deleteTarget?.title}" by {deleteTarget?.artists.join(', ')}</span
-        >
+        Confirm<span class="sr-only">, permanently remove {deleteTargetName}</span>
       </Button>
     </Dialog.Footer>
   </Dialog.Content>
