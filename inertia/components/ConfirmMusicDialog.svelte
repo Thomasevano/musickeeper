@@ -8,7 +8,7 @@
   import CoverArt from '~/components/CoverArt.svelte'
   import { AlertTriangle, Copy, RefreshCw, Loader2 } from '@lucide/svelte'
   import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
+  import type { LinkMetadata } from '../../src/domain/link'
 
   interface Props {
     open: boolean

@@ -1,7 +1,7 @@
 /// <reference path="../adonisrc.ts" />
 /// <reference path="../src/infrastructure/config/inertia.ts" />
 import '../resources/css/app.css'
-import { createInertiaApp } from '@inertiajs/svelte'
+import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { hydrate, mount } from 'svelte'
 // Using native SW registration instead of vite-pwa-register for explicit scope control
@@ -14,14 +14,20 @@ createInertiaApp({
   title: (title: string) => (title ? `${title} - ${appName}` : appName),
 
   resolve: (name) => {
-    return resolvePageComponent(`./pages/${name}.svelte`, import.meta.glob('./pages/**/*.svelte'))
+    return resolvePageComponent(
+      `./pages/${name}.svelte`,
+      import.meta.glob<ResolvedComponent>('./pages/**/*.svelte')
+    )
   },
 
   setup({ el, App, props }) {
+    if (!el) {
+      throw new Error('Inertia root element not found')
+    }
     if (el.dataset.serverRendered === 'true') {
       hydrate(App, { target: el, props })
     } else {
-      mount(App, { target: el, props, hydrate: true })
+      mount(App, { target: el, props })
     }
   },
 })

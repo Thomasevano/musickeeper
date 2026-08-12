@@ -14,14 +14,17 @@
   import Input from '~/lib/components/ui/input/input.svelte'
   import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/infrastructure/services/link_metadata.service'
+  import type { LinkMetadata } from '../../src/domain/link'
   import {
     findDuplicate,
     listenLaterStorage,
   } from '../../src/infrastructure/storage/listen_later_storage'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
-  let { serializedItems = [] } = $props()
+  let {
+    serializedItems = [],
+    title,
+  }: { serializedItems?: MusicItem[]; title: string } = $props()
   let searchTerm = $state('')
   let artistName = $state('')
   let searchType = $state('track')
@@ -395,7 +398,7 @@
   }
 </script>
 
-<LibraryLayout data={listenLaterItems}>
+<LibraryLayout data={listenLaterItems} {title}>
   <div class="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-12 lg:px-16">
     {#if isOffline}
       <Alert.Root variant="info" class="mb-4">

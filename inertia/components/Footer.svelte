@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { page } from '@inertiajs/svelte'
   const { appName, appVersion } = page.props
 </script>

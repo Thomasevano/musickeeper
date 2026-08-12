@@ -34,3 +34,9 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      - name: Typecheck server
+        run: pnpm typecheck
+
+      - name: Typecheck Svelte
+        run: pnpm typecheck:svelte

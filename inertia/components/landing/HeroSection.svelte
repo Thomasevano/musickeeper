@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { page } from '@inertiajs/svelte'
   import { cn } from '$lib/utils'
   import { buttonVariants, Button } from '$lib/components/ui/button'

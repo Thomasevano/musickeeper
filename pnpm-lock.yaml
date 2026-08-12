@@ -180,6 +180,9 @@ importers:
       svelte:
         specifier: ^5.55.0
         version: 5.55.0
+      svelte-check:
+        specifier: ^4.7.5
+        version: 4.7.5(picomatch@4.0.5)(svelte@5.55.0)(typescript@5.9.3)
       svelte-language-server:
         specifier: ^0.18.3
         version: 0.18.3(picomatch@4.0.5)(typescript@5.9.3)
@@ -3963,6 +3966,10 @@ packages:
     peerDependencies:
       svelte: ^5.27.0
 
+  mri@1.2.0:
+    resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
+    engines: {node: '>=4'}
+
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
@@ -4505,6 +4512,10 @@ packages:
       zod:
         optional: true
 
+  sade@1.8.1:
+    resolution: {integrity: sha512-xal3CZX1Xlo/k4ApwCFrHVACi9fBqJ7V+mwhBsuf/1IOKbBy098Fex+Wa/5QMubw09pSZ/u8EY8PWgevJsXp1A==}
+    engines: {node: '>=6'}
+
   safe-array-concat@1.1.3:
     resolution: {integrity: sha512-AURm5f0jYEOydBj7VQlVvDrjeFgthDdEF5H1dP+6mNpoXOMo1quQqJ4wvJDyRZ9+pO3kGWoOdmV08cSv2aJV6Q==}
     engines: {node: '>=0.4'}
@@ -4761,6 +4772,14 @@ packages:
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
+
+  svelte-check@4.7.5:
+    resolution: {integrity: sha512-NnkHGCTPH6k4ka1E9IpTuNv40uLArHnX52kLEuaHSGqRlPYTnkbFs529jSWG+y+wDy+v+jA2PQ0soN1umVK+OA==}
+    engines: {node: '>= 18.0.0'}
+    hasBin: true
+    peerDependencies:
+      svelte: ^4.0.0 || ^5.0.0-next.0
+      typescript: ^5.0.0 || ^6.0.0
 
   svelte-language-server@0.18.3:
     resolution: {integrity: sha512-60hbZVquRLjP/VIU3BS82IXQDT4JsDIJ15NvcnlMimy6tQfAkAv+og3SXGP3IT7TlaPdCrqmFe/kjOQOKtWTfw==}
@@ -8938,6 +8957,8 @@ snapshots:
       svelte: 5.55.0
       svelte-toolbelt: 0.7.1(svelte@5.55.0)
 
+  mri@1.2.0: {}
+
   ms@2.1.3: {}
 
   musicbrainz-api@1.2.1(supports-color@10.2.2):
@@ -9467,6 +9488,10 @@ snapshots:
       lz-string: 1.5.0
       svelte: 5.55.0
 
+  sade@1.8.1:
+    dependencies:
+      mri: 1.2.0
+
   safe-array-concat@1.1.3:
     dependencies:
       call-bind: 1.0.8
@@ -9793,6 +9818,19 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  svelte-check@4.7.5(picomatch@4.0.5)(svelte@5.55.0)(typescript@5.9.3):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@sveltejs/load-config': 0.2.2
+      chokidar: 4.0.3
+      fdir: 6.5.0(picomatch@4.0.5)
+      picocolors: 1.1.1
+      sade: 1.8.1
+      svelte: 5.55.0
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - picomatch
 
   svelte-language-server@0.18.3(picomatch@4.0.5)(typescript@5.9.3):
     dependencies:

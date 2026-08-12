@@ -1,13 +1,14 @@
 {
   "extends": "@adonisjs/tsconfig/tsconfig.client.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "module": "ESNext",
     "paths": {
       "~/*": ["./*"],
-      "$lib/*": ["./lib/*"]
+      "$lib/*": ["./lib/*"],
+      "$components/*": ["./components/*"],
+      "$helpers/*": ["./lib/helpers/*"]
     },
-    "types": ["vite-plugin-pwa/client"]
+    "types": ["vite/client", "vite-plugin-pwa/client"]
   },
   "include": ["./**/*.ts", "./**/*.svelte"]
 }
