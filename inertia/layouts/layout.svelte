@@ -1,19 +1,17 @@
-<script>
-  import { page } from '@inertiajs/svelte'
+<script lang="ts">
+  import type { Snippet } from 'svelte'
   import Footer from '$components/Footer.svelte'
   import Navigation from '~/components/Navigation.svelte'
   import { Toaster } from '$lib/components/ui/sonner/index.js'
-  let { children } = $props()
+
+  let { children, title }: { children: Snippet; title?: string } = $props()
 </script>
 
 <svelte:head>
-  {#if page.props.title}
-    <title>{page.props.title} - MusicKeeper</title>
+  {#if title}
+    <title>{title} - MusicKeeper</title>
   {:else}
     <title>MusicKeeper</title>
-  {/if}
-  {#if page.props.description}
-    <meta name="description" content={page.props.description} />
   {/if}
 </svelte:head>
 
