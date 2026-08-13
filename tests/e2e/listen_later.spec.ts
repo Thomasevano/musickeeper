@@ -266,18 +266,52 @@ test.describe('paste link - duplicate detection', () => {
     await expect(duplicateRows).toHaveCount(2)
   })
 
-  test('view existing closes dialog and scrolls to the item', async ({ page }) => {
-    // Paste the same link again
-    const linkInput = page.getByPlaceholder('Paste a link from Spotify')
-    await linkInput.fill(SPOTIFY_URL)
-    await addLinkButton(page).click()
+  for (const { layout, viewport, expectedId } of [
+    {
+      layout: 'desktop row',
+      viewport: { width: 1280, height: 800 },
+      expectedId: `item-${mockMetadataResponse.musicItem.id}`,
+    },
+    {
+      layout: 'mobile card',
+      viewport: { width: 320, height: 568 },
+      expectedId: `mobile-item-${mockMetadataResponse.musicItem.id}`,
+    },
+  ]) {
+    test(`view existing scrolls to and highlights the visible ${layout}`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+      await addLinkButton(page).click()
+      await page.evaluate(() => {
+        const scrollIntoView = Element.prototype.scrollIntoView
+        const targets: string[] = []
+        Object.assign(window, { __scrollTargets: targets })
+        Element.prototype.scrollIntoView = function (
+          this: Element,
+          options?: boolean | ScrollIntoViewOptions
+        ) {
+          if (this.id.startsWith('item-') || this.id.startsWith('mobile-item-')) {
+            targets.push(this.id)
+          }
+          return scrollIntoView.call(this, options)
+        }
+      })
 
-    // Click "View Existing"
-    await page.getByRole('button', { name: 'View Existing' }).click()
-
-    // Dialog closes
-    await expect(page.getByRole('dialog')).not.toBeVisible()
-  })
+      const visibleItem = page.locator(`#${expectedId}`)
+      await page.getByRole('button', { name: 'View Existing' }).dispatchEvent('click')
+      await expect(visibleItem).toHaveClass(/bg-warning\/20/)
+      await expect(page.getByRole('dialog')).not.toBeVisible()
+      await expect(visibleItem).toBeVisible()
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const instrumented = window as unknown as InstrumentedWindow
+            return instrumented.__scrollTargets
+          })
+        )
+        .toEqual([expectedId])
+    })
+  }
 })
 
 test.describe('paste link - edit fields before saving', () => {
@@ -676,6 +710,7 @@ interface MotionReport {
 interface InstrumentedWindow {
   __motion: MotionReport
   __scrolls: string[]
+  __scrollTargets: string[]
 }
 
 /**
