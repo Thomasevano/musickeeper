@@ -15,13 +15,7 @@ const LinksController = () => import('./controllers/links_controller.js')
 
 router.get('/', [HomeController, 'index'])
 
-router
-  .group(() => {
-    router.post('/oembed', [LinkController, 'oembed'])
-    router.post('/apple-music', [LinkController, 'appleMusic'])
-    router.post('/metadata', [LinkController, 'metadata'])
-  })
-  .prefix('/api/link')
+router.post('/api/link/metadata', [LinkController, 'metadata'])
 
 router.get('/api/links', [LinksController, 'index'])
 
