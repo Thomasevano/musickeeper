@@ -29,6 +29,7 @@
     renderComponent,
   } from '$lib/components/ui/data-table/index.js'
   import type { ListenLaterItem } from '../../src/domain/music_item'
+  type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
 
   let {
     items,
@@ -36,7 +37,7 @@
     onToggleListen,
     highlightedItemId,
   }: {
-    items: ListenLaterItem[]
+    items: PendingListenLaterItem[]
     onDelete: (item: ListenLaterItem) => void
     onToggleListen: (item: ListenLaterItem) => void
     highlightedItemId: string | null
@@ -91,7 +92,7 @@
     ].join(', ')
   }
 
-  const columns: ColumnDef<ListenLaterItem>[] = [
+  const columns: ColumnDef<PendingListenLaterItem>[] = [
     {
       accessorKey: 'hasBeenListened',
       header: 'Status',
@@ -336,6 +337,9 @@
 
 <div class="w-full">
   <p class="sr-only" role="status">{sortAnnouncement}</p>
+  <p class="sr-only" role="status" aria-atomic="true">
+    {items.some((item) => item.externalLinksPending) ? 'Fetching links…' : ''}
+  </p>
   <div class="flex flex-wrap items-center gap-2 py-4">
     <!-- Status filter -->
     <label class="flex w-full items-center gap-2 md:w-[190px]">
@@ -527,7 +531,7 @@
           <DataTableTypeBadge type={row.original.itemType} />
           <DataTableStatusBadge hasBeenListened={row.original.hasBeenListened} />
         </div>
-        {#if row.original.externalLinks?.length}
+        {#if row.original.externalLinksPending || row.original.externalLinks?.length}
           <div class="mt-3 border-t pt-3">
             <DataTableLinksCell
               item={row.original}
