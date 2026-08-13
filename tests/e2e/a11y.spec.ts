@@ -605,7 +605,7 @@ test.describe('announcements', () => {
 
     // Sorting rewrites the row order with no focus change, so nothing else
     // would tell a reader the list it is standing in has been rearranged.
-    const announcement = page.getByRole('status')
+    const announcement = page.locator('#sort-announcement')
     await expect(announcement).toHaveText('')
 
     await page.getByRole('button', { name: 'Title, not sorted' }).click()

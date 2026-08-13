@@ -336,7 +336,7 @@
 </script>
 
 <div class="w-full">
-  <p class="sr-only" role="status">{sortAnnouncement}</p>
+  <p id="sort-announcement" class="sr-only" role="status">{sortAnnouncement}</p>
   <p class="sr-only" role="status" aria-atomic="true">
     {items.some((item) => item.externalLinksPending) ? 'Fetching links…' : ''}
   </p>
