@@ -6,6 +6,7 @@
   import Skeleton from 'boneyard-js/svelte'
   import { toast } from 'svelte-sonner'
   import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
+  type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
 
   let {
     listenLaterItems = $bindable(),
@@ -51,7 +52,7 @@
       // ponytail: appending assumes the store's oldest-first order, which puts a
       // new item last. If that default order ever changes, replace this with a
       // getAll().
-      listenLaterItems = [...listenLaterItems, stored]
+      listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: true }]
       toast.success(`${musicItemName(item)} added to your list`)
       void backfillExternalLinks(item)
     } catch (error) {
@@ -64,18 +65,23 @@
   // already saved and on screen by then, so patch it in place when the links
   // land — and skip the write if the user removed it while we waited.
   async function backfillExternalLinks(item: MusicItem) {
-    const externalLinks = await fetchExternalLinks(item)
-    if (!externalLinks.length) return
+    let resolvedExternalLinks = await fetchExternalLinks(item)
 
-    try {
-      const updated = await listenLaterStorage.updateExternalLinks(item.id, externalLinks)
-      if (!updated) return
-      listenLaterItems = listenLaterItems.map((existing: ListenLaterItem) =>
-        existing.id === item.id ? { ...existing, externalLinks } : existing
-      )
-    } catch (error) {
-      console.error('Error backfilling external links:', error)
+    if (resolvedExternalLinks.length) {
+      try {
+        const updated = await listenLaterStorage.updateExternalLinks(item.id, resolvedExternalLinks)
+        if (!updated) resolvedExternalLinks = []
+      } catch (error) {
+        console.error('Error backfilling external links:', error)
+        resolvedExternalLinks = []
+      }
     }
+
+    listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
+      existing.id === item.id
+        ? { ...existing, externalLinks: resolvedExternalLinks, externalLinksPending: false }
+        : existing
+    )
   }
 
   async function removeFromListenLater(item: MusicItem) {

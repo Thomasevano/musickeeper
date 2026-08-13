@@ -2,7 +2,8 @@
   import Music from '@lucide/svelte/icons/music'
   import ShoppingBag from '@lucide/svelte/icons/shopping-bag'
   import type { ListenLaterItem } from '../../../src/domain/music_item'
-  let { item, describedBy }: { item: ListenLaterItem; describedBy: string } = $props()
+  type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
+  let { item, describedBy }: { item: PendingListenLaterItem; describedBy: string } = $props()
   const links = $derived(item.externalLinks ?? [])
   const stream = $derived(links.filter((link) => link.category === 'stream').sort((a, b) => a.label.localeCompare(b.label)))
   const buy = $derived(links.filter((link) => link.category === 'buy').sort((a, b) => a.label.localeCompare(b.label)))
@@ -20,7 +21,9 @@
   } as const
 </script>
 
-{#if links.length}
+{#if item.externalLinksPending}
+  <span aria-hidden="true" class="text-muted-foreground text-sm">Fetching links…</span>
+{:else if links.length}
   <div class="flex flex-wrap items-center gap-1">
     {#each [stream, buy] as group, groupIndex}
       {#if groupIndex === 1 && stream.length && buy.length}

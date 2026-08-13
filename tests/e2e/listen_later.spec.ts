@@ -1226,10 +1226,15 @@ test.describe('add performance', () => {
     const itemRow = page.getByRole('row').filter({ hasText: 'Instant Add Track' })
     await expect(itemRow).toBeVisible()
     expect(linksRequested).toBe(true)
+    await expect(itemRow.getByText('Fetching links…')).toBeVisible()
+    const linkStatus = page.getByRole('status').filter({ hasText: 'Fetching links…' })
+    await expect(linkStatus).toHaveCount(1)
 
     // Releasing the links response must then patch the stored record in place.
     releaseLinks()
     await expect(itemRow.getByRole('link', { name: /Qobuz/ })).toBeVisible()
+    await expect(itemRow.getByText('Fetching links…')).toBeHidden()
+    await expect(linkStatus).toHaveCount(0)
     await expect(page.getByRole('row').filter({ hasText: 'Instant Add Track' })).toHaveCount(1)
   })
 })
