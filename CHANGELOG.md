@@ -1,5 +1,74 @@
 # Changelog
 
+## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** the frontend now requires the Inertia v3 client, Vite 8, and `@sveltejs/vite-plugin-svelte` 7.
+* **deps:** requires Node.js 24 or above.
+
+### Features
+
+* **listen-later:** show link fetch progress ([11a17c2](https://github.com/Thomasevano/musickeeper/commit/11a17c2750a80aaefb80b4ee89b9e89167be5e6f)), closes [#45](https://github.com/Thomasevano/musickeeper/issues/45)
+* **ui:** mobile-first library and touch targets ([7b08741](https://github.com/Thomasevano/musickeeper/commit/7b087414528fb34844d6f7bf28bfdd4163b91955))
+
+
+### Bug Fixes
+
+* **a11y:** announce a sort change ([9936eb7](https://github.com/Thomasevano/musickeeper/commit/9936eb750b581f5e84afd396b55cf1780cabeec9)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** announce the state the duplicate dialog resolves to ([7e0ce6a](https://github.com/Thomasevano/musickeeper/commit/7e0ce6ae78d0f53f0acb8ac995c2e87ce37fb983)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** bring the palette to WCAG AA in light and dark ([b7aad49](https://github.com/Thomasevano/musickeeper/commit/b7aad49d38bb9660c6a7d2952fdcd6cb86d0bb96)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36)
+* **a11y:** give a result option its artists ([3b77328](https://github.com/Thomasevano/musickeeper/commit/3b77328b164d3a41c5a7a9537d4db090b2e710c3)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** head each row with its title ([71285bb](https://github.com/Thomasevano/musickeeper/commit/71285bbf84665d410243457fbd04b0f384c2ad0f)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** head every column with its own name ([6cae89a](https://github.com/Thomasevano/musickeeper/commit/6cae89a4eee5233bfef979647676a34e25cf87bd)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** hold the columns menu open on a tick ([2041c0a](https://github.com/Thomasevano/musickeeper/commit/2041c0a73b61ebd15438e2cf85bb22817ec01b2c)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** honour prefers-reduced-motion on every animated surface ([061af45](https://github.com/Thomasevano/musickeeper/commit/061af458238c22105d1915fa7e3222d6f7141bb0))
+* **a11y:** keep the row badges from reading as pictures ([31261e1](https://github.com/Thomasevano/musickeeper/commit/31261e1bba4bdf6b61a5a7ca647e39747e9ff3ab)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** kill the tap delay on interactive controls ([cd358d4](https://github.com/Thomasevano/musickeeper/commit/cd358d4f823b7d9acb0e021c5f1c36d7e4c5ac3d)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36)
+* **a11y:** let a menu paint before it takes focus ([990086a](https://github.com/Thomasevano/musickeeper/commit/990086aa859a1a7bfcf9f26608ec5f1333da0c91)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** let the platform draw the selects ([f653ea0](https://github.com/Thomasevano/musickeeper/commit/f653ea08844349e6f7c2beb31dd1f8e39122743b)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** let the results listbox own its options ([60cc2d4](https://github.com/Thomasevano/musickeeper/commit/60cc2d4dd4e4f8063cb542a2f4fb3192004a266d)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** let the select triggers say what they hold ([ba5d2d6](https://github.com/Thomasevano/musickeeper/commit/ba5d2d68bd1c4cacb41102bb01d004a7cd45f6ea)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** name a result option by what it prints ([45ce718](https://github.com/Thomasevano/musickeeper/commit/45ce7183117c8d50518c085b0a69683d522821f8)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** name every row menu after its item ([21e07a3](https://github.com/Thomasevano/musickeeper/commit/21e07a38327e5db65d93bb51e2dbc94c2ce26561)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** name the dialog a reader lands on ([60f8719](https://github.com/Thomasevano/musickeeper/commit/60f8719ac469c78e6df43329c87100cf24151b5e)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** name the item each menu action acts on ([d5d9049](https://github.com/Thomasevano/musickeeper/commit/d5d90492ed1d24031e6acf93903fd7361e5613ec)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** name what the delete dialog will remove ([e4a3d18](https://github.com/Thomasevano/musickeeper/commit/e4a3d189b917271d7b461f915335998a3ca8ef06)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** put the artists in every list toast ([e10d114](https://github.com/Thomasevano/musickeeper/commit/e10d1143809d52e6e103cc01da227fe37ccbcb59)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** say "artists" where a duplicate needs the whole set ([de51506](https://github.com/Thomasevano/musickeeper/commit/de51506dc0469c6d3cf56257d5e274d7f10340ca)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36)
+* **a11y:** say when an item is marked listened ([25e7a4e](https://github.com/Thomasevano/musickeeper/commit/25e7a4e79783d28a8eb1ae82a87d628ba9e90a8e)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** say which key reaches the search results ([58fba3a](https://github.com/Thomasevano/musickeeper/commit/58fba3a8b392338e07cca3ffa5e088537c04721b)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **a11y:** say which row a control belongs to ([547192e](https://github.com/Thomasevano/musickeeper/commit/547192e45779ec0b98585f370c0414cea3a53f47)), closes [#36](https://github.com/Thomasevano/musickeeper/issues/36) [#56](https://github.com/Thomasevano/musickeeper/issues/56)
+* **ci:** declare a build decision for core-js ([b529988](https://github.com/Thomasevano/musickeeper/commit/b52998874edc0aaad8e25759cc7feefbede76d4d))
+* **search:** pulse a skeleton block for the cover while results load ([82e89fd](https://github.com/Thomasevano/musickeeper/commit/82e89fda3273fdb00c832d103a5f5003b1d7074a))
+* **types:** check Svelte frontend ([f3e13dc](https://github.com/Thomasevano/musickeeper/commit/f3e13dc11a7cf8d4fe5cf33ebf550608a0b37dd8)), closes [#52](https://github.com/Thomasevano/musickeeper/issues/52)
+* **ui:** correct mobile list controls ([e121908](https://github.com/Thomasevano/musickeeper/commit/e1219086e541cefb6fd7c17e77550973d9f92e43))
+* **ui:** correct the default mobile sort label ([51c4500](https://github.com/Thomasevano/musickeeper/commit/51c45003363b5a8b22eb49a46838666f3b0ead2d))
+* **ui:** hide the column chooser on mobile ([04ebb5b](https://github.com/Thomasevano/musickeeper/commit/04ebb5b25daa8b4b9d165b290ed594b195ead73a))
+* **ui:** make library page mobile-first ([3a1480e](https://github.com/Thomasevano/musickeeper/commit/3a1480e067598021bd26acc81e16880b5435cb1c))
+* **ui:** refine mobile cards and list controls ([9001b91](https://github.com/Thomasevano/musickeeper/commit/9001b91a61946d0dd2f7e33d0dd9b8a130d7396f))
+* **ui:** widen max container width to screen-2xl ([091eaf3](https://github.com/Thomasevano/musickeeper/commit/091eaf39c6924a80b0299e803ffa570c9bf16530))
+
+
+### Performance Improvements
+
+* **link:** stop searching for cover art the platform already supplied ([1634366](https://github.com/Thomasevano/musickeeper/commit/1634366f44d946bcad958be20c40fcab3bf6c865))
+* **search:** cache MusicBrainz search results in memory ([29a3386](https://github.com/Thomasevano/musickeeper/commit/29a3386691b282c0b3f8bf89b5578308a245c722))
+* **search:** derive cover art urls instead of fetching them per result ([f8ee406](https://github.com/Thomasevano/musickeeper/commit/f8ee406da22760ee21505583a6db99ca8afa3704))
+* **ui:** render added items before external links resolve ([482f09a](https://github.com/Thomasevano/musickeeper/commit/482f09ae6df358d77d545ff66633f7c070084c0e))
+
+
+### Miscellaneous Chores
+
+* prepare release 0.9.0 ([399bf8a](https://github.com/Thomasevano/musickeeper/commit/399bf8a7d73f8c68729732638b0b395a6bd2e116))
+
+
+### Build System
+
+* **deps:** adopt Inertia v3 ([917a2e3](https://github.com/Thomasevano/musickeeper/commit/917a2e32e89dc9997a0be1d5ff05425e1ebad962))
+* **deps:** upgrade to AdonisJS v7 ([e5d64e8](https://github.com/Thomasevano/musickeeper/commit/e5d64e86b38ccbf5b4a298095cd6f53cd75f719f))
+
 ## [0.8.1](https://github.com/Thomasevano/musickeeper/compare/v0.8.0...v0.8.1) (2026-07-30)
 
 
