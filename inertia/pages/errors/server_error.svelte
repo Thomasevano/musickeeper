@@ -1,11 +1,9 @@
-<script>
-export let error
+<script lang="ts">
+  import ErrorPage from '$components/ErrorPage.svelte'
 </script>
 
-<div>
-  <div class="container">
-    <h1 class="title">Server Error</h1>
-
-    <span>{error.message}</span>
-  </div>
-</div>
+<ErrorPage
+  title="Something went wrong"
+  heading="Something went wrong"
+  message="An unexpected error occurred. Please try again later."
+/>

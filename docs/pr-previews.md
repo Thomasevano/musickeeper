@@ -71,15 +71,16 @@ could make Coolify restart an old image from its cache.
 
 ### `playwright.config.ts`
 
-Playwright now supports two modes:
+Playwright supports two targets:
 
-- Without `PLAYWRIGHT_BASE_URL`, it starts the existing local development
-  server on `127.0.0.1:63136`.
-- With `PLAYWRIGHT_BASE_URL`, it does not start a local server and runs the
-  same tests against the already deployed Coolify preview.
+- Without `PLAYWRIGHT_BASE_URL`, it starts a local server on
+  `127.0.0.1:63136` with `E2E_TEST_ROUTES` enabled. The default is the
+  development server; `PLAYWRIGHT_BUILT_SERVER=true` runs the production build.
+- With `PLAYWRIGHT_BASE_URL`, it runs against the deployed Coolify preview.
 
-The workflow sets `PLAYWRIGHT_BASE_URL` to the URL produced by the deploy job.
-The local mode remains unchanged for development and normal CI.
+The workflow builds the app, runs tests tagged `@test-only-route` against that
+local production build, then excludes that tag while running the remaining
+suite against the Coolify preview.
 
 ### `docs/pr-previews.md`
 

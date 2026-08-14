@@ -102,6 +102,7 @@
 
       const response = await fetch(`/library/listen-later?${params.toString()}`, {
         signal: controller.signal,
+        headers: { Accept: 'application/json' },
       })
       const data = await response.json()
       serializedItems = data.serializedItems

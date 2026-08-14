@@ -7,6 +7,7 @@
 |
 */
 
+import env from '../env.js'
 import router from '@adonisjs/core/services/router'
 const HomeController = () => import('./controllers/home_controller.js')
 const ListenLaterListController = () => import('./controllers/listen_later_list_controller.js')
@@ -30,3 +31,9 @@ router
     router.get('/listen-later', [ListenLaterListController, 'index'])
   })
   .prefix('/library')
+
+if (env.get('E2E_TEST_ROUTES', false)) {
+  router.get('/__test/error-500', () => {
+    throw new Error('deliberate test error')
+  })
+}

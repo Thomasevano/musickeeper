@@ -114,6 +114,27 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expectAccessible(page, `home (${colorScheme})`)
     })
 
+    test('404 page', async ({ page }) => {
+      const response = await page.goto('/this-route-does-not-exist')
+      expect(response?.status()).toBe(404)
+      await expect(page.getByRole('heading', { level: 1, name: '404' })).toBeVisible()
+      await expect(page.getByText('This page does not exist.')).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'MusicKeeper home' })).toBeVisible()
+      await expectAccessible(page, `404 (${colorScheme})`)
+    })
+
+    test('500 page', { tag: '@test-only-route' }, async ({ page }) => {
+      const response = await page.goto('/__test/error-500')
+      expect(response?.status()).toBe(500)
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Something went wrong' })
+      ).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'MusicKeeper home' })).toBeVisible()
+      await expectAccessible(page, `500 (${colorScheme})`)
+    })
+
     test('listen later page, empty and populated', async ({ page }) => {
       await page.goto('/library/listen-later')
       await expect(page.getByText('Add your first item by searching above')).toBeVisible()
