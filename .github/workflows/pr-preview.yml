@@ -205,8 +205,14 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
-      - name: Run end-to-end tests
-        run: pnpm run test:e2e
+      - name: Build test server
+        run: pnpm run build
+      - name: Run test-only error page
+        run: pnpm run test:e2e --grep @test-only-route
+        env:
+          PLAYWRIGHT_BUILT_SERVER: 'true'
+      - name: Run end-to-end tests against preview
+        run: pnpm run test:e2e --grep-invert @test-only-route
         env:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy.outputs.preview_url }}
 

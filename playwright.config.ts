@@ -3,6 +3,7 @@ import { defineConfig } from '@playwright/test'
 // When set, the suite runs against an already deployed target (a Coolify
 // preview in CI) instead of booting a local dev server.
 const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL
+const builtServer = process.env.PLAYWRIGHT_BUILT_SERVER === 'true'
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -24,14 +25,16 @@ export default defineConfig({
   webServer: externalBaseURL
     ? undefined
     : {
-        command: 'node ace serve --hmr',
+        command: builtServer ? 'node bin/server.js' : 'node ace serve --hmr',
+        cwd: builtServer ? 'build' : undefined,
         url: 'http://127.0.0.1:63136',
         reuseExistingServer: !process.env.CI,
         timeout: 30000,
         env: {
           HOST: '127.0.0.1',
           PORT: '63136',
-          NODE_ENV: 'development',
+          NODE_ENV: builtServer ? 'production' : 'development',
+          E2E_TEST_ROUTES: 'true',
           APP_KEY: 'applicationtestappkey',
           SESSION_DRIVER: 'memory',
           LOG_LEVEL: 'info',
