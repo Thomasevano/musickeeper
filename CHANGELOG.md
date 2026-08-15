@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/Thomasevano/musickeeper/compare/v0.9.0...v0.10.0) (2026-08-15)
+
+
+### Features
+
+* wire error pages with Inertia and navigation ([d0c6ca8](https://github.com/Thomasevano/musickeeper/commit/d0c6ca803f38c44b4f077a14e188e74e7f92451e)), closes [#54](https://github.com/Thomasevano/musickeeper/issues/54)
+
 ## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
 
 
