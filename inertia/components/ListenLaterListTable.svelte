@@ -64,9 +64,6 @@
     { value: 'added_asc', label: 'Added (oldest)', sorting: [{ id: 'addedAt', desc: false }] },
   ]
 
-  let statusFilter = $state<string>('all')
-  let typeFilter = $state<string>('all')
-
   function formatDate(value: Date | number | string | null | undefined) {
     if (!value) return '-'
     const date = value instanceof Date ? value : new Date(value)
@@ -209,6 +206,14 @@
   let columnFilters = $state<ColumnFiltersState>([])
   let columnVisibility = $state<VisibilityState>({ releaseDate: false })
 
+  const statusFilter = $derived(
+    (columnFilters.find((filter) => filter.id === 'hasBeenListened')?.value as string | undefined) ??
+      'all'
+  )
+  const typeFilter = $derived(
+    (columnFilters.find((filter) => filter.id === 'itemType')?.value as string | undefined) ?? 'all'
+  )
+
   const table = createSvelteTable({
     get data() {
       return items
@@ -263,7 +268,6 @@
   })
 
   function handleStatusFilterChange(value: string) {
-    statusFilter = value
     if (value === 'all') {
       table.getColumn('hasBeenListened')?.setFilterValue(undefined)
     } else {
@@ -272,7 +276,6 @@
   }
 
   function handleTypeFilterChange(value: string) {
-    typeFilter = value
     if (value === 'all') {
       table.getColumn('itemType')?.setFilterValue(undefined)
     } else {

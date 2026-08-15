@@ -165,7 +165,10 @@
   $effect(() => {
     if (!highlightedItemId) return
 
-    const element = document.getElementById(`item-${highlightedItemId}`)
+    const mobileItem = document.getElementById(`mobile-item-${highlightedItemId}`)
+    const desktopItem = document.getElementById(`item-${highlightedItemId}`)
+    // Both representations exist; CSS removes the hidden breakpoint variant from layout.
+    const element = mobileItem?.getClientRects().length ? mobileItem : desktopItem
     if (element) {
       // An explicit `smooth` overrides the CSS scroll-behavior, so the
       // preference has to be honoured here rather than in a stylesheet.
