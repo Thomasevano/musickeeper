@@ -6,19 +6,14 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import { Link2, Search, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
-  import { toast } from 'svelte-sonner'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
   import ListenLaterListTable from '~/components/ListenLaterListTable.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/domain/link'
-  import {
-    findDuplicate,
-    listenLaterStorage,
-  } from '../../src/infrastructure/storage/listen_later_storage'
+  import { createListManager, setListManagerContext } from '~/lib/list_manager.svelte.js'
+  import { createLinkPaste } from '~/lib/use_link_paste.svelte.js'
+  import { type ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let {
@@ -28,7 +23,9 @@
   let searchTerm = $state('')
   let artistName = $state('')
   let searchType = $state('track')
-  let listenLaterItems = $state([]) as ListenLaterItem[]
+  const list = createListManager()
+  setListManagerContext(list)
+  const linkPaste = createLinkPaste(list)
   let isSearching = $state(false)
   let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 
@@ -46,19 +43,6 @@
     }
   })
 
-  // Paste link state
-  let linkUrl = $state('')
-  let isProcessingLink = $state(false)
-  let linkError = $state('')
-
-  // Confirmation dialog state
-  let isConfirmDialogOpen = $state(false)
-  let isDialogLoading = $state(false)
-  let dialogError = $state<string | null>(null)
-  let pendingMusicItem = $state<MusicItem | null>(null)
-  let pendingLinkMetadata = $state<LinkMetadata | null>(null)
-  let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
-  let existingDuplicate = $state<ListenLaterItem | null>(null)
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
@@ -102,6 +86,7 @@
 
       const response = await fetch(`/library/listen-later?${params.toString()}`, {
         signal: controller.signal,
+        headers: { Accept: 'application/json' },
       })
       const data = await response.json()
       serializedItems = data.serializedItems
@@ -182,46 +167,14 @@
 
     return () => clearTimeout(timeout)
   })
-
   $effect(() => {
-    void loadListenLaterItems()
+    void list.load()
   })
 
-  async function loadListenLaterItems() {
-    try {
-      listenLaterItems = await listenLaterStorage.getAll()
-    } catch (error) {
-      console.error('Error loading listen later list:', error)
-      toast.error('Failed to load your list')
-    }
-  }
 
-  async function handleListen(item: ListenLaterItem) {
-    try {
-      const updated = await listenLaterStorage.toggleListened(item.id)
-      if (updated) {
-        listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
-        // Every other list write confirms itself. This one changed a badge on a row
-        // the reader has already moved past, so it needs saying out loud too.
-        toast.success(
-          `${musicItemName(updated)} marked as ${updated.hasBeenListened ? 'listened' : 'not listened'}`
-        )
-      }
-    } catch (error) {
-      console.error('Error updating item:', error)
-      toast.error(`Could not update ${musicItemName(item)}`)
-    }
-  }
 
   async function handleDelete(item: ListenLaterItem) {
-    try {
-      await listenLaterStorage.remove(item.id)
-      listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
-      toast.success(`${musicItemName(item)} removed from your list`)
-    } catch (error) {
-      console.error('Error deleting item:', error)
-      toast.error(`Could not remove ${musicItemName(item)}`)
-    }
+    await list.remove(item)
   }
 
   const types = [
@@ -229,176 +182,13 @@
     { value: 'album', label: 'Albums' },
   ]
 
-  function isValidUrl(urlString: string): boolean {
-    try {
-      const url = new URL(urlString)
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      return false
-    }
-  }
-
-  async function handlePasteLink() {
-    // A disabled button is unfocusable, so disabling this one mid-request
-    // would blur it and leave the dialog with nowhere to put focus back on
-    // close. It stays enabled and turns the second press into a no-op.
-    if (isProcessingLink) return
-
-    linkError = ''
-
-    if (!linkUrl.trim()) {
-      linkError = 'Please enter a URL'
-      return
-    }
-
-    if (!isValidUrl(linkUrl)) {
-      linkError = 'Please enter a valid URL'
-      return
-    }
-
-    // Open dialog immediately with loading state
-    isProcessingLink = true
-    isDialogLoading = true
-    dialogError = null
-    isConfirmDialogOpen = true
-
-    await fetchLinkMetadata()
-  }
-
-  async function fetchLinkMetadata() {
-    isDialogLoading = true
-    dialogError = null
-    isProcessingLink = true
-
-    try {
-      const response = await fetch('/api/link/metadata', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: linkUrl }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        dialogError = data.error || 'Failed to fetch metadata'
-        return
-      }
-
-      // Check for duplicate before showing confirmation dialog
-      const title = data.musicItem?.title || data.linkMetadata?.title || ''
-      const artists =
-        data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
-      const duplicate = findDuplicate(listenLaterItems, title, artists)
-
-      // Update dialog with fetched data
-      pendingMusicItem = data.musicItem
-      pendingLinkMetadata = data.linkMetadata
-      pendingSource = data.source
-      existingDuplicate = duplicate
-    } catch (error) {
-      dialogError = 'Failed to connect to server. Please check your internet connection.'
-      console.error('Error fetching link metadata:', error)
-    } finally {
-      isDialogLoading = false
-      isProcessingLink = false
-    }
-  }
-
-  function handleRetry() {
-    fetchLinkMetadata()
-  }
-
-  async function fetchExternalLinks(
-    mbid: string,
-    itemType: SearchType,
-    sourceUrl?: string
-  ): Promise<ExternalLink[]> {
-    try {
-      const params = new URLSearchParams({
-        mbid,
-        type: itemType === SearchType.album ? 'album' : 'track',
-        locale: navigator.language || 'fr-FR',
-      })
-      if (sourceUrl) params.set('sourceUrl', sourceUrl)
-      if (pendingMusicItem) {
-        if (pendingMusicItem.artists?.length) params.set('artists', pendingMusicItem.artists.join(','))
-        if (pendingMusicItem.title) params.set('title', pendingMusicItem.title)
-      }
-      const response = await fetch(`/api/links?${params.toString()}`)
-      if (!response.ok) return []
-      const data = await response.json()
-      return data.externalLinks ?? []
-    } catch {
-      return []
-    }
-  }
-
-  async function handleConfirmDialogConfirm(
-    itemType: SearchType,
-    title: string,
-    artists: string[],
-    albumName: string
-  ) {
-    if (!pendingMusicItem) return
-
-    const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
-
-    try {
-      const stored = await listenLaterStorage.add({
-        id: pendingMusicItem.id,
-        title,
-        releaseDate: pendingMusicItem.releaseDate,
-        length: pendingMusicItem.length,
-        artists,
-        albumName,
-        itemType,
-        coverArt: pendingMusicItem.coverArt,
-        sourceUrl: linkUrl || undefined,
-        externalLinks,
-      })
-
-      // ponytail: appending assumes the store's oldest-first order, which puts a
-      // new item last. If that default order ever changes, replace this with a
-      // getAll().
-      listenLaterItems = [...listenLaterItems, stored]
-
-      isConfirmDialogOpen = false
-      resetPendingState()
-      linkUrl = ''
-
-      toast.success(`${musicItemName(stored)} added to your list`)
-    } catch (error) {
-      console.error('Error saving item to listen later list:', error)
-      dialogError = 'Failed to save item. Please try again.'
-    }
-  }
-
-  function handleConfirmDialogCancel() {
-    isConfirmDialogOpen = false
-    resetPendingState()
-  }
-
-  function resetPendingState() {
-    pendingMusicItem = null
-    pendingLinkMetadata = null
-    pendingSource = null
-    existingDuplicate = null
-    dialogError = null
-    isDialogLoading = false
-  }
-
   function handleViewExisting() {
-    if (existingDuplicate) {
-      isConfirmDialogOpen = false
-      highlightedItemId = existingDuplicate.id
-      resetPendingState()
-    }
+    const id = linkPaste.handleViewExisting()
+    if (id) highlightedItemId = id
   }
 </script>
 
-<LibraryLayout data={listenLaterItems} {title}>
+<LibraryLayout data={list.items} {title}>
   <div class="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-12 lg:px-16">
     {#if isOffline}
       <Alert.Root variant="info" class="mb-4">
@@ -429,25 +219,26 @@
         <Input
           id="link-url"
           type="url"
-          bind:value={linkUrl}
+          value={linkPaste.linkUrl}
+          oninput={(e) => linkPaste.setLinkUrl(e.currentTarget.value)}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
-          readonly={isProcessingLink}
-          aria-describedby={linkError ? 'link-url-error' : undefined}
-          aria-invalid={linkError ? 'true' : undefined}
+          readonly={linkPaste.isProcessingLink}
+          aria-describedby={linkPaste.linkError ? 'link-url-error' : undefined}
+          aria-invalid={linkPaste.linkError ? 'true' : undefined}
         />
         <Button
           class="w-full sm:w-auto"
-          onclick={handlePasteLink}
-          disabled={!linkUrl.trim()}
-          aria-busy={isProcessingLink}
+          onclick={linkPaste.handlePasteLink}
+          disabled={!linkPaste.linkUrl.trim()}
+          aria-busy={linkPaste.isProcessingLink}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
-          {isProcessingLink ? 'Processing...' : 'Add'}
+          {linkPaste.isProcessingLink ? 'Processing...' : 'Add'}
         </Button>
       </div>
-      {#if linkError}
-        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkError}</p>
+      {#if linkPaste.linkError}
+        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkPaste.linkError}</p>
       {/if}
     </div>
 
@@ -547,7 +338,7 @@
               onkeydown={handleListKeydown}
             >
               {#each serializedItems as item, i (item.id)}
-                <TrackItem bind:listenLaterItems {item} type={searchType} focused={i === focusedResultIndex} />
+                <TrackItem {item} type={searchType} focused={i === focusedResultIndex} />
               {/each}
             </ul>
           {:else}
@@ -562,11 +353,11 @@
     <Separator class="my-6" />
 
     <div>
-      {#if listenLaterItems.length > 0}
+      {#if list.items.length > 0}
         <ListenLaterListTable
-          items={listenLaterItems}
+          items={list.items}
           onDelete={(item) => (deleteTarget = item)}
-          onToggleListen={handleListen}
+          onToggleListen={(item) => list.toggleListened(item)}
           {highlightedItemId}
         />
       {:else}
@@ -582,17 +373,17 @@
 </LibraryLayout>
 
 <ConfirmMusicDialog
-  bind:open={isConfirmDialogOpen}
-  isLoading={isDialogLoading}
-  error={dialogError}
-  musicItem={pendingMusicItem}
-  linkMetadata={pendingLinkMetadata}
-  source={pendingSource}
-  existingItem={existingDuplicate}
-  onConfirm={handleConfirmDialogConfirm}
-  onCancel={handleConfirmDialogCancel}
+  bind:open={linkPaste.isConfirmDialogOpen}
+  isLoading={linkPaste.isDialogLoading}
+  error={linkPaste.dialogError}
+  musicItem={linkPaste.pendingMusicItem}
+  linkMetadata={linkPaste.pendingLinkMetadata}
+  source={linkPaste.pendingSource}
+  existingItem={linkPaste.existingDuplicate}
+  onConfirm={linkPaste.handleConfirm}
+  onCancel={linkPaste.handleCancel}
   onViewExisting={handleViewExisting}
-  onRetry={handleRetry}
+  onRetry={linkPaste.handleRetry}
 />
 
 <Dialog.Root

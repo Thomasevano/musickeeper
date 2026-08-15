@@ -1,43 +1,29 @@
 <script lang="ts">
   import { Check, Plus } from '@lucide/svelte'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
+  import { MusicItem } from '../../src/domain/music_item'
   import CoverArt from '~/components/CoverArt.svelte'
   import Skeleton from 'boneyard-js/svelte'
-  import { toast } from 'svelte-sonner'
-  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
-  type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
+  import { getListManager } from '~/lib/list_manager.svelte.js'
 
   let {
-    listenLaterItems = $bindable(),
     item = undefined,
     type,
     loading = false,
     focused = false,
+  }: {
+    item?: MusicItem
+    type: string
+    loading?: boolean
+    focused?: boolean
   } = $props()
 
-  async function fetchExternalLinks(item: MusicItem): Promise<ExternalLink[]> {
-    try {
-      const params = new URLSearchParams({
-        mbid: item.id,
-        type: item.itemType === SearchType.album ? 'album' : 'track',
-        locale: navigator.language || 'fr-FR',
-      })
-      if (item.artists?.length) params.set('artists', item.artists.join(','))
-      if (item.title) params.set('title', item.title)
-      const response = await fetch(`/api/links?${params.toString()}`)
-      if (!response.ok) return []
-      const data = await response.json()
-      return data.externalLinks ?? []
-    } catch {
-      return []
-    }
-  }
+  const list = getListManager()
 
-  async function addToListenLater(item: MusicItem) {
-    // Links resolve in the background: the item is saved and on screen first.
-    try {
-      const stored = await listenLaterStorage.add({
+  function toggleListenLater(item: MusicItem) {
+    if (list.items.some((i) => i.id === item.id)) {
+      list.remove(item)
+    } else {
+      list.add({
         id: item.id,
         title: item.title,
         releaseDate: item.releaseDate,
@@ -46,65 +32,12 @@
         albumName: item.albumName,
         itemType: item.itemType,
         coverArt: item.coverArt,
-        externalLinks: [],
       })
-
-      // ponytail: appending assumes the store's oldest-first order, which puts a
-      // new item last. If that default order ever changes, replace this with a
-      // getAll().
-      listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: true }]
-      toast.success(`${musicItemName(item)} added to your list`)
-      void backfillExternalLinks(item)
-    } catch (error) {
-      console.error('Error adding item to listen later list:', error)
-      toast.error(`Could not add ${musicItemName(item)}`)
-    }
-  }
-
-  // Link resolution hits third-party APIs and can take seconds. The item is
-  // already saved and on screen by then, so patch it in place when the links
-  // land — and skip the write if the user removed it while we waited.
-  async function backfillExternalLinks(item: MusicItem) {
-    let resolvedExternalLinks = await fetchExternalLinks(item)
-
-    if (resolvedExternalLinks.length) {
-      try {
-        const updated = await listenLaterStorage.updateExternalLinks(item.id, resolvedExternalLinks)
-        if (!updated) resolvedExternalLinks = []
-      } catch (error) {
-        console.error('Error backfilling external links:', error)
-        resolvedExternalLinks = []
-      }
-    }
-
-    listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
-      existing.id === item.id
-        ? { ...existing, externalLinks: resolvedExternalLinks, externalLinksPending: false }
-        : existing
-    )
-  }
-
-  async function removeFromListenLater(item: MusicItem) {
-    try {
-      await listenLaterStorage.remove(item.id)
-      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
-      toast.success(`${musicItemName(item)} removed from your list`)
-    } catch (error) {
-      console.error('Error removing item from listen later list:', error)
-      toast.error(`Could not remove ${musicItemName(item)}`)
-    }
-  }
-
-  function toggleListenLater(item: MusicItem) {
-    if (listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)) {
-      removeFromListenLater(item)
-    } else {
-      addToListenLater(item)
     }
   }
 
   let isInListenLaterList = $derived(
-    listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
+    list.items.some((i) => i.id === item?.id)
   )
 </script>
 
