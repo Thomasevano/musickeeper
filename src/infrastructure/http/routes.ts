@@ -16,6 +16,7 @@ const LinksController = () => import('./controllers/links_controller.js')
 router.get('/', [HomeController, 'index'])
 
 router.post('/api/link/metadata', [LinkController, 'metadata'])
+router.post('/api/platform-metadata', [LinkController, 'platformMetadata'])
 
 router.get('/api/links', [LinksController, 'index'])
 
