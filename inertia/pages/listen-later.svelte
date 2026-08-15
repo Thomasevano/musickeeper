@@ -12,8 +12,8 @@
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
   import { createListManager, setListManagerContext } from '~/lib/list_manager.svelte.js'
-  import { type ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/domain/link'
+  import { createLinkPaste } from '~/lib/use_link_paste.svelte.js'
+  import { type ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let {
@@ -25,6 +25,7 @@
   let searchType = $state('track')
   const list = createListManager()
   setListManagerContext(list)
+  const linkPaste = createLinkPaste(list)
   let isSearching = $state(false)
   let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 
@@ -42,19 +43,6 @@
     }
   })
 
-  // Paste link state
-  let linkUrl = $state('')
-  let isProcessingLink = $state(false)
-  let linkError = $state('')
-
-  // Confirmation dialog state
-  let isConfirmDialogOpen = $state(false)
-  let isDialogLoading = $state(false)
-  let dialogError = $state<string | null>(null)
-  let pendingMusicItem = $state<MusicItem | null>(null)
-  let pendingLinkMetadata = $state<LinkMetadata | null>(null)
-  let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
-  let existingDuplicate = $state<ListenLaterItem | null>(null)
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
@@ -183,6 +171,8 @@
     void list.load()
   })
 
+
+
   async function handleDelete(item: ListenLaterItem) {
     await list.remove(item)
   }
@@ -192,138 +182,9 @@
     { value: 'album', label: 'Albums' },
   ]
 
-  function isValidUrl(urlString: string): boolean {
-    try {
-      const url = new URL(urlString)
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      return false
-    }
-  }
-
-  async function handlePasteLink() {
-    // A disabled button is unfocusable, so disabling this one mid-request
-    // would blur it and leave the dialog with nowhere to put focus back on
-    // close. It stays enabled and turns the second press into a no-op.
-    if (isProcessingLink) return
-
-    linkError = ''
-
-    if (!linkUrl.trim()) {
-      linkError = 'Please enter a URL'
-      return
-    }
-
-    if (!isValidUrl(linkUrl)) {
-      linkError = 'Please enter a valid URL'
-      return
-    }
-
-    // Open dialog immediately with loading state
-    isProcessingLink = true
-    isDialogLoading = true
-    dialogError = null
-    isConfirmDialogOpen = true
-
-    await fetchLinkMetadata()
-  }
-
-  async function fetchLinkMetadata() {
-    isDialogLoading = true
-    dialogError = null
-    isProcessingLink = true
-
-    try {
-      const response = await fetch('/api/link/metadata', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: linkUrl }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        dialogError = data.error || 'Failed to fetch metadata'
-        return
-      }
-
-      // Check for duplicate before showing confirmation dialog
-      const title = data.musicItem?.title || data.linkMetadata?.title || ''
-      const artists =
-        data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
-      const duplicate = list.findDuplicate(title, artists)
-
-      // Update dialog with fetched data
-      pendingMusicItem = data.musicItem
-      pendingLinkMetadata = data.linkMetadata
-      pendingSource = data.source
-      existingDuplicate = duplicate
-    } catch (error) {
-      dialogError = 'Failed to connect to server. Please check your internet connection.'
-      console.error('Error fetching link metadata:', error)
-    } finally {
-      isDialogLoading = false
-      isProcessingLink = false
-    }
-  }
-
-  function handleRetry() {
-    fetchLinkMetadata()
-  }
-
-  async function handleConfirmDialogConfirm(
-    itemType: SearchType,
-    title: string,
-    artists: string[],
-    albumName: string
-  ) {
-    if (!pendingMusicItem) return
-
-    const stored = await list.add(
-      {
-        id: pendingMusicItem.id,
-        title,
-        releaseDate: pendingMusicItem.releaseDate,
-        length: pendingMusicItem.length,
-        artists,
-        albumName,
-        itemType,
-        coverArt: pendingMusicItem.coverArt,
-      },
-      linkUrl || undefined
-    )
-
-    if (stored) {
-      isConfirmDialogOpen = false
-      resetPendingState()
-      linkUrl = ''
-    } else {
-      dialogError = 'Failed to save item. Please try again.'
-    }
-  }
-
-  function handleConfirmDialogCancel() {
-    isConfirmDialogOpen = false
-    resetPendingState()
-  }
-
-  function resetPendingState() {
-    pendingMusicItem = null
-    pendingLinkMetadata = null
-    pendingSource = null
-    existingDuplicate = null
-    dialogError = null
-    isDialogLoading = false
-  }
-
   function handleViewExisting() {
-    if (existingDuplicate) {
-      isConfirmDialogOpen = false
-      highlightedItemId = existingDuplicate.id
-      resetPendingState()
-    }
+    const id = linkPaste.handleViewExisting()
+    if (id) highlightedItemId = id
   }
 </script>
 
@@ -358,25 +219,26 @@
         <Input
           id="link-url"
           type="url"
-          bind:value={linkUrl}
+          value={linkPaste.linkUrl}
+          oninput={(e) => linkPaste.setLinkUrl(e.currentTarget.value)}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
-          readonly={isProcessingLink}
-          aria-describedby={linkError ? 'link-url-error' : undefined}
-          aria-invalid={linkError ? 'true' : undefined}
+          readonly={linkPaste.isProcessingLink}
+          aria-describedby={linkPaste.linkError ? 'link-url-error' : undefined}
+          aria-invalid={linkPaste.linkError ? 'true' : undefined}
         />
         <Button
           class="w-full sm:w-auto"
-          onclick={handlePasteLink}
-          disabled={!linkUrl.trim()}
-          aria-busy={isProcessingLink}
+          onclick={linkPaste.handlePasteLink}
+          disabled={!linkPaste.linkUrl.trim()}
+          aria-busy={linkPaste.isProcessingLink}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
-          {isProcessingLink ? 'Processing...' : 'Add'}
+          {linkPaste.isProcessingLink ? 'Processing...' : 'Add'}
         </Button>
       </div>
-      {#if linkError}
-        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkError}</p>
+      {#if linkPaste.linkError}
+        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkPaste.linkError}</p>
       {/if}
     </div>
 
@@ -511,17 +373,17 @@
 </LibraryLayout>
 
 <ConfirmMusicDialog
-  bind:open={isConfirmDialogOpen}
-  isLoading={isDialogLoading}
-  error={dialogError}
-  musicItem={pendingMusicItem}
-  linkMetadata={pendingLinkMetadata}
-  source={pendingSource}
-  existingItem={existingDuplicate}
-  onConfirm={handleConfirmDialogConfirm}
-  onCancel={handleConfirmDialogCancel}
+  bind:open={linkPaste.isConfirmDialogOpen}
+  isLoading={linkPaste.isDialogLoading}
+  error={linkPaste.dialogError}
+  musicItem={linkPaste.pendingMusicItem}
+  linkMetadata={linkPaste.pendingLinkMetadata}
+  source={linkPaste.pendingSource}
+  existingItem={linkPaste.existingDuplicate}
+  onConfirm={linkPaste.handleConfirm}
+  onCancel={linkPaste.handleCancel}
   onViewExisting={handleViewExisting}
-  onRetry={handleRetry}
+  onRetry={linkPaste.handleRetry}
 />
 
 <Dialog.Root
