@@ -6,19 +6,14 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import { Link2, Search, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
-  import { toast } from 'svelte-sonner'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
   import ListenLaterListTable from '~/components/ListenLaterListTable.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
+  import { createListManager, setListManagerContext } from '~/lib/list_manager.svelte.js'
+  import { type ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/domain/link'
-  import {
-    findDuplicate,
-    listenLaterStorage,
-  } from '../../src/infrastructure/storage/listen_later_storage'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
   let {
@@ -28,7 +23,8 @@
   let searchTerm = $state('')
   let artistName = $state('')
   let searchType = $state('track')
-  let listenLaterItems = $state([]) as ListenLaterItem[]
+  const list = createListManager()
+  setListManagerContext(list)
   let isSearching = $state(false)
   let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 
@@ -102,6 +98,7 @@
 
       const response = await fetch(`/library/listen-later?${params.toString()}`, {
         signal: controller.signal,
+        headers: { Accept: 'application/json' },
       })
       const data = await response.json()
       serializedItems = data.serializedItems
@@ -182,46 +179,12 @@
 
     return () => clearTimeout(timeout)
   })
-
   $effect(() => {
-    void loadListenLaterItems()
+    void list.load()
   })
 
-  async function loadListenLaterItems() {
-    try {
-      listenLaterItems = await listenLaterStorage.getAll()
-    } catch (error) {
-      console.error('Error loading listen later list:', error)
-      toast.error('Failed to load your list')
-    }
-  }
-
-  async function handleListen(item: ListenLaterItem) {
-    try {
-      const updated = await listenLaterStorage.toggleListened(item.id)
-      if (updated) {
-        listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
-        // Every other list write confirms itself. This one changed a badge on a row
-        // the reader has already moved past, so it needs saying out loud too.
-        toast.success(
-          `${musicItemName(updated)} marked as ${updated.hasBeenListened ? 'listened' : 'not listened'}`
-        )
-      }
-    } catch (error) {
-      console.error('Error updating item:', error)
-      toast.error(`Could not update ${musicItemName(item)}`)
-    }
-  }
-
   async function handleDelete(item: ListenLaterItem) {
-    try {
-      await listenLaterStorage.remove(item.id)
-      listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
-      toast.success(`${musicItemName(item)} removed from your list`)
-    } catch (error) {
-      console.error('Error deleting item:', error)
-      toast.error(`Could not remove ${musicItemName(item)}`)
-    }
+    await list.remove(item)
   }
 
   const types = [
@@ -290,7 +253,7 @@
       const title = data.musicItem?.title || data.linkMetadata?.title || ''
       const artists =
         data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
-      const duplicate = findDuplicate(listenLaterItems, title, artists)
+      const duplicate = list.findDuplicate(title, artists)
 
       // Update dialog with fetched data
       pendingMusicItem = data.musicItem
@@ -310,31 +273,6 @@
     fetchLinkMetadata()
   }
 
-  async function fetchExternalLinks(
-    mbid: string,
-    itemType: SearchType,
-    sourceUrl?: string
-  ): Promise<ExternalLink[]> {
-    try {
-      const params = new URLSearchParams({
-        mbid,
-        type: itemType === SearchType.album ? 'album' : 'track',
-        locale: navigator.language || 'fr-FR',
-      })
-      if (sourceUrl) params.set('sourceUrl', sourceUrl)
-      if (pendingMusicItem) {
-        if (pendingMusicItem.artists?.length) params.set('artists', pendingMusicItem.artists.join(','))
-        if (pendingMusicItem.title) params.set('title', pendingMusicItem.title)
-      }
-      const response = await fetch(`/api/links?${params.toString()}`)
-      if (!response.ok) return []
-      const data = await response.json()
-      return data.externalLinks ?? []
-    } catch {
-      return []
-    }
-  }
-
   async function handleConfirmDialogConfirm(
     itemType: SearchType,
     title: string,
@@ -343,10 +281,8 @@
   ) {
     if (!pendingMusicItem) return
 
-    const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
-
-    try {
-      const stored = await listenLaterStorage.add({
+    const stored = await list.add(
+      {
         id: pendingMusicItem.id,
         title,
         releaseDate: pendingMusicItem.releaseDate,
@@ -355,22 +291,15 @@
         albumName,
         itemType,
         coverArt: pendingMusicItem.coverArt,
-        sourceUrl: linkUrl || undefined,
-        externalLinks,
-      })
+      },
+      linkUrl || undefined
+    )
 
-      // ponytail: appending assumes the store's oldest-first order, which puts a
-      // new item last. If that default order ever changes, replace this with a
-      // getAll().
-      listenLaterItems = [...listenLaterItems, stored]
-
+    if (stored) {
       isConfirmDialogOpen = false
       resetPendingState()
       linkUrl = ''
-
-      toast.success(`${musicItemName(stored)} added to your list`)
-    } catch (error) {
-      console.error('Error saving item to listen later list:', error)
+    } else {
       dialogError = 'Failed to save item. Please try again.'
     }
   }
@@ -398,7 +327,7 @@
   }
 </script>
 
-<LibraryLayout data={listenLaterItems} {title}>
+<LibraryLayout data={list.items} {title}>
   <div class="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-12 lg:px-16">
     {#if isOffline}
       <Alert.Root variant="info" class="mb-4">
@@ -547,7 +476,7 @@
               onkeydown={handleListKeydown}
             >
               {#each serializedItems as item, i (item.id)}
-                <TrackItem bind:listenLaterItems {item} type={searchType} focused={i === focusedResultIndex} />
+                <TrackItem {item} type={searchType} focused={i === focusedResultIndex} />
               {/each}
             </ul>
           {:else}
@@ -562,11 +491,11 @@
     <Separator class="my-6" />
 
     <div>
-      {#if listenLaterItems.length > 0}
+      {#if list.items.length > 0}
         <ListenLaterListTable
-          items={listenLaterItems}
+          items={list.items}
           onDelete={(item) => (deleteTarget = item)}
-          onToggleListen={handleListen}
+          onToggleListen={(item) => list.toggleListened(item)}
           {highlightedItemId}
         />
       {:else}
