@@ -12,11 +12,10 @@
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem, SearchType, musicItemName, findDuplicate } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/domain/link'
   import {
-    findDuplicate,
     listenLaterStorage,
   } from '../../src/infrastructure/storage/listen_later_storage'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
