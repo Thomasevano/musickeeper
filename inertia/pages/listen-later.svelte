@@ -12,9 +12,10 @@
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
   import { createListManager } from '~/lib/list_manager.svelte'
+  import { LinkPaste } from '~/lib/use_link_paste.svelte'
   import { appFetch } from '~/lib/app_update.svelte'
   import { registerUnsavedWork } from '~/lib/reload_guard'
-  import { type ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
+  import { type ListenLaterItem, type MusicItem, musicItemName } from '../../src/domain/music_item'
   import { library } from '~/lib/listen_later.svelte'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
 
@@ -45,19 +46,7 @@
     }
   })
 
-  // Paste link state
-  let linkUrl = $state('')
-  let isProcessingLink = $state(false)
-  let linkError = $state('')
-
-  // Confirmation dialog state
-  let isConfirmDialogOpen = $state(false)
-  let isDialogLoading = $state(false)
-  let dialogError = $state<string | null>(null)
-  let pendingMusicItem = $state<MusicItem | null>(null)
-  let pendingSourceUrl = $state<string | undefined>()
-  let isSaving = $state(false)
-  let platformController: AbortController | null = null
+  const paste = new LinkPaste(list)
   let listTable = $state<ReturnType<typeof ListenLaterListTable>>()
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
@@ -67,7 +56,7 @@
   let titleInputEl = $state<HTMLInputElement | null>(null)
 
   $effect(() => registerUnsavedWork(() =>
-    !!(searchTerm || artistName || linkUrl || isConfirmDialogOpen || pendingMusicItem || pendingSourceUrl)
+    !!(searchTerm || artistName || paste.hasUnsavedWork)
   ))
 
   const debouncedSearch = new Debounced(() => searchTerm, 300)
@@ -181,112 +170,6 @@
     { value: 'album', label: 'Albums' },
   ]
 
-  function isValidUrl(urlString: string): boolean {
-    try {
-      const url = new URL(urlString)
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      return false
-    }
-  }
-
-  async function handlePasteLink() {
-    // A disabled button is unfocusable, so disabling this one mid-request
-    // would blur it and leave the dialog with nowhere to put focus back on
-    // close. It stays enabled and turns the second press into a no-op.
-    if (isProcessingLink || !list.ready) return
-
-    linkError = ''
-
-    if (!linkUrl.trim()) {
-      linkError = 'Please enter a URL'
-      return
-    }
-
-    if (!isValidUrl(linkUrl)) {
-      linkError = 'Please enter a valid URL'
-      return
-    }
-
-    // Open dialog immediately with loading state
-    isProcessingLink = true
-    isDialogLoading = true
-    dialogError = null
-    isConfirmDialogOpen = true
-
-    await fetchLinkMetadata()
-  }
-
-  async function fetchLinkMetadata() {
-    platformController?.abort()
-    const controller = new AbortController()
-    platformController = controller
-    const sourceUrl = linkUrl.trim()
-    isDialogLoading = true
-    dialogError = null
-    isProcessingLink = true
-    try {
-      const response = await appFetch('/api/platform-metadata', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sourceUrl }), signal: controller.signal,
-      })
-      const data = await response.json()
-      if (controller.signal.aborted || platformController !== controller) return
-      if (!response.ok) {
-        dialogError = data.error || 'Failed to fetch metadata'
-        return
-      }
-      pendingMusicItem = new MusicItem(data.musicItem)
-      pendingSourceUrl = data.linkMetadata.originalUrl
-    } catch {
-      if (!controller.signal.aborted && platformController === controller) {
-        dialogError = 'Failed to connect to server. Please check your internet connection.'
-      }
-    } finally {
-      if (platformController === controller) {
-        isDialogLoading = false
-        isProcessingLink = false
-      }
-    }
-  }
-
-  function handleRetry() {
-    void fetchLinkMetadata()
-  }
-
-  async function handleConfirmDialogConfirm(item: MusicItem, musicBrainzId?: string) {
-    if (isSaving || !pendingMusicItem) return
-    isSaving = true
-    dialogError = null
-    try {
-      await list.addFromPaste(item, musicBrainzId, pendingSourceUrl)
-      isConfirmDialogOpen = false
-      resetPendingState()
-      linkUrl = ''
-    } catch (error) {
-      console.error('Error saving item to listen later list:', error)
-      dialogError = 'Failed to save item. Please try again.'
-    } finally {
-      isSaving = false
-    }
-  }
-
-  function handleConfirmDialogCancel() {
-    if (isSaving) return
-    isConfirmDialogOpen = false
-    resetPendingState()
-  }
-
-  function resetPendingState() {
-    platformController?.abort()
-    platformController = null
-    pendingMusicItem = null
-    pendingSourceUrl = undefined
-    dialogError = null
-    isDialogLoading = false
-    isProcessingLink = false
-  }
-
 </script>
 
 <LibraryLayout data={list.items} {title}>
@@ -320,26 +203,26 @@
         <Input
           id="link-url"
           type="url"
-          bind:value={linkUrl}
+          bind:value={paste.url}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
-          readonly={isProcessingLink}
-          aria-describedby={linkError ? 'link-url-error' : undefined}
-          aria-invalid={linkError ? 'true' : undefined}
+          readonly={paste.loading}
+          aria-describedby={paste.inputError ? 'link-url-error' : undefined}
+          aria-invalid={paste.inputError ? 'true' : undefined}
         />
         <Button
           class="w-full sm:w-auto aria-disabled:opacity-50"
-          onclick={handlePasteLink}
-          disabled={!linkUrl.trim() || list.status !== 'loaded'}
+          onclick={paste.start}
+          disabled={!paste.url.trim() || list.status !== 'loaded'}
           aria-disabled={library.access === 'outdated' || undefined}
-          aria-busy={isProcessingLink}
+          aria-busy={paste.loading}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
-          {isProcessingLink ? 'Processing...' : 'Add'}
+          {paste.loading ? 'Processing...' : 'Add'}
         </Button>
       </div>
-      {#if linkError}
-        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkError}</p>
+      {#if paste.inputError}
+        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{paste.inputError}</p>
       {/if}
     </div>
 
@@ -499,16 +382,16 @@
 </LibraryLayout>
 
 <ConfirmMusicDialog
-  bind:open={isConfirmDialogOpen}
-  isLoading={isDialogLoading}
-  error={dialogError}
-  musicItem={pendingMusicItem}
-  {isSaving}
+  bind:open={paste.open}
+  isLoading={paste.loading}
+  error={paste.error}
+  musicItem={paste.item}
+  isSaving={paste.saving}
   listenLaterItems={list.items}
-  onConfirm={handleConfirmDialogConfirm}
-  onCancel={handleConfirmDialogCancel}
+  onConfirm={paste.confirm}
+  onCancel={paste.cancel}
   onViewExisting={async (id) => listTable?.revealItem(id)}
-  onRetry={handleRetry}
+  onRetry={paste.fetchMetadata}
 />
 
 <Dialog.Root

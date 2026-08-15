@@ -27,7 +27,12 @@ export interface ListManager {
   remove(item: ListenLaterItem): Promise<void>
   toggleListened(item: ListenLaterItem): Promise<void>
   addFromSearch(item: MusicItem): Promise<void>
-  addFromPaste(item: MusicItem, musicBrainzId?: string, sourceUrl?: string): Promise<void>
+  addFromPaste(
+    item: MusicItem,
+    musicBrainzId: string | undefined,
+    sourceUrl: string | undefined,
+    onSaved: () => void
+  ): Promise<void>
 }
 
 async function fetchSearchLinks(item: MusicItem): Promise<ExternalLink[]> {
@@ -126,7 +131,12 @@ export function createListManager(): ListManager {
     )
   }
 
-  async function addFromPaste(item: MusicItem, musicBrainzId?: string, sourceUrl?: string) {
+  async function addFromPaste(
+    item: MusicItem,
+    musicBrainzId: string | undefined,
+    sourceUrl: string | undefined,
+    onSaved: () => void
+  ) {
     const platform = sourceUrl ? detectPlatform(sourceUrl) : null
     const stored = await trackWrite(() =>
       listenLaterStorage.add({
@@ -147,6 +157,8 @@ export function createListManager(): ListManager {
             : [],
       })
     )
+    // Close the draft in the same update so it never sees its own saved row as a duplicate.
+    onSaved()
     trackQualifyingActivity('item_saved')
     items = [...items, stored]
     toast.success(`${musicItemName(stored)} added to your list`)
