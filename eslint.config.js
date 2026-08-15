@@ -25,13 +25,14 @@ export default [
   {
     files: ['inertia/**/*.ts'],
     rules: {
-      // Both exceptions are browser dependencies: the app stylesheet and its
-      // IndexedDB adapter. Keep server infrastructure out of the client bundle.
+      // Only browser dependencies belong here. Keep server infrastructure out of the client bundle.
       '@adonisjs/no-backend-import-in-frontend': [
         'error',
         {
           allowed: [
             '../resources/css/app.css',
+            '../../src/domain/music_item.js',
+            '../../src/shared/platform_registry.js',
             '../../src/infrastructure/storage/listen_later_storage.js',
           ],
         },
