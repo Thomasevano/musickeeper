@@ -48,38 +48,6 @@ function sortListenLaterItems(items: ListenLaterItem[]): ListenLaterItem[] {
   })
 }
 
-/**
- * Finds an item that is the same recording as the one described.
- *
- * Same title and the *same set* of artists. A shared title with a different
- * artist set is another version, not a duplicate: "Nightcall" by Kavinsky and
- * "Nightcall" by Kavinsky, Angèle & Phoenix are two different recordings, and
- * a remix or a guest version does not always say so in its title.
- */
-export function findDuplicate(
-  items: ListenLaterItem[],
-  title: string,
-  artists: string[]
-): ListenLaterItem | null {
-  const normalizedTitle = title.toLowerCase().trim()
-  const normalizedArtists = [
-    ...new Set(artists.map((artist) => artist.toLowerCase().trim())),
-  ].sort()
-
-  return (
-    items.find((item) => {
-      if (item.title.toLowerCase().trim() !== normalizedTitle) return false
-
-      const itemArtists = [
-        ...new Set(item.artists.map((artist) => artist.toLowerCase().trim())),
-      ].sort()
-      if (itemArtists.length !== normalizedArtists.length) return false
-
-      return itemArtists.every((artist, index) => artist === normalizedArtists[index])
-    }) ?? null
-  )
-}
-
 function openDatabase(indexedDBInstance: IDBFactory): Promise<IDBDatabase> {
   const { promise, resolve, reject } = Promise.withResolvers<IDBDatabase>()
   const request = indexedDBInstance.open(DB_NAME, DB_VERSION)
