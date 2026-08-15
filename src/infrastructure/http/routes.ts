@@ -21,6 +21,7 @@ router.get('/app-version', ({ inertia, response }) => {
 })
 
 router.post('/api/link/metadata', [LinkController, 'metadata'])
+router.post('/api/platform-metadata', [LinkController, 'platformMetadata'])
 
 router.get('/api/links', [LinksController, 'index'])
 
