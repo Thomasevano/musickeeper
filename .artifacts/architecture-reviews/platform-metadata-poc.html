@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Platform metadata integration — prototype</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#111827;background:#f9fafb;color-scheme:light}body{max-width:1100px;margin:auto;padding:24px}h1{font-size:28px;line-height:1.2}h2{font-size:20px}h3{font-size:16px}p{max-width:85ch;line-height:1.5}.muted{color:#4b5563}.badge{font-size:12px;font-weight:700;color:#1d4ed8}section{margin:24px 0;padding:20px;border:1px solid #d1d5db;background:white;border-radius:8px}button,input,select{font:inherit;min-height:44px;box-sizing:border-box}button,select{touch-action:manipulation}button{background:#1d4ed8;color:white;border:0;padding:10px 16px;border-radius:6px;cursor:pointer}button:disabled{background:#6b7280;cursor:default}:focus-visible{outline:3px solid #2563eb;outline-offset:3px}input[type=text]{padding:8px;border:1px solid #9ca3af;width:100%;min-width:0}label{display:block;margin:8px 0}fieldset{border:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}fieldset label{margin:0;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:1px solid #d1d5db;border-radius:6px}fieldset input{min-height:0}pre{overflow:auto;font-size:13px;line-height:1.5;max-height:540px;background:#f3f4f6;padding:12px;border-radius:4px}summary{min-height:44px;cursor:pointer;padding:6px 0;box-sizing:border-box}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;vertical-align:top;border-bottom:1px solid #e5e7eb;padding:10px;overflow-wrap:anywhere}.table-scroll{overflow:auto}dl{display:grid;grid-template-columns:130px 1fr;gap:6px;font-size:14px}dt{font-weight:600}dd{margin:0;overflow-wrap:anywhere}.columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.run{min-width:0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#status{font-weight:600}code{overflow-wrap:anywhere}@media(max-width:760px){body{padding:12px}section{padding:14px}.columns{grid-template-columns:1fr}h1{font-size:24px}}
+</style>
+<body><header><span class="badge">THROWAWAY PROTOTYPE · NOT A MERGE APPROVAL</span><h1>Does a metadata use case simplify the existing paste flow?</h1><p>Compare the current code, reuse of PR #67 unchanged, and a contextual-result version. All three keep <code>POST /api/link/metadata</code> and the existing UI response. No new HTTP endpoint is needed.</p><p class="muted">Real repository parser, extraction and enrichment code. Provider/search responses are controlled fixtures, not live requests. Fallback IDs use a fixed clock for exact comparison. Base: <code>4570788</code>; PR #67 source: <code>c8710a6</code>.</p></header>
+<section><h2>1. Current result</h2><p id="status" role="status">Choose a walkthrough or compare a fixture.</p><div id="state" class="columns"></div></section>
+<section><h2>2. Free play</h2><label for="scenario">Provider/search situation</label><select id="scenario"></select><label for="url">Music link (real parser; fixture data for supported links)</label><input id="url" type="text"><div class="actions"><button id="compare">Run all three versions</button><button id="reset">Reset results</button></div></section>
+<section><h2>3. Guided walkthroughs</h2><fieldset id="walkthroughs"><legend>Choose a situation (resets results)</legend></fieldset><p id="description"></p><div class="actions"><button id="step1">1. Run current flow</button><button id="step2" disabled>2. Run both alternatives</button></div></section>
+<section><h2>4. Code replaced — and code added</h2><p>Unchanged #67 omits parsed <code>type</code> and <code>originalUrl</code>. Its caller must still parse, then #67 parses again. The contextual variant moves parsing, fetching, error context and mapping behind one call. Enrichment and fallback stay unchanged.</p><div class="table-scroll"><table><thead><tr><th>Production source lines</th><th>Current</th><th>Contextual variant</th></tr></thead><tbody id="counts"></tbody></table></div><p class="muted">Counts include blank lines/comments. Baseline snapshots and demo code excluded. Smaller caller does not mean a smaller system.</p><div id="sources"></div></section>
+<section><h2>5. What this demonstrates</h2><p><strong>Useful boundary, but not a demonstrated need for another layer.</strong> The contextual version separates platform resolution from enrichment. With only one production caller, the same work moves into another file and needs extra dependency registration. It adds no user-visible capability and saves no provider or search requests.</p><p><strong>Recommendation:</strong> keep the current flow unless separating platform resolution is itself a desired responsibility boundary or another real consumer needs it. If adopting this boundary, prefer contextual metadata over parsing twice. This is a changed interface, not PR #67 as written.</p><details><summary>Observed fixture comparison at build time</summary><pre id="evidence"></pre></details><p><strong>Limits:</strong> fixture equality is not live provider verification, full application UI verification, or approval to merge #67. Validate the real paste/display/error flow before any production cutover.</p><p><strong>Rollback:</strong> restore the original extractor and provider together; no database migration or UI contract change. Blast radius: link metadata extraction and dependency wiring. Existing enrichment/artwork/fallback policy stays in place.</p></section>
+<section><h2>6. Fresh session verification — 12 October 2026</h2><ul><li>Existing extraction suite: 34 tests passed; only construction changed, no new tests.</li><li>Installed ESLint and server TypeScript check: exit 0.</li><li>Real local server with contextual wiring: missing URL, malformed URL and unsupported site returned 400; Spotify track returned 200 with Rick Astley, album, artwork, source and original URL.</li><li>Demo: all nine walkthroughs exercised in Chromium; keyboard action worked at 320 px, no horizontal page overflow; axe reported no WCAG A/AA violations.</li></ul><p>No historical CI result is used as prototype verification. No full suite, live success on the other platforms, or application UI paste flow is claimed. Those remain checks before production adoption.</p></section>
+<script type="module">
+// src/domain/music_item.ts
+class MusicItem {
+  id;
+  title;
+  releaseDate;
+  length;
+  artists;
+  albumName;
+  itemType;
+  coverArt;
+  constructor(props) {
+    this.id = props.id;
+    this.title = props.title;
+    this.releaseDate = props.releaseDate;
+    this.length = props.length;
+    this.artists = props.artists;
+    this.albumName = props.albumName;
+    this.itemType = props.itemType;
+    this.coverArt = props.coverArt;
+  }
+}
+
+// src/domain/link.ts
+function isLinkParseError(result) {
+  return "error" in result;
+}
+
+// src/application/use-cases/extract_link_metadata.prototype_before.ts
+class ExtractLinkMetadataUseCase {
+  linkParser;
+  platformMetadata;
+  enrichMusicItem;
+  constructor(linkParser, platformMetadata, enrichMusicItem) {
+    this.linkParser = linkParser;
+    this.platformMetadata = platformMetadata;
+    this.enrichMusicItem = enrichMusicItem;
+  }
+  async execute(url) {
+    const parseResult = this.linkParser.parseLink(url);
+    if (isLinkParseError(parseResult)) {
+      return { error: parseResult.error, originalUrl: parseResult.originalUrl };
+    }
+    const platformMetadata = await this.platformMetadata.fetch(parseResult);
+    if ("error" in platformMetadata) {
+      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl };
+    }
+    const linkMetadata = {
+      title: platformMetadata.title,
+      artist: platformMetadata.artist,
+      type: parseResult.type,
+      thumbnailUrl: platformMetadata.thumbnailUrl,
+      originalUrl: parseResult.originalUrl,
+      albumName: platformMetadata.albumName
+    };
+    if (linkMetadata.title && linkMetadata.artist) {
+      const musicItem = await this.enrichMusicItem.execute(linkMetadata.title, linkMetadata.artist, linkMetadata.type, linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName);
+      if (musicItem) {
+        if (linkMetadata.albumName) {
+          musicItem.albumName = linkMetadata.albumName;
+        }
+        if (linkMetadata.thumbnailUrl) {
+          musicItem.coverArt = linkMetadata.thumbnailUrl;
+        }
+        return { musicItem, source: "musicbrainz", linkMetadata };
+      }
+    }
+    return {
+      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),
+      source: "link",
+      linkMetadata
+    };
+  }
+  createMusicItemFromLinkMetadata(metadata) {
+    return new MusicItem({
+      id: `link-${Date.now()}`,
+      title: metadata.title || "Unknown Title",
+      releaseDate: "",
+      artists: metadata.artist ? metadata.artist.split(",").map((a) => a.trim()).filter(Boolean) : [],
+      itemType: metadata.type,
+      coverArt: metadata.thumbnailUrl,
+      albumName: metadata.albumName || (metadata.type === "album" /* album */ ? metadata.title : undefined)
+    });
+  }
+}
+
+// src/application/use-cases/extract_link_metadata.prototype_as_is.ts
+class ExtractLinkMetadataUseCase2 {
+  linkParser;
+  fetchPlatformMetadata;
+  enrichMusicItem;
+  constructor(linkParser, fetchPlatformMetadata, enrichMusicItem) {
+    this.linkParser = linkParser;
+    this.fetchPlatformMetadata = fetchPlatformMetadata;
+    this.enrichMusicItem = enrichMusicItem;
+  }
+  async execute(url) {
+    const parseResult = this.linkParser.parseLink(url);
+    if (isLinkParseError(parseResult)) {
+      return { error: parseResult.error, originalUrl: parseResult.originalUrl };
+    }
+    const platformMetadata = await this.fetchPlatformMetadata.execute(url);
+    if ("error" in platformMetadata) {
+      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl };
+    }
+    const linkMetadata = {
+      title: platformMetadata.title,
+      artist: platformMetadata.artist,
+      type: parseResult.type,
+      thumbnailUrl: platformMetadata.thumbnailUrl,
+      originalUrl: parseResult.originalUrl,
+      albumName: platformMetadata.albumName
+    };
+    if (linkMetadata.title && linkMetadata.artist) {
+      const musicItem = await this.enrichMusicItem.execute(linkMetadata.title, linkMetadata.artist, linkMetadata.type, linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName);
+      if (musicItem) {
+        if (linkMetadata.albumName) {
+          musicItem.albumName = linkMetadata.albumName;
+        }
+        if (linkMetadata.thumbnailUrl) {
+          musicItem.coverArt = linkMetadata.thumbnailUrl;
+        }
+        return { musicItem, source: "musicbrainz", linkMetadata };
+      }
+    }
+    return {
+      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),
+      source: "link",
+      linkMetadata
+    };
+  }
+  createMusicItemFromLinkMetadata(metadata) {
+    return new MusicItem({
+      id: `link-${Date.now()}`,
+      title: metadata.title || "Unknown Title",
+      releaseDate: "",
+      artists: metadata.artist ? metadata.artist.split(",").map((a) => a.trim()).filter(Boolean) : [],
+      itemType: metadata.type,
+      coverArt: metadata.thumbnailUrl,
+      albumName: metadata.albumName || (metadata.type === "album" /* album */ ? metadata.title : undefined)
+    });
+  }
+}
+
+// src/application/use-cases/extract_link_metadata.use_case.ts
+class ExtractLinkMetadataUseCase3 {
+  fetchPlatformMetadata;
+  enrichMusicItem;
+  constructor(fetchPlatformMetadata, enrichMusicItem) {
+    this.fetchPlatformMetadata = fetchPlatformMetadata;
+    this.enrichMusicItem = enrichMusicItem;
+  }
+  async execute(url) {
+    const linkMetadata = await this.fetchPlatformMetadata.execute(url);
+    if ("error" in linkMetadata)
+      return linkMetadata;
+    if (linkMetadata.title && linkMetadata.artist) {
+      const musicItem = await this.enrichMusicItem.execute(linkMetadata.title, linkMetadata.artist, linkMetadata.type, linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName);
+      if (musicItem) {
+        if (linkMetadata.albumName) {
+          musicItem.albumName = linkMetadata.albumName;
+        }
+        if (linkMetadata.thumbnailUrl) {
+          musicItem.coverArt = linkMetadata.thumbnailUrl;
+        }
+        return { musicItem, source: "musicbrainz", linkMetadata };
+      }
+    }
+    return {
+      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),
+      source: "link",
+      linkMetadata
+    };
+  }
+  createMusicItemFromLinkMetadata(metadata) {
+    return new MusicItem({
+      id: `link-${Date.now()}`,
+      title: metadata.title || "Unknown Title",
+      releaseDate: "",
+      artists: metadata.artist ? metadata.artist.split(",").map((a) => a.trim()).filter(Boolean) : [],
+      itemType: metadata.type,
+      coverArt: metadata.thumbnailUrl,
+      albumName: metadata.albumName || (metadata.type === "album" /* album */ ? metadata.title : undefined)
+    });
+  }
+}
+
+// src/application/use-cases/fetch_platform_metadata.prototype_pr67.ts
+class FetchPlatformMetadataUseCase {
+  linkParser;
+  platformMetadata;
+  constructor(linkParser, platformMetadata) {
+    this.linkParser = linkParser;
+    this.platformMetadata = platformMetadata;
+  }
+  async execute(url) {
+    const parsedLink = this.linkParser.parseLink(url);
+    if (isLinkParseError(parsedLink)) {
+      return { error: parsedLink.error, kind: "validation" };
+    }
+    const result = await this.platformMetadata.fetch(parsedLink);
+    return "error" in result ? { ...result, kind: "platform" } : result;
+  }
+}
+
+// src/application/use-cases/fetch_platform_metadata.use_case.ts
+class FetchPlatformMetadataUseCase2 {
+  linkParser;
+  platformMetadata;
+  constructor(linkParser, platformMetadata) {
+    this.linkParser = linkParser;
+    this.platformMetadata = platformMetadata;
+  }
+  async execute(url) {
+    const parseResult = this.linkParser.parseLink(url);
+    if (isLinkParseError(parseResult)) {
+      return { error: parseResult.error, originalUrl: parseResult.originalUrl };
+    }
+    const platformMetadata = await this.platformMetadata.fetch(parseResult);
+    if ("error" in platformMetadata) {
+      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl };
+    }
+    return {
+      title: platformMetadata.title,
+      artist: platformMetadata.artist,
+      type: parseResult.type,
+      thumbnailUrl: platformMetadata.thumbnailUrl,
+      originalUrl: parseResult.originalUrl,
+      albumName: platformMetadata.albumName
+    };
+  }
+}
+
+// src/application/use-cases/enrich_music_item.use_case.ts
+class EnrichMusicItemUseCase {
+  search;
+  constructor(search) {
+    this.search = search;
+  }
+  async execute(title, artist, type, albumNameHint) {
+    const musicItem = await this.searchRecording(title, artist, type);
+    if (!musicItem)
+      return null;
+    if (albumNameHint && musicItem.albumName !== albumNameHint) {
+      const primaryArtist = artist.split(",")[0].trim();
+      const coverArt = await this.fetchAlbumCoverArt(albumNameHint, primaryArtist, musicItem.releaseDate);
+      if (coverArt) {
+        musicItem.coverArt = coverArt;
+      }
+    }
+    return musicItem;
+  }
+  async searchRecording(title, artist, type) {
+    try {
+      const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, "").trim();
+      const items = await this.search.searchItem(cleanTitle, type, artist);
+      return items.length > 0 ? items[0] : null;
+    } catch {
+      return null;
+    }
+  }
+  async fetchAlbumCoverArt(albumName, artist, releaseDate) {
+    try {
+      const releases = await this.search.searchItem(albumName, "album" /* album */, artist);
+      if (!releases.length)
+        return;
+      const releaseYear = releaseDate ? releaseDate.slice(0, 4) : null;
+      const sorted = [...releases].sort((a, b) => {
+        const aMatch = a.releaseDate?.slice(0, 4) === releaseYear ? 0 : 1;
+        const bMatch = b.releaseDate?.slice(0, 4) === releaseYear ? 0 : 1;
+        return aMatch - bMatch;
+      });
+      return sorted.find((release) => release.coverArt)?.coverArt;
+    } catch {
+      return;
+    }
+  }
+}
+
+// src/application/ports/link_parser.port.ts
+class LinkParserPort {
+}
+
+// src/infrastructure/adapters/link_parser.adapter.ts
+class LinkParserAdapter extends LinkParserPort {
+  spotifyPattern = /^https?:\/\/open\.spotify\.com\/(track|album)\/([a-zA-Z0-9]+)/;
+  youtubePattern = /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|music\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)/;
+  appleMusicPattern = /^https?:\/\/music\.apple\.com\/([a-z]{2})\/(album|song)\/[^/]+\/([0-9]+)(?:\?i=([0-9]+))?/;
+  soundcloudTrackPattern = /^https?:\/\/soundcloud\.com\/([^/]+)\/(?!sets\/)([^/?]+)/;
+  soundcloudSetPattern = /^https?:\/\/soundcloud\.com\/([^/]+)\/sets\/([^/?]+)/;
+  parseLink(url) {
+    const trimmedUrl = url.trim();
+    if (!this.isValidUrl(trimmedUrl)) {
+      return { error: "Invalid URL format", originalUrl: trimmedUrl };
+    }
+    const spotifyResult = this.parseSpotifyUrl(trimmedUrl);
+    if (spotifyResult)
+      return spotifyResult;
+    const youtubeResult = this.parseYouTubeUrl(trimmedUrl);
+    if (youtubeResult)
+      return youtubeResult;
+    const appleMusicResult = this.parseAppleMusicUrl(trimmedUrl);
+    if (appleMusicResult)
+      return appleMusicResult;
+    const soundcloudResult = this.parseSoundCloudUrl(trimmedUrl);
+    if (soundcloudResult)
+      return soundcloudResult;
+    return {
+      error: "Unsupported platform. Supported: Spotify, YouTube, Apple Music, SoundCloud",
+      originalUrl: trimmedUrl
+    };
+  }
+  isValidUrl(url) {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  parseSpotifyUrl(url) {
+    const match = url.match(this.spotifyPattern);
+    if (!match)
+      return null;
+    const [, resourceType, id] = match;
+    return {
+      platform: "spotify" /* Spotify */,
+      type: resourceType === "album" ? "album" /* album */ : "track" /* track */,
+      id,
+      originalUrl: url
+    };
+  }
+  parseYouTubeUrl(url) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === "music.youtube.com" && parsed.pathname === "/playlist") {
+        const listId = parsed.searchParams.get("list");
+        if (listId) {
+          return {
+            platform: "youtube" /* YouTube */,
+            type: "album" /* album */,
+            id: listId,
+            originalUrl: url
+          };
+        }
+      }
+    } catch {}
+    const match = url.match(this.youtubePattern);
+    if (!match)
+      return null;
+    const [, id] = match;
+    return {
+      platform: "youtube" /* YouTube */,
+      type: "track" /* track */,
+      id,
+      originalUrl: url
+    };
+  }
+  parseAppleMusicUrl(url) {
+    const match = url.match(this.appleMusicPattern);
+    if (!match)
+      return null;
+    const [, , resourceType, albumId, trackId] = match;
+    if (resourceType === "song" || trackId) {
+      return {
+        platform: "apple_music" /* AppleMusic */,
+        type: "track" /* track */,
+        id: trackId || albumId,
+        originalUrl: url
+      };
+    }
+    return {
+      platform: "apple_music" /* AppleMusic */,
+      type: "album" /* album */,
+      id: albumId,
+      originalUrl: url
+    };
+  }
+  parseSoundCloudUrl(url) {
+    const setMatch = url.match(this.soundcloudSetPattern);
+    if (setMatch) {
+      const [, artist, setSlug] = setMatch;
+      return {
+        platform: "soundcloud" /* SoundCloud */,
+        type: "album" /* album */,
+        id: `${artist}/sets/${setSlug}`,
+        originalUrl: url
+      };
+    }
+    const trackMatch = url.match(this.soundcloudTrackPattern);
+    if (!trackMatch)
+      return null;
+    const [, artist, trackSlug] = trackMatch;
+    return {
+      platform: "soundcloud" /* SoundCloud */,
+      type: "track" /* track */,
+      id: `${artist}/${trackSlug}`,
+      originalUrl: url
+    };
+  }
+}
+
+// src/application/use-cases/platform_metadata.prototype.ts
+var variants = ["before", "pr67", "contextual"];
+var scenarios = [
+  {
+    id: "match",
+    label: "Track match",
+    description: "Paste a Spotify track. Platform album and artwork must win over the compilation match.",
+    url: "https://open.spotify.com/track/demo123"
+  },
+  {
+    id: "fallback",
+    label: "No match",
+    description: "MusicBrainz finds nothing. Keep the platform title, artist, artwork and source URL.",
+    url: "https://open.spotify.com/track/demo123"
+  },
+  {
+    id: "search-error",
+    label: "Search offline",
+    description: "Search throws. The existing fallback must still produce a music item.",
+    url: "https://youtu.be/demo123"
+  },
+  {
+    id: "album",
+    label: "Album fallback",
+    description: "An Apple Music album has no search match. Preserve album type and name.",
+    url: "https://music.apple.com/us/album/demo/123456"
+  },
+  {
+    id: "no-art",
+    label: "Missing artwork",
+    description: "Platform supplies no cover. The enricher may make a second album search for artwork.",
+    url: "https://open.spotify.com/track/demo123"
+  },
+  {
+    id: "no-artist",
+    label: "Missing artist",
+    description: "Platform supplies no artist. Skip enrichment and preserve the partial metadata.",
+    url: "https://soundcloud.com/demo/track"
+  },
+  {
+    id: "provider-error",
+    label: "Provider failure",
+    description: "Platform returns an error. Do not call MusicBrainz; preserve the original URL.",
+    url: "https://open.spotify.com/track/demo123"
+  },
+  {
+    id: "invalid",
+    label: "Invalid URL",
+    description: "Reject before fetching anything. The public error contract remains unchanged.",
+    url: "not-a-valid-url"
+  },
+  {
+    id: "unsupported",
+    label: "Unsupported site",
+    description: "A valid URL is not a supported music platform. Reject without provider or search calls.",
+    url: "https://example.com/music"
+  }
+];
+async function runScenario(id, variant, urlOverride) {
+  const scenario = scenarios.find((entry) => entry.id === id);
+  const trace = [];
+  const parser = new LinkParserAdapter;
+  const trackedParser = {
+    parseLink(url) {
+      const result = parser.parseLink(url);
+      trace.push({ action: "parse", input: url, output: result });
+      return result;
+    }
+  };
+  const provider = {
+    async fetch(link) {
+      const result = id === "provider-error" ? { error: "Fixture provider unavailable" } : {
+        title: link.type === "album" /* album */ ? "Original Album" : "Demo Track",
+        artist: id === "no-artist" ? "" : "Demo Artist",
+        thumbnailUrl: id === "no-art" ? undefined : "https://example.com/platform-cover.jpg",
+        albumName: "Original Album"
+      };
+      trace.push({ action: "platform fetch", input: link, output: result });
+      return result;
+    }
+  };
+  const search = {
+    async searchItem(query, type, artist) {
+      if (id === "search-error") {
+        trace.push({
+          action: "search",
+          input: { query, type, artist },
+          output: { error: "Fixture search offline" }
+        });
+        throw new Error("Fixture search offline");
+      }
+      const items = ["fallback", "album"].includes(id) ? [] : [
+        new MusicItem({
+          id: type === "album" /* album */ ? "mb-album" : "mb-track",
+          title: type === "album" /* album */ ? "Original Album" : "Demo Track",
+          artists: ["Demo Artist"],
+          releaseDate: "2023-01-01",
+          itemType: type,
+          albumName: type === "album" /* album */ ? "Original Album" : "Compilation",
+          coverArt: type === "album" /* album */ ? "https://example.com/album-cover.jpg" : "https://example.com/compilation-cover.jpg"
+        })
+      ];
+      trace.push({
+        action: "search",
+        input: { query, type, artist },
+        output: JSON.parse(JSON.stringify(items))
+      });
+      return items;
+    }
+  };
+  const enrich = new EnrichMusicItemUseCase(search);
+  const flow = variant === "before" ? new ExtractLinkMetadataUseCase(trackedParser, provider, enrich) : variant === "pr67" ? new ExtractLinkMetadataUseCase2(trackedParser, new FetchPlatformMetadataUseCase(trackedParser, provider), enrich) : new ExtractLinkMetadataUseCase3(new FetchPlatformMetadataUseCase2(trackedParser, provider), enrich);
+  const now = Date.now;
+  Date.now = () => 1700000000000;
+  try {
+    const result = await flow.execute(urlOverride ?? scenario.url);
+    return {
+      variant,
+      result,
+      trace,
+      calls: {
+        parse: trace.filter((entry) => entry.action === "parse").length,
+        platform: trace.filter((entry) => entry.action === "platform fetch").length,
+        search: trace.filter((entry) => entry.action === "search").length
+      }
+    };
+  } finally {
+    Date.now = now;
+  }
+}
+async function compareScenario(id, url) {
+  const runs = [];
+  for (const variant of variants)
+    runs.push(await runScenario(id, variant, url));
+  return {
+    equal: runs.every((run) => JSON.stringify(run.result) === JSON.stringify(runs[0].result)),
+    runs
+  };
+}
+
+const data = {"sources":{"before":"import { MusicItem, SearchType } from '#domain/music_item.js'\nimport { isLinkParseError, type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'\nimport { type LinkParserPort } from '#application/ports/link_parser.port.js'\nimport { type PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'\nimport { type EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'\n\nexport class ExtractLinkMetadataUseCase {\n  constructor(\n    private linkParser: LinkParserPort,\n    private platformMetadata: PlatformMetadataPort,\n    private enrichMusicItem: EnrichMusicItemUseCase\n  ) {}\n\n  async execute(url: string): Promise\u003cLinkMetadataResult> {\n    const parseResult = this.linkParser.parseLink(url)\n\n    if (isLinkParseError(parseResult)) {\n      return { error: parseResult.error, originalUrl: parseResult.originalUrl }\n    }\n\n    const platformMetadata = await this.platformMetadata.fetch(parseResult)\n\n    if ('error' in platformMetadata) {\n      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl }\n    }\n\n    const linkMetadata: LinkMetadata = {\n      title: platformMetadata.title,\n      artist: platformMetadata.artist,\n      type: parseResult.type,\n      thumbnailUrl: platformMetadata.thumbnailUrl,\n      originalUrl: parseResult.originalUrl,\n      albumName: platformMetadata.albumName,\n    }\n\n    if (linkMetadata.title && linkMetadata.artist) {\n      const musicItem = await this.enrichMusicItem.execute(\n        linkMetadata.title,\n        linkMetadata.artist,\n        linkMetadata.type,\n        // The hint only makes the enricher search again for better cover art.\n        // Platform artwork overwrites that result below, so passing the hint\n        // when we already have a thumbnail buys a round trip and nothing else.\n        linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName\n      )\n\n      if (musicItem) {\n        // Platform album names are more precise when MusicBrainz matches a compilation.\n        if (linkMetadata.albumName) {\n          musicItem.albumName = linkMetadata.albumName\n        }\n\n        // Prefer artwork supplied by the platform the user pasted.\n        if (linkMetadata.thumbnailUrl) {\n          musicItem.coverArt = linkMetadata.thumbnailUrl\n        }\n\n        return { musicItem, source: 'musicbrainz', linkMetadata }\n      }\n    }\n\n    return {\n      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),\n      source: 'link',\n      linkMetadata,\n    }\n  }\n\n  private createMusicItemFromLinkMetadata(metadata: LinkMetadata): MusicItem {\n    return new MusicItem({\n      id: `link-${Date.now()}`,\n      title: metadata.title || 'Unknown Title',\n      releaseDate: '',\n      artists: metadata.artist\n        ? metadata.artist\n            .split(',')\n            .map((a) => a.trim())\n            .filter(Boolean)\n        : [],\n      itemType: metadata.type,\n      coverArt: metadata.thumbnailUrl,\n      albumName:\n        metadata.albumName || (metadata.type === SearchType.album ? metadata.title : undefined),\n    })\n  }\n}\n","asIs":"import { MusicItem, SearchType } from '#domain/music_item.js'\nimport { isLinkParseError, type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'\nimport { type LinkParserPort } from '#application/ports/link_parser.port.js'\nimport { type FetchPlatformMetadataUseCase } from './fetch_platform_metadata.prototype_pr67.js'\nimport { type EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'\n\nexport class ExtractLinkMetadataUseCase {\n  constructor(\n    private linkParser: LinkParserPort,\n    private fetchPlatformMetadata: FetchPlatformMetadataUseCase,\n    private enrichMusicItem: EnrichMusicItemUseCase\n  ) {}\n\n  async execute(url: string): Promise\u003cLinkMetadataResult> {\n    const parseResult = this.linkParser.parseLink(url)\n\n    if (isLinkParseError(parseResult)) {\n      return { error: parseResult.error, originalUrl: parseResult.originalUrl }\n    }\n\n    const platformMetadata = await this.fetchPlatformMetadata.execute(url)\n\n    if ('error' in platformMetadata) {\n      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl }\n    }\n\n    const linkMetadata: LinkMetadata = {\n      title: platformMetadata.title,\n      artist: platformMetadata.artist,\n      type: parseResult.type,\n      thumbnailUrl: platformMetadata.thumbnailUrl,\n      originalUrl: parseResult.originalUrl,\n      albumName: platformMetadata.albumName,\n    }\n\n    if (linkMetadata.title && linkMetadata.artist) {\n      const musicItem = await this.enrichMusicItem.execute(\n        linkMetadata.title,\n        linkMetadata.artist,\n        linkMetadata.type,\n        // The hint only makes the enricher search again for better cover art.\n        // Platform artwork overwrites that result below, so passing the hint\n        // when we already have a thumbnail buys a round trip and nothing else.\n        linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName\n      )\n\n      if (musicItem) {\n        // Platform album names are more precise when MusicBrainz matches a compilation.\n        if (linkMetadata.albumName) {\n          musicItem.albumName = linkMetadata.albumName\n        }\n\n        // Prefer artwork supplied by the platform the user pasted.\n        if (linkMetadata.thumbnailUrl) {\n          musicItem.coverArt = linkMetadata.thumbnailUrl\n        }\n\n        return { musicItem, source: 'musicbrainz', linkMetadata }\n      }\n    }\n\n    return {\n      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),\n      source: 'link',\n      linkMetadata,\n    }\n  }\n\n  private createMusicItemFromLinkMetadata(metadata: LinkMetadata): MusicItem {\n    return new MusicItem({\n      id: `link-${Date.now()}`,\n      title: metadata.title || 'Unknown Title',\n      releaseDate: '',\n      artists: metadata.artist\n        ? metadata.artist\n            .split(',')\n            .map((a) => a.trim())\n            .filter(Boolean)\n        : [],\n      itemType: metadata.type,\n      coverArt: metadata.thumbnailUrl,\n      albumName:\n        metadata.albumName || (metadata.type === SearchType.album ? metadata.title : undefined),\n    })\n  }\n}\n","originalFetch":"import { type LinkParserPort } from '#application/ports/link_parser.port.js'\nimport {\n  type PlatformMetadataPort,\n  type PlatformMetadata,\n} from '#application/ports/platform_metadata.port.js'\nimport { isLinkParseError } from '#domain/link.js'\n\nexport type FetchPlatformMetadataResult =\n  | PlatformMetadata\n  | { error: string; kind: 'validation' | 'platform' }\n\nexport class FetchPlatformMetadataUseCase {\n  constructor(\n    private linkParser: LinkParserPort,\n    private platformMetadata: PlatformMetadataPort\n  ) {}\n\n  async execute(url: string): Promise\u003cFetchPlatformMetadataResult> {\n    const parsedLink = this.linkParser.parseLink(url)\n    if (isLinkParseError(parsedLink)) {\n      return { error: parsedLink.error, kind: 'validation' }\n    }\n\n    const result = await this.platformMetadata.fetch(parsedLink)\n    return 'error' in result ? { ...result, kind: 'platform' } : result\n  }\n}\n","after":"import { MusicItem, SearchType } from '#domain/music_item.js'\nimport { type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'\nimport { type FetchPlatformMetadataUseCase } from './fetch_platform_metadata.use_case.js'\nimport { type EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'\n\nexport class ExtractLinkMetadataUseCase {\n  constructor(\n    private fetchPlatformMetadata: FetchPlatformMetadataUseCase,\n    private enrichMusicItem: EnrichMusicItemUseCase\n  ) {}\n\n  async execute(url: string): Promise\u003cLinkMetadataResult> {\n    const linkMetadata = await this.fetchPlatformMetadata.execute(url)\n    if ('error' in linkMetadata) return linkMetadata\n\n    if (linkMetadata.title && linkMetadata.artist) {\n      const musicItem = await this.enrichMusicItem.execute(\n        linkMetadata.title,\n        linkMetadata.artist,\n        linkMetadata.type,\n        // The hint only makes the enricher search again for better cover art.\n        // Platform artwork overwrites that result below, so passing the hint\n        // when we already have a thumbnail buys a round trip and nothing else.\n        linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName\n      )\n\n      if (musicItem) {\n        // Platform album names are more precise when MusicBrainz matches a compilation.\n        if (linkMetadata.albumName) {\n          musicItem.albumName = linkMetadata.albumName\n        }\n\n        // Prefer artwork supplied by the platform the user pasted.\n        if (linkMetadata.thumbnailUrl) {\n          musicItem.coverArt = linkMetadata.thumbnailUrl\n        }\n\n        return { musicItem, source: 'musicbrainz', linkMetadata }\n      }\n    }\n\n    return {\n      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),\n      source: 'link',\n      linkMetadata,\n    }\n  }\n\n  private createMusicItemFromLinkMetadata(metadata: LinkMetadata): MusicItem {\n    return new MusicItem({\n      id: `link-${Date.now()}`,\n      title: metadata.title || 'Unknown Title',\n      releaseDate: '',\n      artists: metadata.artist\n        ? metadata.artist\n            .split(',')\n            .map((a) => a.trim())\n            .filter(Boolean)\n        : [],\n      itemType: metadata.type,\n      coverArt: metadata.thumbnailUrl,\n      albumName:\n        metadata.albumName || (metadata.type === SearchType.album ? metadata.title : undefined),\n    })\n  }\n}\n","fetch":"import { type LinkParserPort } from '#application/ports/link_parser.port.js'\nimport { type PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'\nimport { isLinkParseError, type LinkMetadata, type LinkMetadataError } from '#domain/link.js'\n\n// Prototype: give the existing paste flow contextual metadata, not a new HTTP endpoint.\nexport class FetchPlatformMetadataUseCase {\n  constructor(\n    private linkParser: LinkParserPort,\n    private platformMetadata: PlatformMetadataPort\n  ) {}\n\n  async execute(url: string): Promise\u003cLinkMetadata | LinkMetadataError> {\n    const parseResult = this.linkParser.parseLink(url)\n\n    if (isLinkParseError(parseResult)) {\n      return { error: parseResult.error, originalUrl: parseResult.originalUrl }\n    }\n\n    const platformMetadata = await this.platformMetadata.fetch(parseResult)\n\n    if ('error' in platformMetadata) {\n      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl }\n    }\n\n    return {\n      title: platformMetadata.title,\n      artist: platformMetadata.artist,\n      type: parseResult.type,\n      thumbnailUrl: platformMetadata.thumbnailUrl,\n      originalUrl: parseResult.originalUrl,\n      albumName: platformMetadata.albumName,\n    }\n  }\n}\n","provider":"import type { ApplicationService } from '@adonisjs/core/types'\nimport { LinkParserPort } from '#application/ports/link_parser.port.js'\nimport { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'\nimport { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'\nimport { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'\nimport { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'\nimport { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'\nimport { FetchPlatformMetadataUseCase } from '#application/use-cases/fetch_platform_metadata.use_case.js'\n\nexport default class LinkProvider {\n  constructor(protected app: ApplicationService) {}\n\n  async boot() {\n    this.app.container.singleton(LinkParserPort, () => {\n      return this.app.container.make(LinkParserAdapter)\n    })\n\n    this.app.container.singleton(PlatformMetadataPort, () => {\n      return this.app.container.make(PlatformMetadataAdapter)\n    })\n\n    this.app.container.singleton(FetchPlatformMetadataUseCase, async () => {\n      const parser = await this.app.container.make(LinkParserPort)\n      const metadata = await this.app.container.make(PlatformMetadataPort)\n      return new FetchPlatformMetadataUseCase(parser, metadata)\n    })\n\n    this.app.container.singleton(ExtractLinkMetadataUseCase, async () => {\n      const fetch = await this.app.container.make(FetchPlatformMetadataUseCase)\n      const enrich = await this.app.container.make(EnrichMusicItemUseCase)\n      return new ExtractLinkMetadataUseCase(fetch, enrich)\n    })\n  }\n}\n"},"evidence":[{"scenario":"Track match","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":1},{"variant":"pr67","parse":2,"platform":1,"search":1},{"variant":"contextual","parse":1,"platform":1,"search":1}]},{"scenario":"No match","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":1},{"variant":"pr67","parse":2,"platform":1,"search":1},{"variant":"contextual","parse":1,"platform":1,"search":1}]},{"scenario":"Search offline","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":1},{"variant":"pr67","parse":2,"platform":1,"search":1},{"variant":"contextual","parse":1,"platform":1,"search":1}]},{"scenario":"Album fallback","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":1},{"variant":"pr67","parse":2,"platform":1,"search":1},{"variant":"contextual","parse":1,"platform":1,"search":1}]},{"scenario":"Missing artwork","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":2},{"variant":"pr67","parse":2,"platform":1,"search":2},{"variant":"contextual","parse":1,"platform":1,"search":2}]},{"scenario":"Missing artist","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":0},{"variant":"pr67","parse":2,"platform":1,"search":0},{"variant":"contextual","parse":1,"platform":1,"search":0}]},{"scenario":"Provider failure","equal":true,"calls":[{"variant":"before","parse":1,"platform":1,"search":0},{"variant":"pr67","parse":2,"platform":1,"search":0},{"variant":"contextual","parse":1,"platform":1,"search":0}]},{"scenario":"Invalid URL","equal":true,"calls":[{"variant":"before","parse":1,"platform":0,"search":0},{"variant":"pr67","parse":1,"platform":0,"search":0},{"variant":"contextual","parse":1,"platform":0,"search":0}]},{"scenario":"Unsupported site","equal":true,"calls":[{"variant":"before","parse":1,"platform":0,"search":0},{"variant":"pr67","parse":1,"platform":0,"search":0},{"variant":"contextual","parse":1,"platform":0,"search":0}]}],"counts":{"before":86,"after":66,"fetch":34,"providerBefore":28,"providerAfter":34}};
+const $ = (id) => document.getElementById(id);
+const labels = {before:'Current flow',pr67:'PR #67 unchanged',contextual:'Contextual result'};
+let selected = scenarios[0].id;
+let runs = [];
+const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
+function render() {
+  $('state').replaceChildren();
+  for (const run of runs) {
+    const panel = text('article',''); panel.className = 'run'; panel.append(text('h3',labels[run.variant]));
+    const result = run.result;
+    const fields = 'error' in result ? {Error:result.error,'Original URL':result.originalUrl} : {
+      Source:result.source, ID:result.musicItem.id, Title:result.musicItem.title,
+      Artists:result.musicItem.artists.join(', ') || '(none)', Type:result.musicItem.itemType,
+      Album:result.musicItem.albumName ?? '(none)', Artwork:result.musicItem.coverArt ?? '(none)',
+      'Release date':result.musicItem.releaseDate || '(unknown)', 'Original URL':result.linkMetadata.originalUrl,
+    };
+    const dl = document.createElement('dl');
+    for (const [key,value] of Object.entries(fields)) dl.append(text('dt',key),text('dd',String(value)));
+    panel.append(dl,text('p','Calls: parse '+run.calls.parse+' · platform '+run.calls.platform+' · search '+run.calls.search));
+    const details = document.createElement('details'); details.append(text('summary','Full result and call trace'),text('pre',JSON.stringify({result,trace:run.trace},null,2))); panel.append(details); $('state').append(panel);
+  }
+  $('status').textContent = runs.length === 0 ? 'Ready — no result yet.' : runs.length < 3 ? 'Current result observed. Run step 2 to compare.' : runs.every(run => JSON.stringify(run.result) === JSON.stringify(runs[0].result)) ? 'Same response in all three versions for this fixture.' : 'Responses differ — inspect results.';
+}
+function choose(id) {
+  selected = id; const scenario = scenarios.find(s => s.id === id);
+  $('scenario').value = id; $('url').value = scenario.url; $('description').textContent = scenario.description;
+  document.querySelectorAll('input[name=walkthrough]').forEach(input => input.checked = input.value === id);
+  runs = []; $('step2').disabled = true; render();
+}
+for (const scenario of scenarios) {
+  const option = text('option',scenario.label); option.value = scenario.id; $('scenario').append(option);
+  const label = document.createElement('label'); const input = document.createElement('input'); input.type = 'radio'; input.name = 'walkthrough'; input.value = scenario.id; input.addEventListener('change',() => choose(scenario.id)); label.append(input,document.createTextNode(scenario.label)); $('walkthroughs').append(label);
+}
+async function busy(action) {
+  const buttons = [$('compare'),$('step1'),$('step2'),$('reset')]; buttons.forEach(button => button.disabled = true);
+  try { await action(); render(); } catch(error) { $('status').textContent = 'Demo failed: '+error.message; }
+  finally { buttons.forEach(button => button.disabled = false); $('step2').disabled = runs.length !== 1; }
+}
+$('scenario').addEventListener('change',() => choose($('scenario').value));
+$('reset').addEventListener('click',() => choose(selected));
+$('compare').addEventListener('click',() => busy(async () => { runs = (await compareScenario(selected,$('url').value)).runs; }));
+$('step1').addEventListener('click',() => busy(async () => { runs = [await runScenario(selected,'before',$('url').value)]; }));
+$('step2').addEventListener('click',() => busy(async () => { for (const variant of ['pr67','contextual']) runs.push(await runScenario(selected,variant,$('url').value)); }));
+const rows = [['Extractor',data.counts.before,data.counts.after],['New use case',0,data.counts.fetch],['Provider wiring',data.counts.providerBefore,data.counts.providerAfter],['Total',data.counts.before+data.counts.providerBefore,data.counts.after+data.counts.fetch+data.counts.providerAfter]];
+for (const row of rows) { const tr = document.createElement('tr'); row.forEach(value => tr.append(text('td',String(value)))); $('counts').append(tr); }
+for (const [name,label] of [['before','Before: current extractor'],['originalFetch','PR #67: exact use case'],['asIs','Unchanged #67 reuse: extractor (two parsers)'],['after','Contextual variant: extractor (one call)'],['fetch','Contextual variant: new use case'],['provider','Contextual variant: extra provider registration']]) { const details = document.createElement('details'); details.append(text('summary',label),text('pre',data.sources[name])); $('sources').append(details); }
+$('evidence').textContent = JSON.stringify(data.evidence,null,2);
+choose(selected);
+</script></body></html>

@@ -1,37 +1,17 @@
 import { MusicItem, SearchType } from '#domain/music_item.js'
-import { isLinkParseError, type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'
-import { type LinkParserPort } from '#application/ports/link_parser.port.js'
-import { type PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import { type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'
+import { type FetchPlatformMetadataUseCase } from './fetch_platform_metadata.use_case.js'
 import { type EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'
 
 export class ExtractLinkMetadataUseCase {
   constructor(
-    private linkParser: LinkParserPort,
-    private platformMetadata: PlatformMetadataPort,
+    private fetchPlatformMetadata: FetchPlatformMetadataUseCase,
     private enrichMusicItem: EnrichMusicItemUseCase
   ) {}
 
   async execute(url: string): Promise<LinkMetadataResult> {
-    const parseResult = this.linkParser.parseLink(url)
-
-    if (isLinkParseError(parseResult)) {
-      return { error: parseResult.error, originalUrl: parseResult.originalUrl }
-    }
-
-    const platformMetadata = await this.platformMetadata.fetch(parseResult)
-
-    if ('error' in platformMetadata) {
-      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl }
-    }
-
-    const linkMetadata: LinkMetadata = {
-      title: platformMetadata.title,
-      artist: platformMetadata.artist,
-      type: parseResult.type,
-      thumbnailUrl: platformMetadata.thumbnailUrl,
-      originalUrl: parseResult.originalUrl,
-      albumName: platformMetadata.albumName,
-    }
+    const linkMetadata = await this.fetchPlatformMetadata.execute(url)
+    if ('error' in linkMetadata) return linkMetadata
 
     if (linkMetadata.title && linkMetadata.artist) {
       const musicItem = await this.enrichMusicItem.execute(

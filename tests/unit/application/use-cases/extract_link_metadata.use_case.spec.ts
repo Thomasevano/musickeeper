@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
 import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
+import { FetchPlatformMetadataUseCase } from '#application/use-cases/fetch_platform_metadata.use_case.js'
 import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
 import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
 import { SearchPort } from '#application/ports/search.port.js'
@@ -59,8 +60,7 @@ class MockSearchPort extends SearchPort {
 function makeUseCase(search: MockSearchPort = new MockSearchPort()): ExtractLinkMetadataUseCase {
   const enrich = new EnrichMusicItemUseCase(search)
   return new ExtractLinkMetadataUseCase(
-    new LinkParserAdapter(),
-    new PlatformMetadataAdapter(),
+    new FetchPlatformMetadataUseCase(new LinkParserAdapter(), new PlatformMetadataAdapter()),
     enrich
   )
 }
