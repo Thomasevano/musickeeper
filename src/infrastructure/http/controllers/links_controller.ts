@@ -6,7 +6,7 @@ import { SearchType } from '#domain/music_item.js'
 
 const indexQueryValidator = vine.compile(
   vine.object({
-    mbid: vine.string().uuid(),
+    mbid: vine.string().uuid().optional(),
     type: vine.enum(['album', 'track']),
     sourceUrl: vine.string().url().optional(),
     artists: vine.string().optional(),
