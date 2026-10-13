@@ -15,13 +15,10 @@
   import { trackQualifyingActivity } from '~/lib/analytics'
   import { appFetch } from '~/lib/app_update.svelte'
   import { registerUnsavedWork, trackWrite } from '~/lib/reload_guard'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName, findDuplicate } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/domain/link'
-  import {
-    listenLaterStorage,
-  } from '../../src/infrastructure/storage/listen_later_storage'
+  import { type ExternalLink, ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
+  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
+  import { detectPlatform } from '../../src/shared/platform_registry'
 
   let {
     serializedItems = [],
@@ -58,9 +55,9 @@
   let isDialogLoading = $state(false)
   let dialogError = $state<string | null>(null)
   let pendingMusicItem = $state<MusicItem | null>(null)
-  let pendingLinkMetadata = $state<LinkMetadata | null>(null)
-  let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
-  let existingDuplicate = $state<ListenLaterItem | null>(null)
+  let pendingSourceUrl = $state<string | undefined>()
+  let isSaving = $state(false)
+  let platformController: AbortController | null = null
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
@@ -72,7 +69,7 @@
   let titleInputEl = $state<HTMLInputElement | null>(null)
 
   $effect(() => registerUnsavedWork(() =>
-    !!(searchTerm || artistName || linkUrl || isConfirmDialogOpen || pendingMusicItem || pendingLinkMetadata)
+    !!(searchTerm || artistName || linkUrl || isConfirmDialogOpen || pendingMusicItem || pendingSourceUrl)
   ))
 
   const debouncedSearch = new Debounced(() => searchTerm, 300)
@@ -170,24 +167,9 @@
     }
   })
 
-  // Scroll to highlighted item and auto-clear after 3s
+  // Clear the temporary highlight.
   $effect(() => {
     if (!highlightedItemId) return
-
-    const mobileItem = document.getElementById(`mobile-item-${highlightedItemId}`)
-    const desktopItem = document.getElementById(`item-${highlightedItemId}`)
-    // Both representations exist; CSS removes the hidden breakpoint variant from layout.
-    const element = mobileItem?.getClientRects().length ? mobileItem : desktopItem
-    if (element) {
-      // An explicit `smooth` overrides the CSS scroll-behavior, so the
-      // preference has to be honoured here rather than in a stylesheet.
-      element.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? 'auto'
-          : 'smooth',
-        block: 'center',
-      })
-    }
 
     const timeout = setTimeout(() => {
       highlightedItemId = null
@@ -281,138 +263,119 @@
   }
 
   async function fetchLinkMetadata() {
+    platformController?.abort()
+    const controller = new AbortController()
+    platformController = controller
+    const sourceUrl = linkUrl.trim()
     isDialogLoading = true
     dialogError = null
     isProcessingLink = true
-
     try {
-      const response = await appFetch('/api/link/metadata', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: linkUrl }),
+      const response = await appFetch('/api/platform-metadata', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl }), signal: controller.signal,
       })
-
       const data = await response.json()
-
+      if (controller.signal.aborted || platformController !== controller) return
       if (!response.ok) {
         dialogError = data.error || 'Failed to fetch metadata'
         return
       }
-
-      // Check for duplicate before showing confirmation dialog
-      const title = data.musicItem?.title || data.linkMetadata?.title || ''
-      const artists =
-        data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
-      const duplicate = findDuplicate(listenLaterItems, title, artists)
-
-      // Update dialog with fetched data
-      pendingMusicItem = data.musicItem
-      pendingLinkMetadata = data.linkMetadata
-      pendingSource = data.source
-      existingDuplicate = duplicate
-    } catch (error) {
-      dialogError = 'Failed to connect to server. Please check your internet connection.'
-      console.error('Error fetching link metadata:', error)
+      pendingMusicItem = new MusicItem(data.musicItem)
+      pendingSourceUrl = data.linkMetadata.originalUrl
+    } catch {
+      if (!controller.signal.aborted && platformController === controller) {
+        dialogError = 'Failed to connect to server. Please check your internet connection.'
+      }
     } finally {
-      isDialogLoading = false
-      isProcessingLink = false
+      if (platformController === controller) {
+        isDialogLoading = false
+        isProcessingLink = false
+      }
     }
   }
 
   function handleRetry() {
-    fetchLinkMetadata()
+    void fetchLinkMetadata()
   }
 
-  async function fetchExternalLinks(
-    mbid: string,
-    itemType: SearchType,
-    sourceUrl?: string
-  ): Promise<ExternalLink[]> {
+  async function backfillExternalLinks(item: ListenLaterItem) {
+    let links: ExternalLink[]
     try {
       const params = new URLSearchParams({
-        mbid,
-        type: itemType === SearchType.album ? 'album' : 'track',
-        locale: navigator.language || 'fr-FR',
+        type: item.itemType, locale: navigator.language || 'fr-FR',
+        title: item.title,
       })
-      if (sourceUrl) params.set('sourceUrl', sourceUrl)
-      if (pendingMusicItem) {
-        if (pendingMusicItem.artists?.length) params.set('artists', pendingMusicItem.artists.join(','))
-        if (pendingMusicItem.title) params.set('title', pendingMusicItem.title)
-      }
-      const response = await appFetch(`/api/links?${params.toString()}`)
-      if (!response.ok) return []
-      const data = await response.json()
-      return data.externalLinks ?? []
+      for (const artist of item.artists) params.append('artists[]', artist)
+      if (item.musicBrainzId) params.set('mbid', item.musicBrainzId)
+      if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl)
+      const response = await appFetch(`/api/links?${params}`, { signal: AbortSignal.timeout(10_000) })
+      if (!response.ok) return
+      links = (await response.json()).externalLinks ?? []
     } catch {
-      return []
+      // Saving succeeds independently of optional external provider lookups.
+      return
     }
+    const updated = await listenLaterStorage.updateExternalLinks(item.id, links)
+    if (updated) listenLaterItems = listenLaterItems.map((existing) => existing.id === updated.id ? updated : existing)
   }
 
-  async function handleConfirmDialogConfirm(
-    itemType: SearchType,
-    title: string,
-    artists: string[],
-    albumName: string
-  ) {
-    if (!pendingMusicItem) return
-    const musicItem = pendingMusicItem
-
+  async function handleConfirmDialogConfirm(item: MusicItem, musicBrainzId?: string) {
+    if (isSaving || !pendingMusicItem) return
+    isSaving = true
+    dialogError = null
     try {
-      const stored = await trackWrite(async () => {
-        const externalLinks = await fetchExternalLinks(musicItem.id, itemType, linkUrl || undefined)
-        return listenLaterStorage.add({
-          id: musicItem.id,
-          title,
-          releaseDate: musicItem.releaseDate,
-          length: musicItem.length,
-          artists,
-          albumName,
-          itemType,
-          coverArt: musicItem.coverArt,
-          sourceUrl: linkUrl || undefined,
-          externalLinks,
-        })
-      })
+      const platform = pendingSourceUrl ? detectPlatform(pendingSourceUrl) : undefined
+      const stored = await trackWrite(() => listenLaterStorage.add({ ...item, musicBrainzId,
+        sourceUrl: pendingSourceUrl, externalLinks: platform && pendingSourceUrl ? [{ platform: platform.id, label: platform.label, category: platform.category, url: pendingSourceUrl, source: 'source-url' }] : [],
+      }))
       trackQualifyingActivity('item_saved')
-
-      // ponytail: appending assumes the store's oldest-first order, which puts a
-      // new item last. If that default order ever changes, replace this with a
-      // getAll().
       listenLaterItems = [...listenLaterItems, stored]
-
       isConfirmDialogOpen = false
       resetPendingState()
       linkUrl = ''
-
       toast.success(`${musicItemName(stored)} added to your list`)
+      void trackWrite(() => backfillExternalLinks(stored)).catch((error) =>
+        console.error('Error saving external links:', error)
+      )
     } catch (error) {
       console.error('Error saving item to listen later list:', error)
       dialogError = 'Failed to save item. Please try again.'
+    } finally {
+      isSaving = false
     }
   }
 
   function handleConfirmDialogCancel() {
+    if (isSaving) return
     isConfirmDialogOpen = false
     resetPendingState()
   }
 
   function resetPendingState() {
+    platformController?.abort()
+    platformController = null
     pendingMusicItem = null
-    pendingLinkMetadata = null
-    pendingSource = null
-    existingDuplicate = null
+    pendingSourceUrl = undefined
     dialogError = null
     isDialogLoading = false
+    isProcessingLink = false
   }
 
-  function handleViewExisting() {
-    if (existingDuplicate) {
-      isConfirmDialogOpen = false
-      highlightedItemId = existingDuplicate.id
-      resetPendingState()
-    }
+  function handleViewExisting(item: ListenLaterItem) {
+    highlightedItemId = item.id
+    // Both representations exist; CSS removes the hidden breakpoint variant from layout.
+    const mobileItem = document.getElementById(`mobile-item-${item.id}`)
+    const desktopItem = document.getElementById(`item-${item.id}`)
+    const element = mobileItem?.getClientRects().length ? mobileItem : desktopItem
+    if (!element?.getClientRects().length) return false
+
+    element.focus({ preventScroll: true })
+    element.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center',
+    })
+    return document.activeElement === element
   }
 </script>
 
@@ -611,9 +574,8 @@
   isLoading={isDialogLoading}
   error={dialogError}
   musicItem={pendingMusicItem}
-  linkMetadata={pendingLinkMetadata}
-  source={pendingSource}
-  existingItem={existingDuplicate}
+  {isSaving}
+  {listenLaterItems}
   onConfirm={handleConfirmDialogConfirm}
   onCancel={handleConfirmDialogCancel}
   onViewExisting={handleViewExisting}

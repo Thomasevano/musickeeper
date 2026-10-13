@@ -1,10 +1,10 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import { LinkParserPort } from '#application/ports/link_parser.port.js'
 import { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import { SearchPort } from '#application/ports/search.port.js'
 import { LinkParserAdapter } from '#infrastructure/adapters/link_parser.adapter.js'
 import { PlatformMetadataAdapter } from '#infrastructure/adapters/platform_metadata.adapter.js'
 import { ExtractLinkMetadataUseCase } from '#application/use-cases/extract_link_metadata.use_case.js'
-import { EnrichMusicItemUseCase } from '#application/use-cases/enrich_music_item.use_case.js'
 import { FetchPlatformMetadataUseCase } from '#application/use-cases/fetch_platform_metadata.use_case.js'
 
 export default class LinkProvider {
@@ -22,8 +22,8 @@ export default class LinkProvider {
     this.app.container.singleton(ExtractLinkMetadataUseCase, async () => {
       const parser = await this.app.container.make(LinkParserPort)
       const metadata = await this.app.container.make(PlatformMetadataPort)
-      const enrich = await this.app.container.make(EnrichMusicItemUseCase)
-      return new ExtractLinkMetadataUseCase(parser, metadata, enrich)
+      const search = await this.app.container.make(SearchPort)
+      return new ExtractLinkMetadataUseCase(parser, metadata, search)
     })
 
     this.app.container.singleton(FetchPlatformMetadataUseCase, async () => {

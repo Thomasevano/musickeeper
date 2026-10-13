@@ -25,6 +25,7 @@ export class PlatformMetadataAdapter extends PlatformMetadataPort {
     return {
       title: result.title,
       artist: result.author_name,
+      artists: result.artists ?? (result.author_name ? [result.author_name] : []),
       thumbnailUrl: result.thumbnail_url,
       albumName: result.album_name,
     }

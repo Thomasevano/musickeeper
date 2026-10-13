@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import {
+  heldRoute,
   listenLaterSeed,
   mockMetadataResponse,
   seedListenLaterItems,
@@ -88,7 +89,7 @@ test('cancelling a keyboard-requested reload retains unfinished input and restor
 })
 
 test('metadata detection respects the open addition dialog', async ({ page }) => {
-  await page.route('**/api/link/metadata', (route) =>
+  await page.route('**/api/platform-metadata', (route) =>
     route.fulfill({
       json: mockMetadataResponse,
       headers: { 'X-App-Version': changedVersion },
@@ -111,6 +112,57 @@ test('metadata detection respects the open addition dialog', async ({ page }) =>
   }
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(reloadButton(page)).toBeVisible()
+})
+
+test('guarded reload waits for pasted item links without delaying Save', async ({ page }) => {
+  await page.route('**/api/platform-metadata', (route) =>
+    route.fulfill({ json: mockMetadataResponse })
+  )
+  const finishLinks = await heldRoute(page, (url) => url.pathname === '/api/links')
+  await page.goto('/library/listen-later')
+  await detectUpdate(page)
+  await page.getByRole('textbox', { name: 'Music link URL' }).fill(SPOTIFY_URL)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Add to List' }).click()
+  const item = page.getByRole('row').filter({ hasText: mockMetadataResponse.musicItem.title })
+  await expect(item).toBeVisible()
+  await reloadButton(page).click()
+  await expect(page.getByRole('button', { name: 'Preparing update…', exact: true })).toBeVisible()
+
+  const url = 'https://music.apple.com/us/album/example/123'
+  const navigation = page.waitForEvent(
+    'framenavigated',
+    (frame) => frame === page.mainFrame() && new URL(frame.url()).searchParams.has('__mk_update')
+  )
+  finishLinks({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      externalLinks: [{ platform: 'apple-music', category: 'stream', label: 'Apple Music', url }],
+    }),
+  })
+  await navigation
+  await expect(item.getByRole('link', { name: 'Apple Music' })).toHaveAttribute('href', url)
+})
+
+test('guarded reload keeps the saved source when the External Links lookup stalls', async ({
+  page,
+}) => {
+  await mockMetadataRoute(page)
+  // Leave this request unanswered, even after the user asks to reload.
+  await page.route('**/api/links?**', () => {})
+  await page.goto('/library/listen-later')
+  await detectUpdate(page)
+  await page.getByRole('textbox', { name: 'Music link URL' }).fill(SPOTIFY_URL)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  const lookup = page.waitForRequest((request) => new URL(request.url()).pathname === '/api/links')
+  await page.getByRole('button', { name: 'Add to List' }).click()
+  await lookup
+  const item = page.getByRole('row').filter({ hasText: mockMetadataResponse.musicItem.title })
+  await expect(item).toBeVisible()
+  await reloadButton(page).click()
+  await page.waitForURL((url) => url.searchParams.has('__mk_update'), { timeout: 15_000 })
+  await expect(item.getByRole('link', { name: 'Spotify' })).toHaveAttribute('href', SPOTIFY_URL)
 })
 
 test('a pending transaction must commit before reload confirmation can proceed', async ({

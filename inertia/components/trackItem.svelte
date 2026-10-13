@@ -28,7 +28,7 @@
         type: item.itemType === SearchType.album ? 'album' : 'track',
         locale: navigator.language || 'fr-FR',
       })
-      if (item.artists?.length) params.set('artists', item.artists.join(','))
+      for (const artist of item.artists) params.append('artists[]', artist)
       if (item.title) params.set('title', item.title)
       const response = await appFetch(`/api/links?${params.toString()}`)
       if (!response.ok) return []

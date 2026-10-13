@@ -1,86 +1,103 @@
+import type { LinkParserPort } from '#application/ports/link_parser.port.js'
+import type { PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import type { SearchPort } from '#application/ports/search.port.js'
+import { isLinkParseError, type LinkMetadata, type LinkParseError } from '#domain/link.js'
 import { MusicItem, SearchType } from '#domain/music_item.js'
-import { isLinkParseError, type LinkMetadata, type LinkMetadataResult } from '#domain/link.js'
-import { type LinkParserPort } from '#application/ports/link_parser.port.js'
-import { type PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
-import { type EnrichMusicItemUseCase } from './enrich_music_item.use_case.js'
 
+type LegacyLinkMetadata = Omit<LinkMetadata, 'platform'>
+type LegacyLinkMetadataResult =
+  | {
+      musicItem: MusicItem
+      source: 'musicbrainz' | 'link'
+      linkMetadata: LegacyLinkMetadata
+    }
+  | LinkParseError
+
+/** Automatic matching for tabs still running the pre-review paste flow. */
 export class ExtractLinkMetadataUseCase {
   constructor(
     private linkParser: LinkParserPort,
     private platformMetadata: PlatformMetadataPort,
-    private enrichMusicItem: EnrichMusicItemUseCase
+    private search: SearchPort
   ) {}
 
-  async execute(url: string): Promise<LinkMetadataResult> {
-    const parseResult = this.linkParser.parseLink(url)
+  async execute(url: string): Promise<LegacyLinkMetadataResult> {
+    const parsedLink = this.linkParser.parseLink(url)
+    if (isLinkParseError(parsedLink)) return parsedLink
 
-    if (isLinkParseError(parseResult)) {
-      return { error: parseResult.error, originalUrl: parseResult.originalUrl }
+    const platform = await this.platformMetadata.fetch(parsedLink)
+    const { type, originalUrl } = parsedLink
+    if ('error' in platform) return { error: platform.error, originalUrl }
+
+    const { title, artist, thumbnailUrl, albumName } = platform
+    const linkMetadata: LegacyLinkMetadata = {
+      title,
+      artist,
+      type,
+      originalUrl,
+      thumbnailUrl,
+      albumName,
     }
+    const match = title && artist ? await this.findMatch(title, artist, type) : undefined
 
-    const platformMetadata = await this.platformMetadata.fetch(parseResult)
-
-    if ('error' in platformMetadata) {
-      return { error: platformMetadata.error, originalUrl: parseResult.originalUrl }
-    }
-
-    const linkMetadata: LinkMetadata = {
-      title: platformMetadata.title,
-      artist: platformMetadata.artist,
-      type: parseResult.type,
-      thumbnailUrl: platformMetadata.thumbnailUrl,
-      originalUrl: parseResult.originalUrl,
-      albumName: platformMetadata.albumName,
-    }
-
-    if (linkMetadata.title && linkMetadata.artist) {
-      const musicItem = await this.enrichMusicItem.execute(
-        linkMetadata.title,
-        linkMetadata.artist,
-        linkMetadata.type,
-        // The hint only makes the enricher search again for better cover art.
-        // Platform artwork overwrites that result below, so passing the hint
-        // when we already have a thumbnail buys a round trip and nothing else.
-        linkMetadata.thumbnailUrl ? undefined : linkMetadata.albumName
-      )
-
-      if (musicItem) {
-        // Platform album names are more precise when MusicBrainz matches a compilation.
-        if (linkMetadata.albumName) {
-          musicItem.albumName = linkMetadata.albumName
-        }
-
-        // Prefer artwork supplied by the platform the user pasted.
-        if (linkMetadata.thumbnailUrl) {
-          musicItem.coverArt = linkMetadata.thumbnailUrl
-        }
-
-        return { musicItem, source: 'musicbrainz', linkMetadata }
+    if (match) {
+      // Prefer the pasted release's art and name over a MusicBrainz compilation.
+      if (thumbnailUrl) {
+        match.coverArt = thumbnailUrl
+      } else if (albumName && match.albumName !== albumName) {
+        const primaryArtist = artist.split(',', 1)[0].trim()
+        const coverArt = await this.findAlbumCoverArt(albumName, primaryArtist, match.releaseDate)
+        if (coverArt) match.coverArt = coverArt
       }
+      if (albumName) match.albumName = albumName
+      return { musicItem: match, source: 'musicbrainz', linkMetadata }
     }
 
     return {
-      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata),
+      musicItem: new MusicItem({
+        // Old tabs store MusicBrainz IDs as item keys; keep unmatched keys clearly distinct.
+        id: `link-${Date.now()}`,
+        title: title || 'Unknown Title',
+        releaseDate: '',
+        artists: artist
+          ? artist
+              .split(',')
+              .map((name) => name.trim())
+              .filter(Boolean)
+          : [],
+        itemType: type,
+        coverArt: thumbnailUrl,
+        albumName: albumName || (type === SearchType.album ? title : undefined),
+      }),
       source: 'link',
       linkMetadata,
     }
   }
 
-  private createMusicItemFromLinkMetadata(metadata: LinkMetadata): MusicItem {
-    return new MusicItem({
-      id: `link-${Date.now()}`,
-      title: metadata.title || 'Unknown Title',
-      releaseDate: '',
-      artists: metadata.artist
-        ? metadata.artist
-            .split(',')
-            .map((a) => a.trim())
-            .filter(Boolean)
-        : [],
-      itemType: metadata.type,
-      coverArt: metadata.thumbnailUrl,
-      albumName:
-        metadata.albumName || (metadata.type === SearchType.album ? metadata.title : undefined),
-    })
+  private async findMatch(title: string, artist: string, type: SearchType) {
+    try {
+      // MusicBrainz titles omit featured-artist annotations.
+      const cleanTitle = title.replace(/\s*\(feat\..*?\)/i, '').trim()
+      const [match] = await this.search.searchItem(cleanTitle, type, artist)
+      return match
+    } catch {
+      return undefined
+    }
+  }
+
+  private async findAlbumCoverArt(albumName: string, artist: string, releaseDate: string) {
+    try {
+      const releases = await this.search.searchItem(albumName, SearchType.album, artist)
+      const year = releaseDate ? releaseDate.slice(0, 4) : null
+      let firstCover: string | undefined
+      for (const release of releases) {
+        if (!release.coverArt) continue
+        if (release.releaseDate?.slice(0, 4) === year) return release.coverArt
+        firstCover ??= release.coverArt
+      }
+      return firstCover
+    } catch {
+      return undefined
+    }
   }
 }

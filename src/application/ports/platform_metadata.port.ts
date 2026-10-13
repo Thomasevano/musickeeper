@@ -3,6 +3,7 @@ import type { ParsedLink } from '#domain/link.js'
 export interface PlatformMetadata {
   title: string
   artist: string
+  artists: string[]
   thumbnailUrl?: string
   albumName?: string
 }

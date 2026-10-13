@@ -10,16 +10,21 @@ test.group('PlatformMetadataAdapter', (group) => {
     globalThis.fetch = originalFetch
   })
 
-  test('maps oEmbed wire fields to application metadata', async ({ assert }) => {
-    globalThis.fetch = async () =>
-      new Response(
+  test('keeps an unstructured oEmbed author as a single artist credit', async ({ assert }) => {
+    globalThis.fetch = async (input) => {
+      if (input.toString() === 'https://open.spotify.com/embed/track/track-id') {
+        return new Response(null, { status: 503 })
+      }
+
+      return new Response(
         JSON.stringify({
           title: 'Song',
-          author_name: 'Artist',
+          author_name: 'Artist, Jr. & Family',
           thumbnail_url: 'https://covers.example/song.jpg',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
+    }
 
     const result = await new PlatformMetadataAdapter().fetch({
       platform: StreamingPlatform.Spotify,
@@ -30,7 +35,8 @@ test.group('PlatformMetadataAdapter', (group) => {
 
     assert.deepEqual(result, {
       title: 'Song',
-      artist: 'Artist',
+      artist: 'Artist, Jr. & Family',
+      artists: ['Artist, Jr. & Family'],
       thumbnailUrl: 'https://covers.example/song.jpg',
       albumName: undefined,
     })

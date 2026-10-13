@@ -1,13 +1,16 @@
+import { randomUUID } from 'node:crypto'
 import { type LinkParserPort } from '#application/ports/link_parser.port.js'
-import {
-  type PlatformMetadataPort,
-  type PlatformMetadata,
-} from '#application/ports/platform_metadata.port.js'
-import { isLinkParseError } from '#domain/link.js'
+import { type PlatformMetadataPort } from '#application/ports/platform_metadata.port.js'
+import { isLinkParseError, type LinkMetadata, type LinkMetadataSuccess } from '#domain/link.js'
+import { MusicItem, SearchType } from '#domain/music_item.js'
 
-export type FetchPlatformMetadataResult =
-  | PlatformMetadata
-  | { error: string; kind: 'validation' | 'platform' }
+export type FetchPlatformMetadataError = {
+  error: string
+  originalUrl: string
+  kind: 'validation' | 'platform'
+}
+
+export type FetchPlatformMetadataResult = LinkMetadataSuccess | FetchPlatformMetadataError
 
 export class FetchPlatformMetadataUseCase {
   constructor(
@@ -18,10 +21,49 @@ export class FetchPlatformMetadataUseCase {
   async execute(url: string): Promise<FetchPlatformMetadataResult> {
     const parsedLink = this.linkParser.parseLink(url)
     if (isLinkParseError(parsedLink)) {
-      return { error: parsedLink.error, kind: 'validation' }
+      return { ...parsedLink, kind: 'validation' }
     }
 
-    const result = await this.platformMetadata.fetch(parsedLink)
-    return 'error' in result ? { ...result, kind: 'platform' } : result
+    const platformMetadata = await this.platformMetadata.fetch(parsedLink)
+    if ('error' in platformMetadata) {
+      return {
+        error: platformMetadata.error,
+        originalUrl: parsedLink.originalUrl,
+        kind: 'platform',
+      }
+    }
+
+    const linkMetadata: LinkMetadata = {
+      title: platformMetadata.title,
+      artist: platformMetadata.artist,
+      type: parsedLink.type,
+      platform: parsedLink.platform,
+      originalUrl: parsedLink.originalUrl,
+      ...(platformMetadata.thumbnailUrl === undefined
+        ? {}
+        : { thumbnailUrl: platformMetadata.thumbnailUrl }),
+      ...(platformMetadata.albumName === undefined
+        ? {}
+        : { albumName: platformMetadata.albumName }),
+    }
+
+    return {
+      musicItem: this.createMusicItemFromLinkMetadata(linkMetadata, platformMetadata.artists),
+      source: 'link',
+      linkMetadata,
+    }
+  }
+
+  private createMusicItemFromLinkMetadata(metadata: LinkMetadata, artists: string[]): MusicItem {
+    return new MusicItem({
+      id: randomUUID(),
+      title: metadata.title || 'Unknown Title',
+      releaseDate: '',
+      artists,
+      itemType: metadata.type,
+      coverArt: metadata.thumbnailUrl,
+      albumName:
+        metadata.albumName || (metadata.type === SearchType.album ? metadata.title : undefined),
+    })
   }
 }

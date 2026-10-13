@@ -72,55 +72,66 @@ test.group('External links', () => {
     })
   })
 
-  test('accepts unmatched items and retains original source and platform-search links', async ({
+  test('rejects an artist map instead of an artist credit or array', async ({ client }) => {
+    const query = new URLSearchParams({ 'type': 'track', 'artists[name]': 'Tyler, the Creator' })
+    const response = await client.get(`/api/links?${query}`)
+
+    response.assertStatus(422)
+    response.assertBodyContains({
+      errors: [{ field: 'artists', rule: 'unionOfTypes' }],
+    })
+  })
+
+  test('matches legacy scalar and array collaborations without splitting a literal array credit', async ({
     client,
     assert,
     cleanup,
   }) => {
-    let musicBrainzCalls = 0
-    class Catalog extends MusicBrainzExternalLinksPort {
-      async fetchExternalLinks() {
-        musicBrainzCalls++
-        return []
-      }
-    }
-    class Platforms extends PlatformSearchPort {
-      async search() {
-        return [
-          {
-            platform: 'qobuz',
-            label: 'Qobuz',
-            category: 'buy' as const,
-            url: 'https://www.qobuz.com/fr-fr/album/song/1',
-            source: 'platform-search' as const,
-          },
-        ]
-      }
-    }
-    app.container.swap(
-      GetExternalLinksUseCase,
-      () => new GetExternalLinksUseCase(new Catalog(), new Platforms())
-    )
-    cleanup(() => app.container.restore(GetExternalLinksUseCase))
     const sourceUrl = 'https://open.spotify.com/track/original'
-    const response = await client
-      .get('/api/links')
-      .qs({ type: 'track', title: 'Song', artists: 'Artist', sourceUrl })
-    response.assertStatus(200)
+    const deezerUrl = 'https://www.deezer.com/track/1'
+    const originalFetch = globalThis.fetch
+    let musicBrainzCalls = 0
+    globalThis.fetch = async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      if (url.hostname === 'musicbrainz.org') musicBrainzCalls++
+      if (url.hostname === 'api.deezer.com' && url.pathname === '/search') {
+        return Response.json({
+          data: [{ title: 'Song', artist: { name: 'DJ The Creator' }, link: deezerUrl }],
+        })
+      }
+      return new Response(null, { status: 404 })
+    }
+    cleanup(() => {
+      globalThis.fetch = originalFetch
+    })
+
+    const scalar = new URLSearchParams({ artists: 'Tyler, The Creator' })
+    const collaboration = new URLSearchParams([
+      ['artists[]', 'Tyler'],
+      ['artists[]', 'The Creator'],
+    ])
+    const literal = new URLSearchParams({ 'artists[]': 'Tyler, The Creator' })
+
+    for (const { query, expectedUrls } of [
+      { query: scalar, expectedUrls: [sourceUrl, deezerUrl] },
+      { query: collaboration, expectedUrls: [sourceUrl, deezerUrl] },
+      { query: literal, expectedUrls: [sourceUrl] },
+    ]) {
+      query.set('type', 'track')
+      query.set('title', 'Song')
+      query.set('sourceUrl', sourceUrl)
+      const response = await client.get(`/api/links?${query}`)
+      response.assertStatus(200)
+      assert.sameMembers(
+        response.body().externalLinks.map((link: { url: string }) => link.url),
+        expectedUrls,
+        query.toString()
+      )
+    }
     assert.equal(musicBrainzCalls, 0)
-    assert.sameDeepMembers(
-      response.body().externalLinks.map((link: { platform: string; url: string }) => ({
-        platform: link.platform,
-        url: link.url,
-      })),
-      [
-        { platform: 'qobuz', url: 'https://www.qobuz.com/fr-fr/album/song/1' },
-        { platform: 'spotify', url: sourceUrl },
-      ]
-    )
   })
 
-  test('matched links retain the source and distinct catalog relation on the same platform', async ({
+  test('matched links retain distinct same-platform links and pass each artist credit intact', async ({
     client,
     assert,
     cleanup,
@@ -129,6 +140,7 @@ test.group('External links', () => {
     const sourceUrl = 'https://open.spotify.com/track/original'
     const catalogUrl = 'https://open.spotify.com/track/matched'
     let requestedId: string | undefined
+    let requestedArtists: string[] | undefined
     class Catalog extends MusicBrainzExternalLinksPort {
       async fetchExternalLinks(id: string) {
         requestedId = id
@@ -144,7 +156,8 @@ test.group('External links', () => {
       }
     }
     class Platforms extends PlatformSearchPort {
-      async search() {
+      async search(artists: string[]) {
+        requestedArtists = artists
         return []
       }
     }
@@ -153,11 +166,13 @@ test.group('External links', () => {
       () => new GetExternalLinksUseCase(new Catalog(), new Platforms())
     )
     cleanup(() => app.container.restore(GetExternalLinksUseCase))
-    const response = await client
-      .get('/api/links')
-      .qs({ mbid, type: 'track', title: 'Song', artists: 'Artist', sourceUrl })
+    const query = new URLSearchParams({ mbid, type: 'track', title: 'Song', sourceUrl })
+    query.append('artists[]', 'Tyler, the Creator')
+    query.append('artists[]', 'Earth, Wind & Fire')
+    const response = await client.get(`/api/links?${query}`)
     response.assertStatus(200)
     assert.equal(requestedId, mbid)
+    assert.deepEqual(requestedArtists, ['Tyler, the Creator', 'Earth, Wind & Fire'])
     assert.sameDeepMembers(
       response.body().externalLinks.map((link: { url: string }) => link.url),
       [sourceUrl, catalogUrl]

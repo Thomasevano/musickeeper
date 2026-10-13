@@ -18,7 +18,7 @@ export async function fetchYouTubeMetadata(parsedLink: ParsedLink): Promise<Fetc
   )
   if ('error' in result || !result.author_name.endsWith('- Topic')) return result
 
-  const htmlMetadata = await fetchYouTubeHtmlMetadata(parsedLink.originalUrl)
+  const htmlMetadata = await fetchYouTubeHtmlMetadata(parsedLink.originalUrl, result.title)
   if (htmlMetadata) {
     result.author_name = htmlMetadata.artist
     result.album_name = htmlMetadata.albumName
@@ -27,7 +27,10 @@ export async function fetchYouTubeMetadata(parsedLink: ParsedLink): Promise<Fetc
   return result
 }
 
-async function fetchYouTubeHtmlMetadata(originalUrl: string): Promise<ArtistAlbumMetadata | null> {
+async function fetchYouTubeHtmlMetadata(
+  originalUrl: string,
+  title: string
+): Promise<ArtistAlbumMetadata | null> {
   try {
     const url = new URL(originalUrl)
     url.hostname = 'www.youtube.com'
@@ -38,7 +41,7 @@ async function fetchYouTubeHtmlMetadata(originalUrl: string): Promise<ArtistAlbu
     if (!response.ok) return null
 
     const html = await response.text()
-    return parseYouTubeDescription(html)
+    return parseYouTubeDescription(html, title)
   } catch {
     return null
   }
@@ -92,7 +95,7 @@ function parsePlaylistOGTags(html: string): FetchResult {
   return { title, author_name: artist, thumbnail_url: ogImage }
 }
 
-function parseYouTubeDescription(html: string): ArtistAlbumMetadata | null {
+function parseYouTubeDescription(html: string, title: string): ArtistAlbumMetadata | null {
   const match = html.match(/var ytInitialPlayerResponse\s*=\s*(\{.+?\});/)
   if (!match) {
     const ogDescription = getMetaContent(html, 'og:description')
@@ -113,11 +116,10 @@ function parseYouTubeDescription(html: string): ArtistAlbumMetadata | null {
       return ogDescription ? { artist: ogDescription.trim() } : null
     }
 
-    // Line 2: "{title} · {artist1} · {artist2} · ..."
-    const titleArtistLine = lines[1]
-    if (!titleArtistLine?.includes(' \u00B7 ')) return null
+    const titlePrefix = `${title} · `
+    if (!lines[1]?.startsWith(titlePrefix)) return null
 
-    const artist = titleArtistLine.split(' \u00B7 ').slice(1).join(', ').trim()
+    const artist = lines[1].slice(titlePrefix.length)
 
     // Line 3: "{album}"
     const albumLine = lines[2]

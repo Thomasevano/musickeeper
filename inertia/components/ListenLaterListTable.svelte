@@ -449,10 +449,11 @@
                HTML elements, not components. Classes mirror table-row.svelte exactly. -->
           <tr
             id={`item-${row.original.id}`}
+            tabindex="-1"
             data-slot="table-row"
             data-state={highlightedItemId === row.original.id ? 'highlighted' : undefined}
             class={[
-              'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors',
+              'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
               highlightedItemId === row.original.id ? 'bg-warning/20' : '',
             ].join(' ')}
             in:rowIn
@@ -497,8 +498,9 @@
     {#each table.getRowModel().rows as row (row.original.id)}
       <article
         id={`mobile-item-${row.original.id}`}
+        tabindex="-1"
         class={[
-          'rounded-xl border bg-card p-3 shadow-sm',
+          'rounded-xl border bg-card p-3 shadow-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
           highlightedItemId === row.original.id ? 'bg-warning/20' : '',
         ].join(' ')}
       >
