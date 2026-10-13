@@ -1,87 +1,148 @@
 <script lang="ts">
+  import { tick, untrack } from 'svelte'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
   import { Select } from '$lib/components/ui/select/index.js'
   import { Badge } from '$lib/components/ui/badge/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import Skeleton from 'boneyard-js/svelte'
   import CoverArt from '~/components/CoverArt.svelte'
-  import { AlertTriangle, Copy, RefreshCw, Loader2 } from '@lucide/svelte'
-  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/domain/link'
+  import { MusicItem, SearchType, findDuplicate } from '../../src/domain/music_item'
+  import type { ListenLaterItem } from '../../src/domain/music_item'
 
   interface Props {
     open: boolean
     isLoading: boolean
+    isSaving: boolean
     error: string | null
     musicItem: MusicItem | null
-    linkMetadata: LinkMetadata | null
-    source: 'musicbrainz' | 'link' | null
-    existingItem: ListenLaterItem | null
-    onConfirm: (itemType: SearchType, title: string, artists: string[], albumName: string) => void
+    listenLaterItems: ListenLaterItem[]
+    onConfirm: (item: MusicItem, musicBrainzId?: string) => void
     onCancel: () => void
-    onViewExisting: () => void
+    onViewExisting: (item: ListenLaterItem) => void
     onRetry: () => void
   }
+  let { open = $bindable(), isLoading, isSaving, error, musicItem, listenLaterItems,
+    onConfirm, onCancel, onViewExisting, onRetry }: Props = $props()
 
-  let {
-    open = $bindable(),
-    isLoading,
-    error,
-    musicItem,
-    linkMetadata,
-    source,
-    existingItem,
-    onConfirm,
-    onCancel,
-    onViewExisting,
-    onRetry,
-  }: Props = $props()
-
-  const supportedPlatforms = ['Spotify', 'YouTube', 'Apple Music', 'SoundCloud']
-
-  const isUnsupportedPlatformError = $derived(
-    error?.includes('Unsupported platform') || error?.includes('unsupported')
-  )
-
-  let selectedType = $state<SearchType>(SearchType.track)
   let editableTitle = $state('')
   let editableArtists = $state('')
   let editableAlbumName = $state('')
+  let selectedType = $state<SearchType>(SearchType.track)
+  let appliedDraftBaseline = $state<MusicItem | null>(null)
+  let musicBrainzId = $state<string | undefined>()
+  let candidates = $state<MusicItem[]>([])
+  let selectedCandidate = $state<MusicItem | null>(null)
+  let matchStatus = $state('')
+  let isMatching = $state(false)
+  let matchController: AbortController | null = null
+  let matchButton = $state<HTMLButtonElement | null>(null)
 
-  // Pre-select item type and sync editable fields from fetched data
+  async function cancelMatchingAndFocus() {
+    cancelMatching()
+    await tick()
+    matchButton?.focus()
+  }
+
+  function cancelMatching() {
+    matchController?.abort()
+    matchController = null
+    isMatching = false
+    candidates = []
+    selectedCandidate = null
+    matchStatus = ''
+  }
+
   $effect(() => {
-    if (musicItem) {
-      selectedType = musicItem.itemType
-      editableTitle = musicItem.title || ''
-      editableArtists = musicItem.artists?.join(', ') || ''
-      editableAlbumName = musicItem.albumName || ''
-    } else if (linkMetadata) {
-      selectedType = linkMetadata.type
-    }
+    const initial = musicItem
+    const isOpen = open
+    untrack(() => {
+      cancelMatching()
+      musicBrainzId = undefined
+      appliedDraftBaseline = initial
+      editableTitle = initial?.title ?? ''
+      editableArtists = initial?.artists.join(', ') ?? ''
+      editableAlbumName = initial?.albumName ?? ''
+      selectedType = initial?.itemType ?? SearchType.track
+    })
+    if (!isOpen) return
+    return cancelMatching
   })
 
-  const types = [
-    { value: SearchType.track, label: 'Track' },
-    { value: SearchType.album, label: 'Album' },
-  ]
+  const artists = $derived(editableArtists.split(',').map((artist) => artist.trim()).filter(Boolean))
+  const draft = $derived(appliedDraftBaseline ? new MusicItem({
+    ...appliedDraftBaseline, title: editableTitle.trim(), artists,
+    albumName: editableAlbumName.trim(), itemType: selectedType,
+  }) : null)
+  const duplicate = $derived(draft ? findDuplicate(listenLaterItems, draft.title, draft.artists) : null)
+  const proposed = $derived(draft && selectedCandidate ? new MusicItem({
+    ...draft,
+    title: selectedCandidate.title,
+    artists: selectedCandidate.artists,
+    releaseDate: selectedCandidate.releaseDate || draft.releaseDate,
+    length: selectedCandidate.length ?? draft.length,
+    coverArt: musicItem?.coverArt || selectedCandidate.coverArt || draft.coverArt,
+    albumName: musicItem?.albumName || selectedCandidate.albumName || draft.albumName,
+  }) : null)
+  const corrections = $derived(draft && proposed ? [
+    ['Title', draft.title, proposed.title],
+    ['Artists', draft.artists.join(', '), proposed.artists.join(', ')],
+    ['Album', draft.albumName ?? '', proposed.albumName ?? ''],
+    ['Release date', draft.releaseDate, proposed.releaseDate],
+    ['Duration', draft.length ? `${draft.length / 1000} s` : '', proposed.length ? `${proposed.length / 1000} s` : ''],
+    ['Artwork', draft.coverArt ?? '', proposed.coverArt ?? ''],
+  ].filter(([, current, next]) => current !== next) : [])
 
-  // The error branch already carries `role="alert"`; announcing it twice would
-  // interrupt the alert with a duplicate.
-  const resolution = $derived(
-    isLoading || error
-      ? ''
-      : existingItem
-        ? 'Duplicate found. An item with the same title and the same artists is already in your list.'
-        : 'Music information ready. Review before adding.'
-  )
+  function identifyingEdit() {
+    const currentArtists = new Set(artists.map((artist) => artist.toLowerCase()))
+    const appliedArtists = new Set(appliedDraftBaseline?.artists.map((artist) => artist.toLowerCase()))
+    if (draft?.title !== appliedDraftBaseline?.title || selectedType !== appliedDraftBaseline?.itemType ||
+      currentArtists.size !== appliedArtists.size || [...currentArtists].some((artist) => !appliedArtists.has(artist))) {
+      musicBrainzId = undefined
+    }
+    cancelMatching()
+  }
 
-  function handleConfirm() {
-    const parsedArtists = editableArtists
-      .split(',')
-      .map((a) => a.trim())
-      .filter(Boolean)
-    onConfirm(selectedType, editableTitle.trim(), parsedArtists, editableAlbumName.trim())
+  async function findMatches() {
+    if (!draft || (!draft.title && !draft.artists.length)) return
+    cancelMatching()
+    const controller = new AbortController()
+    matchController = controller
+    isMatching = true
+    matchStatus = 'Searching MusicBrainz…'
+    const params = new URLSearchParams({ type: draft.itemType })
+    if (draft.title) params.set('q', draft.title)
+    if (draft.artists.length) params.set('artist', draft.artists.join(', '))
+    try {
+      const response = await fetch(`/library/listen-later?${params}`, { signal: controller.signal })
+      if (!response.ok) throw new Error('Search failed')
+      const result = await response.json()
+      if (controller.signal.aborted || matchController !== controller) return
+      candidates = result.serializedItems.filter((candidate: MusicItem) => candidate.itemType === selectedType)
+      matchStatus = candidates.length ? 'Choose a candidate to review corrections.' : 'No MusicBrainz matches found. Your metadata is unchanged.'
+    } catch {
+      if (controller.signal.aborted || matchController !== controller) return
+      matchStatus = 'MusicBrainz search failed. Your metadata is unchanged. You can retry or save without matching.'
+    } finally {
+      if (matchController === controller) isMatching = false
+    }
+  }
+
+  function applyCorrections() {
+    if (!proposed || !selectedCandidate) return
+    musicBrainzId = selectedCandidate.id
+    appliedDraftBaseline = proposed
+    editableTitle = proposed.title
+    editableArtists = proposed.artists.join(', ')
+    editableAlbumName = proposed.albumName ?? ''
+    cancelMatching()
+    matchStatus = 'MusicBrainz corrections applied.'
+    matchButton?.focus()
+  }
+
+  function save() {
+    if (!draft || isSaving) return
+    cancelMatching()
+    onConfirm(draft, musicBrainzId)
   }
 
   function handleOpenChange(isOpen: boolean) {
@@ -94,225 +155,96 @@
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
   <Dialog.Content
-    class="music-confirmation min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain [overflow-wrap:anywhere] sm:max-w-md [&>[data-dialog-close]]:flex [&>[data-dialog-close]]:size-11 [&>[data-dialog-close]]:items-center [&>[data-dialog-close]]:justify-center"
+    class="music-confirmation min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain [overflow-wrap:anywhere] sm:max-w-xl [&>[data-dialog-close]]:flex [&>[data-dialog-close]]:size-11 [&>[data-dialog-close]]:items-center [&>[data-dialog-close]]:justify-center"
     style="translate: var(--confirmation-translate, -50% -50%)"
+    showCloseButton={!isSaving}
+    escapeKeydownBehavior={isSaving ? 'ignore' : 'close'}
+    interactOutsideBehavior={isSaving ? 'ignore' : 'close'}
   >
     <Dialog.Header class="min-w-0 pe-12 text-start">
-      <Dialog.Title>
-        {#if isLoading}
-          Processing Link
-        {:else if error}
-          Unable to Process Link
-        {:else if existingItem}
-          Duplicate Found
-        {:else}
-          Add to Listen Later
-        {/if}
-      </Dialog.Title>
-      <Dialog.Description>
-        {#if isLoading}
-          Fetching music information from the link...
-        {:else if error}
-          We couldn't extract music information from this link.
-        {:else if existingItem}
-          This item appears to already be in your list.
-        {:else}
-          Review the extracted music information before adding.
-        {/if}
-      </Dialog.Description>
+      <Dialog.Title>{isLoading ? 'Processing Link' : error && !draft ? 'Error' : duplicate ? 'Duplicate Found' : 'Add to Listen Later'}</Dialog.Title>
+      <Dialog.Description>Review platform metadata. MusicBrainz matching is optional.</Dialog.Description>
     </Dialog.Header>
-
-    <!--
-      The dialog opens while the fetch is still in flight, and its own name is
-      only spoken when focus arrives. The title changing from "Processing Link"
-      to "Duplicate Found" behind the reader is silent without this.
-    -->
-    <p class="sr-only" role="status">{resolution}</p>
-
+    <p class="sr-only" role="status">{isLoading || error ? '' : duplicate ? 'Duplicate found. An item with the same title and the same artists is already in your list.' : draft ? 'Music information ready. Review before adding.' : ''}</p>
     {#if isLoading}
-      <Skeleton name="confirm-dialog" loading={true}>
-        {#snippet fixture()}
-          <div class="flex gap-4">
-            <div class="size-20 shrink-0 rounded-md bg-muted sm:size-24"></div>
-            <div class="min-w-0 flex flex-col justify-center gap-1">
-              <p class="text-lg font-medium">Never Gonna Give You Up</p>
-              <p class="text-sm text-muted-foreground">Rick Astley</p>
-              <span class="text-xs">track</span>
-            </div>
-          </div>
-        {/snippet}
-        {#snippet fallback()}
-          <div class="flex gap-4">
-            <div class="size-20 shrink-0 rounded-md bg-muted animate-pulse sm:size-24"></div>
-            <div class="min-w-0 flex flex-col justify-center gap-2 flex-1">
-              <div class="h-6 w-3/4 rounded bg-muted animate-pulse"></div>
-              <div class="h-4 w-1/2 rounded bg-muted animate-pulse"></div>
-              <div class="h-5 w-20 rounded bg-muted animate-pulse"></div>
-            </div>
-          </div>
-        {/snippet}
-      </Skeleton>
-      <div class="flex items-center justify-center py-2" aria-busy="true" aria-live="polite">
-        <Loader2 class="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
-        <span class="ml-2 text-sm text-muted-foreground">Loading metadata...</span>
-      </div>
-    {:else if error}
-      <div
-        class="flex items-center gap-2 rounded-md border border-destructive bg-destructive/10 p-4"
-        role="alert"
-        aria-live="assertive"
-      >
-        <AlertTriangle class="h-5 w-5 text-destructive shrink-0" aria-hidden="true" />
-        <div class="min-w-0 flex flex-col gap-1">
-          <p class="text-sm font-medium text-destructive">
-            {error}
-          </p>
-          {#if isUnsupportedPlatformError}
-            <p class="text-sm text-muted-foreground">
-              Supported platforms: {supportedPlatforms.join(', ')}
-            </p>
-          {/if}
-        </div>
-      </div>
-    {:else if existingItem}
-      <div class="flex items-center gap-2 rounded-md border border-warning bg-warning/10 p-3 mb-4">
-        <Copy class="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-        <p class="text-sm text-warning-foreground">
-          An item with the same title and the same artists is already in your list.
-        </p>
-      </div>
-
-      <div class="space-y-4">
-        <div>
-          <p class="text-sm font-medium text-muted-foreground mb-2">Existing item in your list:</p>
-          <div class="flex gap-4 p-3 rounded-md border bg-muted/50">
-            <CoverArt
-              src={existingItem.coverArt}
-              alt={`Cover of ${existingItem.title}`}
-              size="md"
-              class="confirmation-cover shrink-0"
-            />
-            <div class="min-w-0 flex flex-col justify-center">
-              <h4 class="font-medium">{existingItem.title}</h4>
-              <p class="text-sm text-muted-foreground">{existingItem.artists.join(', ')}</p>
-              <p class="text-xs text-muted-foreground capitalize">{existingItem.itemType}</p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-sm font-medium text-muted-foreground mb-2">New item from link:</p>
-          <div class="flex flex-col gap-4 p-3 rounded-md border sm:flex-row">
-            <CoverArt
-              src={musicItem?.coverArt}
-              alt={`Cover of ${editableTitle}`}
-              size="md"
-              class="confirmation-cover shrink-0"
-            />
-            <div class="min-w-0 flex-1 space-y-3">
-              <div class="space-y-1">
-                <label for="dup-title" class="text-sm font-medium">Title</label>
-                <Input id="dup-title" bind:value={editableTitle} placeholder="Title" />
-              </div>
-              <div class="space-y-1">
-                <label for="dup-artists" class="text-sm font-medium">Artists</label>
-                <Input
-                  id="dup-artists"
-                  bind:value={editableArtists}
-                  placeholder="Artist(s), comma-separated"
-                />
-              </div>
-              {#if selectedType !== SearchType.album}
-                <div class="space-y-1">
-                  <label for="dup-album" class="text-sm font-medium">Album name</label>
-                  <Input
-                    id="dup-album"
-                    bind:value={editableAlbumName}
-                    placeholder="Album name (optional)"
-                  />
-                </div>
-              {/if}
-              <p class="flex items-center gap-4 text-sm">
-                <span class="font-medium">Item Type:</span>
-                {selectedType === SearchType.album ? 'Album' : 'Track'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    {:else if musicItem}
-      <div class="flex gap-4">
-        <CoverArt
-          src={musicItem.coverArt}
-          alt={`Cover of ${editableTitle}`}
-          size="lg"
-          class="confirmation-cover shrink-0"
-        />
-        <div class="min-w-0 flex flex-col justify-center gap-1">
-          {#if source === 'musicbrainz'}
-            <Badge variant="secondary" class="w-fit">MusicBrainz Match</Badge>
-          {:else if source === 'link'}
-            <Badge variant="outline" class="w-fit">From Link</Badge>
-          {/if}
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <div class="space-y-1">
-          <label for="edit-title" class="text-sm font-medium">Title</label>
-          <Input id="edit-title" bind:value={editableTitle} placeholder="Title" />
-        </div>
-        <div class="space-y-1">
-          <label for="edit-artists" class="text-sm font-medium">Artists</label>
-          <Input
-            id="edit-artists"
-            bind:value={editableArtists}
-            placeholder="Artist(s), comma-separated"
-          />
-        </div>
-        {#if selectedType !== SearchType.album}
-          <div class="space-y-1">
-            <label for="edit-album" class="text-sm font-medium">Album</label>
-            <Input
-              id="edit-album"
-              bind:value={editableAlbumName}
-              placeholder="Album name (optional)"
-            />
-          </div>
+      <p role="status" aria-busy="true">Loading metadata...</p>
+    {/if}
+    {#if error}
+      <div role="alert" class="rounded-md border border-destructive p-3 text-destructive">
+        <p>{error}</p>
+        {#if error.toLowerCase().includes('unsupported')}
+          <p>Supported platforms: Spotify, YouTube, Apple Music, SoundCloud</p>
         {/if}
-      </div>
-
-      <div class="flex items-center gap-4">
-        <label for="item-type" class="text-sm font-medium">Item Type:</label>
-        <Select id="item-type" class="min-h-11 w-[140px]" bind:value={selectedType}>
-          {#each types as type (type.value)}
-            <option value={type.value}>{type.label}</option>
-          {/each}
-        </Select>
       </div>
     {/if}
-
-    <Dialog.Footer class="border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
-      {#if isLoading}
-        <Button variant="outline" onclick={onCancel}>Cancel</Button>
-      {:else if error}
-        <Button variant="outline" onclick={onCancel}>Cancel</Button>
-        <Button onclick={onRetry}>
-          <RefreshCw class="mr-2 h-4 w-4" />
-          Retry
-        </Button>
-      {:else if existingItem}
-        <Button variant="outline" onclick={onCancel}>Cancel</Button>
-        <Button variant="secondary" onclick={onViewExisting}>View Existing</Button>
-        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}
-          >Add Anyway</Button
-        >
-      {:else}
-        <Button variant="outline" onclick={onCancel}>Cancel</Button>
-        <Button onclick={handleConfirm} disabled={!musicItem || !editableTitle.trim()}
-          >Add to List</Button
-        >
+    {#if draft && !isLoading}
+      {#if duplicate}
+        <div class="rounded-md border border-warning p-3 text-warning-foreground">
+          <p>An item with the same title and the same artists is already in your list.</p>
+          <p>Existing item in your list: {duplicate.title} — {duplicate.artists.join(', ')}</p>
+        </div>
       {/if}
+      <div class="flex items-center gap-4">
+        <CoverArt src={draft?.coverArt} alt={draft ? 'Cover of ' + draft.title : ''} size="lg" class="confirmation-cover shrink-0" />
+        <Badge variant="outline">{musicBrainzId ? 'MusicBrainz Match' : 'From Link'}</Badge>
+      </div>
+      <fieldset disabled={isSaving} class="min-w-0 space-y-3 [&_button]:min-h-11">
+        <div class="space-y-1"><label for="edit-title" class="text-sm font-medium">Title</label>
+          <Input id="edit-title" bind:value={editableTitle} oninput={(event) => { editableTitle = event.currentTarget.value; identifyingEdit() }} placeholder="Title" /></div>
+        <div class="space-y-1"><label for="edit-artists" class="text-sm font-medium">Artists</label>
+          <Input id="edit-artists" bind:value={editableArtists} oninput={(event) => { editableArtists = event.currentTarget.value; identifyingEdit() }} placeholder="Artist(s), comma-separated" /></div>
+        {#if selectedType !== SearchType.album}
+          <div class="space-y-1"><label for="edit-album" class="text-sm font-medium">Album</label>
+            <Input id="edit-album" bind:value={editableAlbumName} placeholder="Album name (optional)" /></div>
+        {/if}
+        {#if duplicate}
+          <p class="flex items-center gap-4 text-sm">
+            <span class="font-medium">Item Type:</span>
+            {selectedType === SearchType.album ? 'Album' : 'Track'}
+          </p>
+        {:else}
+          <div class="flex items-center gap-4"><label for="item-type" class="text-sm font-medium">Item Type:</label>
+            <Select id="item-type" bind:value={selectedType} onchange={(event) => { selectedType = event.currentTarget.value as SearchType; identifyingEdit() }} class="min-h-11 w-[140px]">
+              <option value={SearchType.track}>Track</option><option value={SearchType.album}>Album</option>
+            </Select></div>
+        {/if}
+        <div class="flex flex-wrap gap-2">
+          <Button bind:ref={matchButton} variant="secondary" onclick={findMatches} disabled={isMatching || (!draft?.title && !artists.length)}>Find MusicBrainz matches</Button>
+          {#if isMatching || candidates.length || selectedCandidate}
+            <Button variant="outline" onclick={cancelMatchingAndFocus}>Cancel matching</Button>
+          {/if}
+        </div>
+        <p role="status" aria-busy={isMatching} class="text-sm text-muted-foreground">{matchStatus}</p>
+        {#if candidates.length}
+          <ul aria-label="MusicBrainz candidates" class="space-y-2">
+            {#each candidates as candidate (candidate.id)}
+              <li><Button variant={selectedCandidate?.id === candidate.id ? 'secondary' : 'outline'} class="w-full h-auto min-h-11 justify-start whitespace-normal text-left" onclick={() => { selectedCandidate = candidate }} aria-pressed={selectedCandidate?.id === candidate.id}>
+                {candidate.title} — {candidate.artists.join(', ')} · {candidate.releaseDate || 'Unknown date'}{candidate.albumName ? ` · ${candidate.albumName}` : ''}
+              </Button></li>
+            {/each}
+          </ul>
+        {/if}
+        {#if proposed}
+          <div class="space-y-2">
+            <h3 class="font-medium">Review corrections</h3>
+            <table aria-label="Proposed corrections" class="w-full text-sm table-fixed">
+              <thead><tr><th class="text-left">Field</th><th class="text-left">Current</th><th class="text-left">After Apply</th></tr></thead>
+              <tbody>{#each corrections as [label, current, next]}
+                <tr><th class="text-left align-top">{label}</th><td class="break-words align-top">{current || 'Not available'}</td><td class="break-words align-top">{next || 'Not available'}</td></tr>
+              {/each}</tbody>
+            </table>
+            {#if !corrections.length}<p>No metadata changes. Apply to associate this candidate.</p>{/if}
+            <p class="text-sm text-muted-foreground">Source URL and item type stay unchanged. Platform artwork and album take precedence.</p>
+            <Button onclick={applyCorrections}>Apply corrections</Button>
+          </div>
+        {/if}
+      </fieldset>
+    {/if}
+    <Dialog.Footer class="border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
+      <Button variant="outline" onclick={onCancel} disabled={isSaving}>Cancel</Button>
+      {#if error && !draft}<Button onclick={onRetry}>Retry</Button>{/if}
+      {#if duplicate}<Button variant="secondary" onclick={() => onViewExisting(duplicate)} disabled={isSaving}>View Existing</Button>{/if}
+      {#if draft}<Button onclick={save} disabled={isSaving || !draft?.title} aria-busy={isSaving}>{isSaving ? 'Saving…' : duplicate ? 'Add Anyway' : 'Add to List'}</Button>{/if}
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

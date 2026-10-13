@@ -29,6 +29,7 @@ export interface LinkMetadata {
   title: string
   artist: string
   type: SearchType
+  platform: StreamingPlatform
   thumbnailUrl?: string
   originalUrl: string
   albumName?: string
@@ -36,17 +37,6 @@ export interface LinkMetadata {
 
 export interface LinkMetadataSuccess {
   musicItem: MusicItem
-  source: 'musicbrainz' | 'link'
+  source: 'link'
   linkMetadata: LinkMetadata
-}
-
-export interface LinkMetadataError {
-  error: string
-  originalUrl: string
-}
-
-export type LinkMetadataResult = LinkMetadataSuccess | LinkMetadataError
-
-export function isLinkMetadataError(result: LinkMetadataResult): result is LinkMetadataError {
-  return 'error' in result
 }

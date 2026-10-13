@@ -195,7 +195,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
     })
 
     test('the add dialog while it loads, then when the link fails', async ({ page }) => {
-      const answerMetadata = await heldRoute(page, (url) => url.pathname === '/api/link/metadata')
+      const answerMetadata = await heldRoute(
+        page,
+        (url) => url.pathname === '/api/platform-metadata'
+      )
 
       await page.goto('/library/listen-later')
       await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
@@ -210,7 +213,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         body: JSON.stringify({ error: 'This link could not be read' }),
       })
 
-      await expect(page.getByRole('heading', { name: 'Unable to Process Link' })).toBeVisible()
+      await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible()
       await expectAccessibleDialog(page, `add dialog error (${colorScheme})`)
     })
 
@@ -581,9 +584,7 @@ test.describe('announcements', () => {
     await expect(toast).toBeVisible()
   })
 
-  test('the dialog itself takes focus, so its name and its description are read', async ({
-    page,
-  }) => {
+  test('the dialog itself takes focus and has an accessible name', async ({ page }) => {
     await mockMetadataRoute(page)
     await page.goto('/library/listen-later')
     await openAddDialog(page)
@@ -594,9 +595,6 @@ test.describe('announcements', () => {
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeFocused()
     await expect(dialog).toHaveAccessibleName('Add to Listen Later')
-    await expect(dialog).toHaveAccessibleDescription(
-      'Review the extracted music information before adding.'
-    )
   })
 
   test('the duplicate state is announced after the dialog has opened', async ({ page }) => {
@@ -612,9 +610,9 @@ test.describe('announcements', () => {
     // region the reader is still holding the loading state.
     await openAddDialog(page)
     await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
-    await expect(page.getByRole('dialog').getByRole('status')).toHaveText(
-      'Duplicate found. An item with the same title and the same artists is already in your list.'
-    )
+    await expect(
+      page.getByRole('dialog').getByRole('status').filter({ hasText: 'Duplicate found' })
+    ).toBeVisible()
   })
 
   test('a sort change is announced', async ({ page }) => {
@@ -869,3 +867,28 @@ test('both search fields point at the arrow-key hint', async ({ page }) => {
   )
   await expect(page.getByLabel('Artist name', { exact: true })).toHaveAccessibleDescription(hint)
 })
+
+for (const scheme of ['light', 'dark'] as const) {
+  test(
+    'candidate review remains accessible on a phone in ' + scheme + ' mode',
+    async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
+      await mockMetadataRoute(page)
+      await searchResultsRoute(page, [
+        {
+          id: '12345678-1234-4234-8234-123456789abc',
+          title: 'Alternative recording',
+          artists: ['Other artist'],
+        },
+      ])
+      await page.goto('/library/listen-later')
+      await openAddDialog(page)
+      const dialog = page.getByRole('dialog')
+      await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
+      await dialog.getByRole('button', { name: /Alternative recording/ }).click()
+      await expect(dialog.getByRole('table', { name: 'Proposed corrections' })).toBeVisible()
+      await expectAccessibleDialog(page, 'candidate corrections ' + scheme)
+    }
+  )
+}
