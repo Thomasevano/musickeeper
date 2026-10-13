@@ -298,7 +298,8 @@ test.describe('paste link - duplicate detection', () => {
       })
 
       const visibleItem = page.locator(`#${expectedId}`)
-      await page.getByRole('button', { name: 'View Existing' }).dispatchEvent('click')
+      await page.getByRole('button', { name: 'View Existing' }).click()
+      await expect(visibleItem).toBeInViewport()
       await expect(visibleItem).toHaveClass(/bg-warning\/20/)
       await expect(page.getByRole('dialog')).not.toBeVisible()
       await expect(visibleItem).toBeVisible()
