@@ -93,7 +93,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-  <Dialog.Content class="sm:max-w-md">
+  <Dialog.Content class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title>
         {#if isLoading}
