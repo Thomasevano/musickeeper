@@ -1,37 +1,51 @@
 import { SearchType } from '#domain/music_item.js'
 import type { ParsedLink } from '#domain/link.js'
-import { getMetaContent, decodeHtmlEntities } from './html_parsing.js'
+import { decodeHtmlEntities, getArtistNames, getMetaContent } from './html_parsing.js'
 import { BROWSER_UA, type FetchResult, type OEmbedMetadata } from './types.js'
 
 const APPLE_MUSIC_SUFFIX = / on Apple Music$/i
+const CREDIT_TIMEOUT_MS = 1_000
+const FALLBACK_PAGE_TIMEOUT_MS = 8_000
 
 function stripSuffix(value: string): string {
   return value.replace(APPLE_MUSIC_SUFFIX, '').trim()
 }
 
 export async function fetchAppleMusicMetadata(parsedLink: ParsedLink): Promise<FetchResult> {
-  // iTunes Lookup API returns structured data — language-independent, includes album name
-  const itunesResult = await fetchItunesMetadata(parsedLink.id, parsedLink.type)
-  if (itunesResult) return itunesResult
+  // Lookup provides localized display credits, while the page can identify each credited artist.
+  const [itunesResult, creditPage] = await Promise.all([
+    fetchItunesMetadata(parsedLink.id, parsedLink.type),
+    fetchHtml(parsedLink.originalUrl, CREDIT_TIMEOUT_MS),
+  ])
+  const oEmbedResult = itunesResult ? null : await fetchOEmbed(parsedLink.originalUrl)
+  // Only retry a timed-out page, and only if it is the last metadata source.
+  const html =
+    creditPage === null && !itunesResult && !oEmbedResult
+      ? await fetchHtml(parsedLink.originalUrl, FALLBACK_PAGE_TIMEOUT_MS)
+      : creditPage
+  const artists =
+    typeof html === 'string' ? parseAppleArtistNames(html, parsedLink.type) : undefined
+  if (itunesResult) return artists ? { ...itunesResult, artists } : itunesResult
 
   // Fallback: oEmbed (localized — strip language-specific suffix best-effort)
-  const oEmbedResult = await fetchOEmbed(parsedLink.originalUrl)
-  if (oEmbedResult && !('error' in oEmbedResult)) {
+  if (oEmbedResult) {
     return {
       title: stripSuffix(oEmbedResult.title),
       author_name: stripSuffix(oEmbedResult.author_name),
       thumbnail_url: oEmbedResult.thumbnail_url,
+      ...(artists ? { artists } : {}),
     }
   }
 
-  // Last fallback: scrape HTML Open Graph tags
-  const htmlResult = await fetchHtml(parsedLink.originalUrl)
+  if (typeof html !== 'string') return html ?? { error: 'Apple Music page timed out' }
+  const htmlResult = parseOGTags(html)
   if ('error' in htmlResult) return htmlResult
 
   return {
+    ...htmlResult,
     title: stripSuffix(htmlResult.title),
     author_name: stripSuffix(htmlResult.author_name),
-    thumbnail_url: htmlResult.thumbnail_url,
+    ...(artists ? { artists } : {}),
   }
 }
 
@@ -73,7 +87,7 @@ async function fetchItunesMetadata(id: string, type: SearchType): Promise<OEmbed
   }
 }
 
-async function fetchOEmbed(url: string): Promise<OEmbedMetadata | { error: string } | null> {
+async function fetchOEmbed(url: string): Promise<OEmbedMetadata | null> {
   try {
     const oEmbedUrl = new URL('https://music.apple.com/api/oembed')
     oEmbedUrl.searchParams.set('url', url)
@@ -93,9 +107,16 @@ async function fetchOEmbed(url: string): Promise<OEmbedMetadata | { error: strin
   }
 }
 
-async function fetchHtml(url: string): Promise<FetchResult> {
+async function fetchHtml(
+  url: string,
+  timeoutMs: number
+): Promise<string | { error: string } | null> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
   try {
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
         'User-Agent': BROWSER_UA,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -109,10 +130,12 @@ async function fetchHtml(url: string): Promise<FetchResult> {
       return { error: 'Failed to fetch metadata from Apple Music' }
     }
 
-    const html = await response.text()
-    return parseOGTags(html)
+    return await response.text()
   } catch {
+    if (controller.signal.aborted) return null
     return { error: 'Failed to connect to Apple Music' }
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -146,4 +169,30 @@ function parseOGTags(html: string): FetchResult {
   }
 
   return { title, author_name: authorName, thumbnail_url: ogImage }
+}
+
+function parseAppleArtistNames(html: string, type: SearchType): string[] | undefined {
+  const scripts = html.matchAll(
+    /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  )
+  for (const [, script] of scripts) {
+    try {
+      const data = JSON.parse(script) as {
+        '@type'?: string
+        'byArtist'?: unknown
+        'audio'?: { byArtist?: unknown }
+      } | null
+      const credits =
+        type === SearchType.track && data?.['@type'] === 'MusicComposition'
+          ? data.audio?.byArtist
+          : type === SearchType.album && data?.['@type'] === 'MusicAlbum'
+            ? data.byArtist
+            : undefined
+      const artists = getArtistNames(credits)
+      if (artists) return artists
+    } catch {
+      // Ignore malformed JSON-LD and keep looking for the resource's artist credits.
+    }
+  }
+  return undefined
 }

@@ -32,3 +32,14 @@ export function getMetaContent(html: string, property: string): string | undefin
   const value = match ? match[1] || match[2] : undefined
   return value ? decodeHtmlEntities(value) : undefined
 }
+
+export function getArtistNames(credits: unknown): string[] | undefined {
+  if (!Array.isArray(credits) || !credits.length) return undefined
+
+  const names: string[] = []
+  for (const credit of credits) {
+    if (typeof credit?.name !== 'string' || !credit.name.trim()) return undefined
+    names.push(credit.name)
+  }
+  return names
+}

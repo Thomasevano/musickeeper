@@ -21,9 +21,13 @@ class StubLinkParser extends LinkParserPort {
 class StubPlatformMetadata extends PlatformMetadataPort {
   calls = 0
 
-  async fetch(_parsedLink: ParsedLink): Promise<PlatformMetadata> {
+  constructor(private result: PlatformMetadata | { error: string }) {
+    super()
+  }
+
+  async fetch(_parsedLink: ParsedLink): Promise<PlatformMetadata | { error: string }> {
     this.calls += 1
-    return { title: 'Track', artist: 'Artist' }
+    return this.result
   }
 }
 
@@ -34,42 +38,110 @@ const spotifyLink: ParsedLink = {
   originalUrl: 'https://open.spotify.com/track/track-id',
 }
 
-const appleMusicLink: ParsedLink = {
-  platform: StreamingPlatform.AppleMusic,
-  type: SearchType.track,
-  id: 'track-id',
-  originalUrl: 'https://music.apple.com/us/song/song/track-id',
+function resolve(metadata: PlatformMetadata, link = spotifyLink) {
+  return new FetchPlatformMetadataUseCase(
+    new StubLinkParser(link),
+    new StubPlatformMetadata(metadata)
+  ).execute(link.originalUrl)
 }
 
 test.group('FetchPlatformMetadataUseCase', () => {
-  test('fetches metadata for any platform without gating', async ({ assert }) => {
-    const metadata = new StubPlatformMetadata()
-    const useCase = new FetchPlatformMetadataUseCase(new StubLinkParser(spotifyLink), metadata)
+  test('two pastes of the same source can be saved as separate items', async ({ assert }) => {
+    const metadata = { title: 'Track', artist: 'Artist', artists: ['Artist'] }
+    const first = await resolve(metadata)
+    const second = await resolve(metadata)
+    if ('error' in first) throw new Error(first.error)
+    if ('error' in second) throw new Error(second.error)
 
-    const result = await useCase.execute(spotifyLink.originalUrl)
-
-    assert.deepEqual(result, { title: 'Track', artist: 'Artist' })
-    assert.equal(metadata.calls, 1)
+    assert.notEqual(first.musicItem.id, second.musicItem.id)
   })
 
-  test('fetches metadata for Apple Music without gating', async ({ assert }) => {
-    const metadata = new StubPlatformMetadata()
-    const useCase = new FetchPlatformMetadataUseCase(new StubLinkParser(appleMusicLink), metadata)
+  test('builds a platform-only draft from complete metadata', async ({ assert }) => {
+    const result = await resolve({
+      title: 'Track',
+      artist: 'Artist One, Jr. & Artist Two',
+      artists: ['Artist One, Jr.', 'Artist Two'],
+      thumbnailUrl: 'https://images.example/cover.jpg',
+      albumName: 'Platform Album',
+    })
+    if ('error' in result) throw new Error(result.error)
 
-    const result = await useCase.execute(appleMusicLink.originalUrl)
-
-    assert.deepEqual(result, { title: 'Track', artist: 'Artist' })
-    assert.equal(metadata.calls, 1)
+    assert.equal(result.source, 'link')
+    assert.deepEqual(
+      {
+        title: result.musicItem.title,
+        releaseDate: result.musicItem.releaseDate,
+        artists: result.musicItem.artists,
+        itemType: result.musicItem.itemType,
+        coverArt: result.musicItem.coverArt,
+        albumName: result.musicItem.albumName,
+      },
+      {
+        title: 'Track',
+        releaseDate: '',
+        artists: ['Artist One, Jr.', 'Artist Two'],
+        itemType: SearchType.track,
+        coverArt: 'https://images.example/cover.jpg',
+        albumName: 'Platform Album',
+      }
+    )
+    assert.deepEqual(result.linkMetadata, {
+      title: 'Track',
+      artist: 'Artist One, Jr. & Artist Two',
+      type: SearchType.track,
+      platform: StreamingPlatform.Spotify,
+      thumbnailUrl: 'https://images.example/cover.jpg',
+      originalUrl: spotifyLink.originalUrl,
+      albumName: 'Platform Album',
+    })
   })
 
-  test('returns validation error for unparseable links', async ({ assert }) => {
-    const metadata = new StubPlatformMetadata()
-    const parseError = { error: 'Unsupported URL', originalUrl: 'https://example.com' }
+  test('builds a platform-only draft from incomplete metadata', async ({ assert }) => {
+    const result = await resolve({ title: '', artist: '', artists: [] })
+    if ('error' in result) throw new Error(result.error)
+
+    assert.equal(result.source, 'link')
+    assert.deepEqual(
+      {
+        title: result.musicItem.title,
+        artists: result.musicItem.artists,
+        itemType: result.musicItem.itemType,
+        albumName: result.musicItem.albumName,
+      },
+      {
+        title: 'Unknown Title',
+        artists: [],
+        itemType: SearchType.track,
+        albumName: undefined,
+      }
+    )
+    assert.deepEqual(result.linkMetadata, {
+      title: '',
+      artist: '',
+      type: SearchType.track,
+      platform: StreamingPlatform.Spotify,
+      originalUrl: spotifyLink.originalUrl,
+    })
+  })
+
+  test('returns a validation error without calling the platform for malformed links', async ({
+    assert,
+  }) => {
+    const parseError = { error: 'Invalid URL format', originalUrl: 'not-a-valid-url' }
+    const metadata = new StubPlatformMetadata({
+      title: 'Track',
+      artist: 'Artist',
+      artists: ['Artist'],
+    })
     const useCase = new FetchPlatformMetadataUseCase(new StubLinkParser(parseError), metadata)
 
-    const result = await useCase.execute('https://example.com')
+    const result = await useCase.execute(parseError.originalUrl)
 
-    assert.deepEqual(result, { error: 'Unsupported URL', kind: 'validation' })
+    assert.deepEqual(result, {
+      error: 'Invalid URL format',
+      originalUrl: 'not-a-valid-url',
+      kind: 'validation',
+    })
     assert.equal(metadata.calls, 0)
   })
 })

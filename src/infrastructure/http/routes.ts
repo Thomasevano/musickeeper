@@ -11,6 +11,7 @@ import env from '../env.js'
 import router from '@adonisjs/core/services/router'
 const HomeController = () => import('./controllers/home_controller.js')
 const ListenLaterListController = () => import('./controllers/listen_later_list_controller.js')
+const LegacyLinkController = () => import('./controllers/legacy_link_controller.js')
 const LinkController = () => import('./controllers/link_controller.js')
 const LinksController = () => import('./controllers/links_controller.js')
 
@@ -20,9 +21,8 @@ router.get('/app-version', ({ inertia, response }) => {
   return response.header('Cache-Control', 'no-store').json({ version: inertia.getVersion() })
 })
 
-router.post('/api/link/metadata', [LinkController, 'metadata'])
+router.post('/api/link/metadata', [LegacyLinkController, 'metadata'])
 router.post('/api/platform-metadata', [LinkController, 'platformMetadata'])
-
 router.get('/api/links', [LinksController, 'index'])
 
 router

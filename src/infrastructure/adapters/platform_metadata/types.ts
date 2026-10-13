@@ -1,6 +1,7 @@
 export interface OEmbedMetadata {
   title: string
   author_name: string
+  artists?: string[]
   thumbnail_url?: string
   album_name?: string
 }

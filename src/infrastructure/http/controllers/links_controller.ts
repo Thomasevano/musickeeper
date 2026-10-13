@@ -9,7 +9,7 @@ const indexQueryValidator = vine.compile(
     mbid: vine.string().uuid().optional(),
     type: vine.enum(['album', 'track']),
     sourceUrl: vine.string().url().optional(),
-    artists: vine.string().optional(),
+    artists: vine.unionOfTypes([vine.array(vine.string()), vine.string()]).optional(),
     title: vine.string().optional(),
     locale: vine.string().optional(),
   })
@@ -23,14 +23,19 @@ export default class LinksController {
     const payload = await request.validateUsing(indexQueryValidator)
 
     const itemType = payload.type === 'album' ? SearchType.album : SearchType.track
-    const artistsArray = payload.artists ? payload.artists.split(',') : []
+    // The legacy scalar is comma-separated; array entries are literal artist names.
+    const artists = Array.isArray(payload.artists)
+      ? payload.artists
+      : payload.artists
+        ? payload.artists.split(',')
+        : []
     const titleStr = payload.title ?? ''
     const locale = payload.locale ?? 'fr-FR'
 
     const externalLinks = await this.getExternalLinks.execute(
       payload.mbid,
       itemType,
-      artistsArray,
+      artists,
       titleStr,
       locale,
       payload.sourceUrl
