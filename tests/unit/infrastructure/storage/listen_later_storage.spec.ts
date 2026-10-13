@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { IDBFactory } from 'fake-indexeddb'
 import { test } from '@japa/runner'
 import {
   type ListenLaterItem,
@@ -77,6 +78,25 @@ async function seedLegacyRow(id: string, title: string, addedAt: number) {
   db.close()
 }
 
+async function seedVersion3Rows(indexedDBInstance: IDBFactory, rows: object[]) {
+  const { promise, resolve, reject } = Promise.withResolvers<IDBDatabase>()
+  const request = indexedDBInstance.open(DB_CONFIG.name, 3)
+  request.onupgradeneeded = () => {
+    request.result.createObjectStore(DB_CONFIG.storeName, { keyPath: 'id', autoIncrement: true })
+  }
+  request.onsuccess = () => resolve(request.result)
+  request.onerror = () => reject(request.error)
+  const db = await promise
+
+  const write = Promise.withResolvers<void>()
+  const transaction = db.transaction(DB_CONFIG.storeName, 'readwrite')
+  for (const row of rows) transaction.objectStore(DB_CONFIG.storeName).add(row)
+  transaction.oncomplete = () => write.resolve()
+  transaction.onerror = () => write.reject(transaction.error)
+  await write.promise
+  db.close()
+}
+
 test.group('Listen Later Storage - writes', (group) => {
   group.each.teardown(emptyList)
 
@@ -112,6 +132,21 @@ test.group('Listen Later Storage - writes', (group) => {
     assert.equal(result!.sourceUrl, 'https://open.spotify.com/track/abc')
     assert.lengthOf(result!.externalLinks!, 1)
     assert.equal(result!.externalLinks![0].platform, 'deezer')
+  })
+
+  test('add preserves an explicit MusicBrainz association after reload', async ({ assert }) => {
+    const musicBrainzId = '85d5e632-4e3c-4451-9b3f-6222ec1a6257'
+    await storage.add(describeItem({ id: 'add-test-mbid', musicBrainzId }))
+
+    const reloaded = createListenLaterStorage(indexedDB)
+    assert.equal((await reloaded.get('add-test-mbid'))!.musicBrainzId, musicBrainzId)
+  })
+
+  test('add does not infer a MusicBrainz association from a UUID local key', async ({ assert }) => {
+    const localId = '5a2a84aa-2a3c-4a1a-8e2f-111111111111'
+    await storage.add(describeItem({ id: localId }))
+
+    assert.isUndefined((await storage.get(localId))!.musicBrainzId)
   })
 
   test('add defaults externalLinks to an empty array', async ({ assert }) => {
@@ -343,5 +378,51 @@ test.group('Listen Later Storage - duplicate rule', () => {
 
   test('returns null on an empty list', ({ assert }) => {
     assert.isNull(findDuplicate([], 'Nightcall', ['Kavinsky']))
+  })
+})
+
+test.group('Listen Later Storage - version 4 migration', () => {
+  test('preserves legacy UUID keys without inventing associations', async ({ assert }) => {
+    const legacyIndexedDB = new IDBFactory()
+    const musicBrainzId = '85d5e632-4e3c-4451-9b3f-6222ec1a6257'
+    const sourceUrl = 'https://open.spotify.com/track/legacy'
+    const externalLinks: ExternalLink[] = [
+      {
+        platform: 'spotify',
+        label: 'Spotify',
+        url: sourceUrl,
+        category: 'stream',
+        source: 'source-url',
+      },
+    ]
+    await seedVersion3Rows(legacyIndexedDB, [
+      {
+        ...describeItem({ id: musicBrainzId, sourceUrl, externalLinks }),
+        hasBeenListened: true,
+        addedAt: new Date('2020-01-01'),
+      },
+      {
+        ...describeItem({ id: 'legacy-local-key', title: 'Unmatched legacy item' }),
+        hasBeenListened: false,
+        addedAt: new Date('2020-01-02'),
+        externalLinks: [],
+      },
+    ])
+
+    const migrated = await createListenLaterStorage(legacyIndexedDB).getAll()
+
+    assert.deepEqual(
+      migrated.map((item) => item.id),
+      [musicBrainzId, 'legacy-local-key']
+    )
+    assert.isUndefined(migrated[0].musicBrainzId)
+    assert.isUndefined(migrated[1].musicBrainzId)
+    assert.isTrue(migrated[0].hasBeenListened)
+    assert.equal(migrated[0].sourceUrl, sourceUrl)
+    assert.deepEqual(migrated[0].externalLinks, externalLinks)
+    assert.deepEqual(
+      migrated.map((item) => item.addedAt),
+      [new Date('2020-01-01'), new Date('2020-01-02')]
+    )
   })
 })

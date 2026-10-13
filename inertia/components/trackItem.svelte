@@ -39,6 +39,7 @@
     try {
       const stored = await listenLaterStorage.add({
         id: item.id,
+        musicBrainzId: item.id,
         title: item.title,
         releaseDate: item.releaseDate,
         length: item.length,
@@ -85,9 +86,11 @@
   }
 
   async function removeFromListenLater(item: MusicItem) {
+    const stored = listenLaterItems.find((existing: ListenLaterItem) => existing.musicBrainzId === item.id || (!existing.musicBrainzId && existing.id === item.id))
+    if (!stored) return
     try {
-      await listenLaterStorage.remove(item.id)
-      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
+      await listenLaterStorage.remove(stored.id)
+      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== stored.id)
       toast.success(`${musicItemName(item)} removed from your list`)
     } catch (error) {
       console.error('Error removing item from listen later list:', error)
@@ -96,7 +99,7 @@
   }
 
   function toggleListenLater(item: MusicItem) {
-    if (listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)) {
+    if (listenLaterItems.some((i: ListenLaterItem) => i.musicBrainzId === item.id || (!i.musicBrainzId && i.id === item.id))) {
       removeFromListenLater(item)
     } else {
       addToListenLater(item)
@@ -104,7 +107,7 @@
   }
 
   let isInListenLaterList = $derived(
-    listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
+    listenLaterItems.some((i: ListenLaterItem) => i.musicBrainzId === item?.id || (!i.musicBrainzId && i.id === item?.id))
   )
 </script>
 
