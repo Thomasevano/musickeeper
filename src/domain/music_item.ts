@@ -56,6 +56,7 @@ export interface ListenLaterItemProperties extends MusicItemProperties {
   addedAt: Date
   sourceUrl?: string
   externalLinks?: ExternalLink[]
+  musicBrainzId?: string
 }
 
 export class ListenLaterItem extends MusicItem {
@@ -63,12 +64,14 @@ export class ListenLaterItem extends MusicItem {
   public addedAt: Date
   public sourceUrl?: string
   public externalLinks?: ExternalLink[]
+  public musicBrainzId?: string
   public constructor(props: ListenLaterItemProperties) {
     super(props)
     this.hasBeenListened = props.hasBeenListened
     this.addedAt = props.addedAt
     this.sourceUrl = props.sourceUrl
     this.externalLinks = props.externalLinks
+    this.musicBrainzId = props.musicBrainzId
   }
 }
 

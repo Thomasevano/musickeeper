@@ -64,6 +64,9 @@
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
+
+  // Result options remount between queries, even while their saves are pending.
+  const searchSavesInFlight = new Set<string>()
   let focusedResultIndex = $state<number>(-1)
   let resultsListEl = $state<HTMLUListElement | null>(null)
   let titleInputEl = $state<HTMLInputElement | null>(null)
@@ -548,7 +551,7 @@
               aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}
               aria-busy="true"
             >
-              <TrackItem loading={true} type={searchType} />
+              <TrackItem loading={true} type={searchType} {searchSavesInFlight} />
             </ul>
           {:else if serializedItems && serializedItems.length > 0}
             <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
@@ -562,7 +565,13 @@
               onkeydown={handleListKeydown}
             >
               {#each serializedItems as item, i (item.id)}
-                <TrackItem bind:listenLaterItems {item} type={searchType} focused={i === focusedResultIndex} />
+                <TrackItem
+                  bind:listenLaterItems
+                  {searchSavesInFlight}
+                  {item}
+                  type={searchType}
+                  focused={i === focusedResultIndex}
+                />
               {/each}
             </ul>
           {:else}
@@ -578,6 +587,7 @@
 
     <div>
       {#if listenLaterItems.length > 0}
+        <h2 id="listen-later-list-heading" tabindex="-1" class="mb-4 text-xl font-semibold">Listen Later List</h2>
         <ListenLaterListTable
           items={listenLaterItems}
           onDelete={(item) => (deleteTarget = item)}
