@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Check, Plus } from '@lucide/svelte'
+  import { nanoid } from 'nanoid'
   import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import CoverArt from '~/components/CoverArt.svelte'
@@ -13,6 +14,7 @@
 
   let {
     listenLaterItems = $bindable(),
+    searchSavesInFlight,
     item = undefined,
     type,
     loading = false,
@@ -38,10 +40,14 @@
   }
 
   async function addToListenLater(item: MusicItem) {
-    // Links resolve in the background: the item is saved and on screen first.
+    if (searchSavesInFlight.has(item.id)) return
+    searchSavesInFlight.add(item.id)
+
+    let stored: ListenLaterItem
     try {
-      const stored = await trackWrite(() => listenLaterStorage.add({
-        id: item.id,
+      stored = await trackWrite(() => listenLaterStorage.add({
+        id: nanoid(),
+        musicBrainzId: item.id,
         title: item.title,
         releaseDate: item.releaseDate,
         length: item.length,
@@ -51,30 +57,33 @@
         coverArt: item.coverArt,
         externalLinks: [],
       }))
-      trackQualifyingActivity('item_saved')
-
       // ponytail: appending assumes the store's oldest-first order, which puts a
       // new item last. If that default order ever changes, replace this with a
       // getAll().
       listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: true }]
-      toast.success(`${musicItemName(item)} added to your list`)
-      void backfillExternalLinks(item)
     } catch (error) {
       console.error('Error adding item to listen later list:', error)
       toast.error(`Could not add ${musicItemName(item)}`)
+      return
+    } finally {
+      searchSavesInFlight.delete(item.id)
     }
+
+    trackQualifyingActivity('item_saved')
+    toast.success(`${musicItemName(item)} added to your list`)
+    void backfillExternalLinks(item, stored.id)
   }
 
   // Link resolution hits third-party APIs and can take seconds. The item is
   // already saved and on screen by then, so patch it in place when the links
   // land — and skip the write if the user removed it while we waited.
-  async function backfillExternalLinks(item: MusicItem) {
+  async function backfillExternalLinks(item: MusicItem, localId: string) {
     let resolvedExternalLinks: ExternalLink[] = []
     try {
       resolvedExternalLinks = await trackWrite(async () => {
         const links = await fetchExternalLinks(item)
         if (links.length) {
-          const updated = await listenLaterStorage.updateExternalLinks(item.id, links)
+          const updated = await listenLaterStorage.updateExternalLinks(localId, links)
           return updated ? links : []
         }
         return links
@@ -84,35 +93,37 @@
     }
 
     listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
-      existing.id === item.id
+      existing.id === localId
         ? { ...existing, externalLinks: resolvedExternalLinks, externalLinksPending: false }
         : existing
     )
   }
 
-  async function removeFromListenLater(item: MusicItem) {
+  async function removeFromListenLater(stored: ListenLaterItem) {
     try {
-      await trackWrite(() => listenLaterStorage.remove(item.id))
+      await trackWrite(() => listenLaterStorage.remove(stored.id))
       trackQualifyingActivity('item_removed')
-      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
-      toast.success(`${musicItemName(item)} removed from your list`)
+      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== stored.id)
+      toast.success(`${musicItemName(stored)} removed from your list`)
     } catch (error) {
       console.error('Error removing item from listen later list:', error)
-      toast.error(`Could not remove ${musicItemName(item)}`)
+      toast.error(`Could not remove ${musicItemName(stored)}`)
     }
   }
 
-  function toggleListenLater(item: MusicItem) {
-    if (listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)) {
-      removeFromListenLater(item)
+  const savedCopies = $derived(item ? listenLaterItems.filter((saved: ListenLaterItem) =>
+    (saved.musicBrainzId ?? saved.id) === item.id
+  ) : [])
+
+  function activateResult(item: MusicItem) {
+    if (savedCopies.length > 1) {
+      document.getElementById('listen-later-list-heading')?.focus()
+    } else if (savedCopies.length === 1) {
+      void removeFromListenLater(savedCopies[0])
     } else {
-      addToListenLater(item)
+      void addToListenLater(item)
     }
   }
-
-  let isInListenLaterList = $derived(
-    listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
-  )
 </script>
 
 <!--
@@ -159,15 +170,15 @@
        be read out. The cover repeats the title, so it stays out of the name. -->
   <li
     role="option"
-    aria-selected={isInListenLaterList}
-    aria-describedby={isInListenLaterList ? 'result-remove-hint' : 'result-add-hint'}
+    aria-selected={savedCopies.length > 0}
+    aria-describedby={savedCopies.length > 1 ? undefined : savedCopies.length ? 'result-remove-hint' : 'result-add-hint'}
     class="cursor-pointer flex items-center p-2 rounded-sm hover:bg-accent hover:text-accent-foreground outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
     tabindex={focused ? 0 : -1}
-    onclick={() => toggleListenLater(item)}
+    onclick={() => activateResult(item)}
     onkeydown={(e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        toggleListenLater(item)
+        activateResult(item)
       }
     }}
   >
@@ -180,10 +191,13 @@
           <p class="px-4 py-2">Album: {item.albumName}</p>
         {/if}
         <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
+        {#if savedCopies.length > 1}
+          <p class="px-4 font-medium">View {savedCopies.length} copies in your Listen Later List</p>
+        {/if}
       </div>
     </div>
     <div class="ml-auto" aria-hidden="true">
-      {#if isInListenLaterList}
+      {#if savedCopies.length > 0}
         <Check class="size-4" />
       {:else}
         <Plus class="size-4" />

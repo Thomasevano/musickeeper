@@ -6,6 +6,7 @@ import {
   listenLaterSeed,
   mockMetadataResponse,
   resultOptions,
+  searchResultsRoute,
   seedListenLaterItems,
   settleAnimations,
 } from './fixtures.js'
@@ -646,6 +647,50 @@ test.describe('artist-only search', () => {
 })
 
 test.describe('search results - add and remove', () => {
+  test('opens the list instead of deleting one of two copies with the same match', async ({
+    page,
+  }) => {
+    const recording = { id: '12345678-1234-4234-8234-123456789abc', title: 'One', artists: ['U2'] }
+    const copies = ['spotify', 'youtube'].map((platform) => ({
+      ...listenLaterSeed({ ...recording, id: platform, itemType: 'track' }),
+      musicBrainzId: recording.id,
+      externalLinks: [
+        {
+          platform,
+          label: platform,
+          url: `https://example.com/${platform}`,
+          category: 'stream' as const,
+        },
+      ],
+    }))
+    await searchResultsRoute(page, [recording])
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, copies)
+    const search = page.getByLabel('Artist name', { exact: true })
+    await search.fill('U2')
+    const result = resultOptions(page)
+    await expect(result).toContainText('View 2 copies')
+    await search.press('ArrowDown')
+    await expect(result).toBeFocused()
+    await result.press('Enter')
+    await expect(
+      page.getByRole('heading', { name: 'Listen Later List', exact: true })
+    ).toBeFocused()
+
+    const copy = (platform: string) =>
+      page.getByRole('row').filter({
+        has: page.getByRole('link', { name: platform, exact: true }),
+      })
+    await expect(copy('spotify')).toBeVisible()
+    await copy('youtube').getByRole('button', { name: 'Open menu' }).click()
+    await page.getByRole('menuitem', { name: /^Delete/ }).click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(copy('youtube')).toHaveCount(0)
+    await page.reload()
+    await expect(copy('spotify')).toBeVisible()
+    await expect(copy('youtube')).toHaveCount(0)
+  })
+
   test('adding then removing from the search results toasts and updates the list', async ({
     page,
   }) => {
