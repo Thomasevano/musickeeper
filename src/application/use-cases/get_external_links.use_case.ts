@@ -11,7 +11,7 @@ export class GetExternalLinksUseCase {
   ) {}
 
   async execute(
-    mbid: string,
+    mbid: string | undefined,
     itemType: SearchType,
     artists: string[],
     title: string,
@@ -19,7 +19,7 @@ export class GetExternalLinksUseCase {
     sourceUrl?: string
   ): Promise<ExternalLink[]> {
     const [mbLinks, searchLinks] = await Promise.all([
-      this.musicBrainzLinks.fetchExternalLinks(mbid, itemType),
+      mbid ? this.musicBrainzLinks.fetchExternalLinks(mbid, itemType) : [],
       this.platformSearch.search(artists, title, itemType),
     ])
 
@@ -27,8 +27,8 @@ export class GetExternalLinksUseCase {
 
     if (sourceUrl) {
       const spec = detectPlatform(sourceUrl)
-      if (spec && !allLinks.some((l) => l.platform === spec.id)) {
-        allLinks.push({
+      if (spec) {
+        allLinks.unshift({
           platform: spec.id,
           label: spec.label,
           url: sourceUrl,
@@ -42,11 +42,12 @@ export class GetExternalLinksUseCase {
     const result: ExternalLink[] = []
 
     for (const link of allLinks) {
-      if (seen.has(link.platform)) continue
-      seen.add(link.platform)
+      const url = normalizeLinkUrl(link.url, locale)
+      if (seen.has(url)) continue
+      seen.add(url)
       result.push({
         ...link,
-        url: normalizeLinkUrl(link.url, locale),
+        url,
       })
     }
 

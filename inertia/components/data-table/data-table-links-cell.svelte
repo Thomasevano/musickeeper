@@ -29,7 +29,7 @@
       {#if groupIndex === 1 && stream.length && buy.length}
         <span class="text-muted-foreground/40 mx-0.5">·</span>
       {/if}
-      {#each group as link (link.platform)}
+      {#each group as link (link.url)}
         {@const presentation = linkPresentation[link.category]}
         {@const Icon = presentation.icon}
         <a
@@ -40,7 +40,7 @@
           class={presentation.classes}
         >
           <Icon class="size-3 shrink-0" aria-hidden="true" />
-          {link.label}
+          {link.label}{link.source === 'source-url' ? ' (source)' : ''}
         </a>
       {/each}
     {/each}

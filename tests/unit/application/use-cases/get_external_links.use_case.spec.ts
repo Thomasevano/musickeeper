@@ -5,11 +5,14 @@ import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
 import { type ExternalLink, SearchType } from '#domain/music_item.js'
 
 class StubMusicBrainzLinksPort extends MusicBrainzExternalLinksPort {
+  calls = 0
+
   constructor(private links: ExternalLink[]) {
     super()
   }
 
   async fetchExternalLinks(): Promise<ExternalLink[]> {
+    this.calls += 1
     return this.links
   }
 }
@@ -25,17 +28,18 @@ class StubPlatformSearchPort extends PlatformSearchPort {
 }
 
 function makeUseCase(musicBrainzLinks: ExternalLink[], platformLinks: ExternalLink[]) {
-  return new GetExternalLinksUseCase(
-    new StubMusicBrainzLinksPort(musicBrainzLinks),
-    new StubPlatformSearchPort(platformLinks)
-  )
+  const musicBrainz = new StubMusicBrainzLinksPort(musicBrainzLinks)
+  return {
+    musicBrainz,
+    useCase: new GetExternalLinksUseCase(musicBrainz, new StubPlatformSearchPort(platformLinks)),
+  }
 }
 
 test.group('GetExternalLinksUseCase', () => {
-  test('keeps the first link per platform and normalizes locale-sensitive URLs', async ({
+  test('deduplicates the same destination and normalizes locale-sensitive URLs', async ({
     assert,
   }) => {
-    const useCase = makeUseCase(
+    const { useCase } = makeUseCase(
       [
         {
           platform: 'spotify',
@@ -56,7 +60,7 @@ test.group('GetExternalLinksUseCase', () => {
         {
           platform: 'spotify',
           label: 'Spotify',
-          url: 'https://open.spotify.com/album/from-search',
+          url: 'https://open.spotify.com/album/from-musicbrainz',
           category: 'stream',
           source: 'platform-search',
         },
@@ -100,40 +104,86 @@ test.group('GetExternalLinksUseCase', () => {
     )
   })
 
-  test('adds a recognized source URL only when that platform is absent', async ({ assert }) => {
-    const sourceUrl = 'https://music.youtube.com/watch?v=source'
+  test('skips MusicBrainz when a reviewed item has no association', async ({ assert }) => {
+    const { musicBrainz, useCase } = makeUseCase(
+      [
+        {
+          platform: 'musicbrainz-only',
+          label: 'MusicBrainz only',
+          url: 'https://example.test/musicbrainz',
+          category: 'stream',
+          source: 'musicbrainz',
+        },
+      ],
+      [
+        {
+          platform: 'qobuz',
+          label: 'Qobuz',
+          url: 'https://www.qobuz.com/fr-fr/album/example/1',
+          category: 'buy',
+          source: 'platform-search',
+        },
+      ]
+    )
 
-    const added = await makeUseCase([], []).execute(
-      'recording-id',
+    const result = await useCase.execute(
+      undefined,
+      SearchType.track,
+      ['Artist'],
+      'Song',
+      'fr-FR',
+      'https://open.spotify.com/track/source'
+    )
+
+    assert.equal(musicBrainz.calls, 0)
+    assert.sameDeepMembers(
+      result.map(({ platform, source }) => ({ platform, source })),
+      [
+        { platform: 'qobuz', source: 'platform-search' },
+        { platform: 'spotify', source: 'source-url' },
+      ]
+    )
+  })
+
+  test('preserves the original source alongside a different result on the same platform', async ({
+    assert,
+  }) => {
+    const sourceUrl = 'https://open.spotify.com/track/source-recording'
+    const { useCase } = makeUseCase(
+      [],
+      [
+        {
+          platform: 'spotify',
+          label: 'Spotify',
+          url: 'https://open.spotify.com/track/other-recording',
+          category: 'stream',
+          source: 'platform-search',
+        },
+      ]
+    )
+    const result = await useCase.execute(
+      undefined,
       SearchType.track,
       ['Artist'],
       'Song',
       'en-US',
       sourceUrl
     )
-    const duplicate = await makeUseCase(
-      [
-        {
-          platform: 'youtube-music',
-          label: 'YouTube Music',
-          url: 'https://music.youtube.com/watch?v=musicbrainz',
-          category: 'stream',
-          source: 'musicbrainz',
-        },
-      ],
-      []
-    ).execute('recording-id', SearchType.track, ['Artist'], 'Song', 'en-US', sourceUrl)
-
-    assert.deepEqual(added, [
+    assert.deepEqual(result, [
       {
-        platform: 'youtube-music',
-        label: 'YouTube Music',
+        platform: 'spotify',
+        label: 'Spotify',
         url: sourceUrl,
         category: 'stream',
         source: 'source-url',
       },
+      {
+        platform: 'spotify',
+        label: 'Spotify',
+        url: 'https://open.spotify.com/track/other-recording',
+        category: 'stream',
+        source: 'platform-search',
+      },
     ])
-    assert.lengthOf(duplicate, 1)
-    assert.equal(duplicate[0].url, 'https://music.youtube.com/watch?v=musicbrainz')
   })
 })
