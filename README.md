@@ -3,7 +3,7 @@
 > [!NOTE]
 > THIS PROJECT IS STILL IN DEVELOPMENT
 
-MusicKeeper lets you keep the music you find outside your streaming platform. Paste a link to a track, album, or playlist and it resolves the same item across platforms via MusicBrainz, so you can save it to a listen-later list without losing it when a friend shares a Spotify link but you use Apple Music.
+MusicKeeper lets you keep the music you find outside your streaming platform. Paste a supported track or album link, review its platform metadata, and save it to your Listen Later list without a MusicBrainz match. When you want corrections, explicitly search MusicBrainz, choose a candidate, review the proposed changes, then Apply. External Links remain available for unmatched items.
 
 **Live demo:** [musickeeper.app](https://musickeeper.app)
 
