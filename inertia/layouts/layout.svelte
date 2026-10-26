@@ -15,7 +15,7 @@
   {/if}
 </svelte:head>
 
-<div class="flex min-h-dvh flex-col">
+<div class="flex min-h-dvh flex-col pt-[env(safe-area-inset-top)] pe-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] ps-[env(safe-area-inset-left)]">
   <Navigation />
   <main class="flex-1">
     {@render children()}

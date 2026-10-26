@@ -88,7 +88,10 @@
         </Button>
       {/snippet}
     </Sheet.Trigger>
-    <Sheet.Content side="right" class="w-[min(20rem,calc(100%-1rem))]">
+    <Sheet.Content
+      side="right"
+      class="w-[min(20rem,calc(100%-1rem))] pt-[calc(1.5rem+env(safe-area-inset-top))] pe-[calc(1.5rem+env(safe-area-inset-right))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] [&>[data-dialog-close]]:top-[calc(1rem+env(safe-area-inset-top))] [&>[data-dialog-close]]:right-[calc(1rem+env(safe-area-inset-right))]"
+    >
       <Sheet.Header class="sr-only">
         <Sheet.Title>Navigation</Sheet.Title>
         <Sheet.Description>Site links and theme settings.</Sheet.Description>

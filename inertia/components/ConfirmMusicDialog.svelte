@@ -93,8 +93,11 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-  <Dialog.Content class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
-    <Dialog.Header>
+  <Dialog.Content
+    class="music-confirmation min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain [overflow-wrap:anywhere] sm:max-w-md [&>[data-dialog-close]]:flex [&>[data-dialog-close]]:size-11 [&>[data-dialog-close]]:items-center [&>[data-dialog-close]]:justify-center"
+    style="translate: var(--confirmation-translate, -50% -50%)"
+  >
+    <Dialog.Header class="min-w-0 pe-12 text-start">
       <Dialog.Title>
         {#if isLoading}
           Processing Link
@@ -130,8 +133,8 @@
       <Skeleton name="confirm-dialog" loading={true}>
         {#snippet fixture()}
           <div class="flex gap-4">
-            <div class="h-24 w-24 rounded-md bg-muted"></div>
-            <div class="flex flex-col justify-center gap-1">
+            <div class="size-20 shrink-0 rounded-md bg-muted sm:size-24"></div>
+            <div class="min-w-0 flex flex-col justify-center gap-1">
               <p class="text-lg font-medium">Never Gonna Give You Up</p>
               <p class="text-sm text-muted-foreground">Rick Astley</p>
               <span class="text-xs">track</span>
@@ -140,8 +143,8 @@
         {/snippet}
         {#snippet fallback()}
           <div class="flex gap-4">
-            <div class="h-24 w-24 rounded-md bg-muted animate-pulse"></div>
-            <div class="flex flex-col justify-center gap-2 flex-1">
+            <div class="size-20 shrink-0 rounded-md bg-muted animate-pulse sm:size-24"></div>
+            <div class="min-w-0 flex flex-col justify-center gap-2 flex-1">
               <div class="h-6 w-3/4 rounded bg-muted animate-pulse"></div>
               <div class="h-4 w-1/2 rounded bg-muted animate-pulse"></div>
               <div class="h-5 w-20 rounded bg-muted animate-pulse"></div>
@@ -160,7 +163,7 @@
         aria-live="assertive"
       >
         <AlertTriangle class="h-5 w-5 text-destructive shrink-0" aria-hidden="true" />
-        <div class="flex flex-col gap-1">
+        <div class="min-w-0 flex flex-col gap-1">
           <p class="text-sm font-medium text-destructive">
             {error}
           </p>
@@ -173,7 +176,7 @@
       </div>
     {:else if existingItem}
       <div class="flex items-center gap-2 rounded-md border border-warning bg-warning/10 p-3 mb-4">
-        <Copy class="h-5 w-5 text-warning" aria-hidden="true" />
+        <Copy class="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
         <p class="text-sm text-warning-foreground">
           An item with the same title and the same artists is already in your list.
         </p>
@@ -187,8 +190,9 @@
               src={existingItem.coverArt}
               alt={`Cover of ${existingItem.title}`}
               size="md"
+              class="confirmation-cover shrink-0"
             />
-            <div class="flex flex-col justify-center">
+            <div class="min-w-0 flex flex-col justify-center">
               <h4 class="font-medium">{existingItem.title}</h4>
               <p class="text-sm text-muted-foreground">{existingItem.artists.join(', ')}</p>
               <p class="text-xs text-muted-foreground capitalize">{existingItem.itemType}</p>
@@ -198,29 +202,40 @@
 
         <div>
           <p class="text-sm font-medium text-muted-foreground mb-2">New item from link:</p>
-          <div class="flex gap-4 p-3 rounded-md border">
+          <div class="flex flex-col gap-4 p-3 rounded-md border sm:flex-row">
             <CoverArt
               src={musicItem?.coverArt}
               alt={`Cover of ${editableTitle}`}
               size="md"
+              class="confirmation-cover shrink-0"
             />
-            <div class="flex flex-col justify-center gap-2 flex-1">
-              <label for="dup-title" class="sr-only">Title</label>
-              <Input id="dup-title" bind:value={editableTitle} placeholder="Title" />
-              <label for="dup-artists" class="sr-only">Artists</label>
-              <Input
-                id="dup-artists"
-                bind:value={editableArtists}
-                placeholder="Artist(s), comma-separated"
-              />
-              {#if selectedType !== SearchType.album}
-                <label for="dup-album" class="sr-only">Album name</label>
+            <div class="min-w-0 flex-1 space-y-3">
+              <div class="space-y-1">
+                <label for="dup-title" class="text-sm font-medium">Title</label>
+                <Input id="dup-title" bind:value={editableTitle} placeholder="Title" />
+              </div>
+              <div class="space-y-1">
+                <label for="dup-artists" class="text-sm font-medium">Artists</label>
                 <Input
-                  id="dup-album"
-                  bind:value={editableAlbumName}
-                  placeholder="Album name (optional)"
+                  id="dup-artists"
+                  bind:value={editableArtists}
+                  placeholder="Artist(s), comma-separated"
                 />
+              </div>
+              {#if selectedType !== SearchType.album}
+                <div class="space-y-1">
+                  <label for="dup-album" class="text-sm font-medium">Album name</label>
+                  <Input
+                    id="dup-album"
+                    bind:value={editableAlbumName}
+                    placeholder="Album name (optional)"
+                  />
+                </div>
               {/if}
+              <p class="flex items-center gap-4 text-sm">
+                <span class="font-medium">Item Type:</span>
+                {selectedType === SearchType.album ? 'Album' : 'Track'}
+              </p>
             </div>
           </div>
         </div>
@@ -231,8 +246,9 @@
           src={musicItem.coverArt}
           alt={`Cover of ${editableTitle}`}
           size="lg"
+          class="confirmation-cover shrink-0"
         />
-        <div class="flex flex-col justify-center gap-1">
+        <div class="min-w-0 flex flex-col justify-center gap-1">
           {#if source === 'musicbrainz'}
             <Badge variant="secondary" class="w-fit">MusicBrainz Match</Badge>
           {:else if source === 'link'}
@@ -268,7 +284,7 @@
 
       <div class="flex items-center gap-4">
         <label for="item-type" class="text-sm font-medium">Item Type:</label>
-        <Select id="item-type" class="w-[140px]" bind:value={selectedType}>
+        <Select id="item-type" class="min-h-11 w-[140px]" bind:value={selectedType}>
           {#each types as type (type.value)}
             <option value={type.value}>{type.label}</option>
           {/each}
@@ -276,7 +292,7 @@
       </div>
     {/if}
 
-    <Dialog.Footer>
+    <Dialog.Footer class="border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
       {#if isLoading}
         <Button variant="outline" onclick={onCancel}>Cancel</Button>
       {:else if error}
@@ -300,3 +316,41 @@
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
+
+<style>
+  @media (width < 40rem) {
+    /* One native scroll area keeps fields and actions reachable on short screens. */
+    :global(.music-confirmation) {
+      --confirmation-translate: 0 0;
+      inset-inline-start: 0;
+      top: auto;
+      bottom: 0;
+      max-width: none;
+      max-height: calc(100dvh - max(1rem, env(safe-area-inset-top, 0px)));
+      border-radius: 1rem 1rem 0 0;
+      padding: 1rem;
+      padding-inline-start: calc(1rem + env(safe-area-inset-left, 0px));
+      padding-inline-end: calc(1rem + env(safe-area-inset-right, 0px));
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    :global(.music-confirmation [data-dialog-close]) {
+      inset-inline-end: calc(1rem + env(safe-area-inset-right, 0px));
+    }
+
+    /* Size both the image and its loading placeholder, not just their wrapper. */
+    :global(.music-confirmation .confirmation-cover),
+    :global(.music-confirmation .confirmation-cover > *) {
+      width: 5rem;
+      height: 5rem;
+    }
+  }
+
+  /* Landscape phones still need readable inputs without Safari focus zoom. */
+  @media (pointer: coarse) {
+    :global(.music-confirmation input),
+    :global(.music-confirmation select) {
+      font-size: 1rem;
+    }
+  }
+</style>
