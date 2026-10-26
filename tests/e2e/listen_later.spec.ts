@@ -36,6 +36,27 @@ async function expectAllMinTouchTargets(locator: Locator) {
   }
 }
 
+async function expectMinTouchTargetArea(locator: Locator) {
+  await expect(locator).toBeVisible()
+  await expect
+    .poll(() => locator.evaluate((element) => element.getBoundingClientRect().width))
+    .toBeGreaterThanOrEqual(44)
+  await expect
+    .poll(() => locator.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeGreaterThanOrEqual(44)
+}
+
+async function expectNoHorizontalOverflow(locator: Locator) {
+  await expect
+    .poll(() =>
+      locator.evaluate((element) => {
+        const { left, right } = element.getBoundingClientRect()
+        return element.scrollWidth <= element.clientWidth && left >= 0 && right <= window.innerWidth
+      })
+    )
+    .toBe(true)
+}
+
 async function expectStacked(first: Locator, second: Locator) {
   await expect
     .poll(async () => {
@@ -311,6 +332,93 @@ test.describe('paste link - duplicate detection', () => {
           })
         )
         .toEqual([expectedId])
+    })
+  }
+})
+
+test.describe('mobile confirmation dialogs', () => {
+  const longTitle =
+    'The Complete and Unabridged Recording of a Remarkably Long Evening at the Metropolitan Observatory'
+  const longArtists = [
+    'The International Association of Experimental Sound and Improvised Music',
+    'The Metropolitan Observatory Chamber Orchestra and Chorus',
+  ]
+  const longAlbum = 'Collected Works from the Metropolitan Observatory Sessions, Volume Three'
+  const longMetadataResponse = {
+    ...mockMetadataResponse,
+    musicItem: {
+      ...mockMetadataResponse.musicItem,
+      title: longTitle,
+      artists: longArtists,
+      albumName: longAlbum,
+    },
+    linkMetadata: {
+      ...mockMetadataResponse.linkMetadata,
+      title: longTitle,
+      artist: longArtists.join(', '),
+      albumName: longAlbum,
+    },
+  }
+
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`keeps confirmation actions reachable at ${viewport.width}x${viewport.height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport)
+      await page.route('**/api/link/metadata', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(longMetadataResponse),
+        })
+      )
+      await page.goto('/library/listen-later')
+
+      const linkInput = page.getByPlaceholder('Paste a link from Spotify')
+      await linkInput.fill(SPOTIFY_URL)
+      await addLinkButton(page).click()
+
+      const dialog = page.getByRole('dialog')
+      await expect(page.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+      await expectNoHorizontalOverflow(dialog)
+
+      const title = dialogField(page, 'Title')
+      await expect(title).toHaveValue(longTitle)
+      await expect(dialogField(page, 'Artists')).toHaveValue(longArtists.join(', '))
+      await expect(dialogField(page, 'Album')).toHaveValue(longAlbum)
+      await title.fill(`${longTitle} (edited)`)
+      await expect(title).toHaveValue(`${longTitle} (edited)`)
+      await title.fill(longTitle)
+
+      await expectMinTouchTargetArea(dialog.getByRole('button', { name: 'Close', exact: true }))
+      await dialog.getByRole('button', { name: 'Add to List' }).click()
+      await expect(dialog).not.toBeVisible()
+
+      const visibleCard = page.locator(`#mobile-item-${longMetadataResponse.musicItem.id}`)
+      await expect(visibleCard).toBeVisible()
+
+      await linkInput.fill(SPOTIFY_URL)
+      await addLinkButton(page).click()
+      await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+      await expectNoHorizontalOverflow(dialog)
+
+      for (const field of ['Title', 'Artists', 'Album name']) {
+        await dialog
+          .locator('label')
+          .filter({ hasText: new RegExp(`^${field}$`) })
+          .click()
+        await expect(dialogField(page, field)).toBeFocused()
+      }
+      await expect(dialog.getByText('Item Type: Track', { exact: true })).toBeVisible()
+      await expect(dialog.getByRole('combobox')).toHaveCount(0)
+
+      await dialog.getByRole('button', { name: 'View Existing' }).click()
+      await expect(dialog).not.toBeVisible()
+      await expect(visibleCard).toBeInViewport()
+      await expect(visibleCard).toHaveClass(/bg-warning\/20/)
     })
   }
 })
