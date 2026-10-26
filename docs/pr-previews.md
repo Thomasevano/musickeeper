@@ -69,6 +69,13 @@ The workflow:
 The image tag contains the commit SHA intentionally. Reusing a mutable tag
 could make Coolify restart an old image from its cache.
 
+The E2E job pins `ubuntu-26.04` rather than following `ubuntu-latest`.
+Playwright 1.64.1 supports this LTS; 1.58.2 failed during browser dependency
+installation before any tests ran. Keep `@playwright/test` and the explicit
+`playwright-core` peer used by `@axe-core/playwright` aligned when upgrading,
+then reinstall Chromium and run the suite. The lockfile records the tested
+versions; runner upgrades must also pass the preview E2E job.
+
 ### `playwright.config.ts`
 
 Playwright supports two targets:
