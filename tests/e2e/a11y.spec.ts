@@ -887,7 +887,7 @@ for (const scheme of ['light', 'dark'] as const) {
       const dialog = page.getByRole('dialog')
       await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
       await dialog.getByRole('button', { name: /Alternative recording/ }).click()
-      await expect(dialog.getByRole('table', { name: 'Proposed corrections' })).toBeVisible()
+      await expect(dialog.getByRole('region', { name: 'Proposed corrections' })).toBeVisible()
       await expectAccessibleDialog(page, 'candidate corrections ' + scheme)
     }
   )
