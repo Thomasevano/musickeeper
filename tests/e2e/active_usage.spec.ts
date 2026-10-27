@@ -67,7 +67,7 @@ test('successful save qualifies once; reading and a rejected duplicate do not', 
     .toEqual([{ name: 'active_use', options: { props: { action: 'item_saved' } } }])
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Existing saved item' })).toBeVisible()
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(events).toEqual([{ name: 'active_use', options: { props: { action: 'item_saved' } } }])
 })

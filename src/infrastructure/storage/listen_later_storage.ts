@@ -128,8 +128,7 @@ function openDatabase(indexedDBInstance: IDBFactory, onBlocked: () => void): Pro
   return promise
 }
 
-// Five call sites open a transaction on the one object store; naming it keeps
-// STORE_NAME in a single place and reads as the intent, not the ceremony.
+// Keep transaction creation and the store name together.
 const storeFor = (db: IDBDatabase, mode: IDBTransactionMode) =>
   db.transaction(STORE_NAME, mode).objectStore(STORE_NAME)
 

@@ -190,7 +190,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('dialog')).not.toBeVisible()
 
       await openAddDialog(page)
-      await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
+      await expect(page.getByRole('region', { name: 'Existing saved item' })).toBeVisible()
       await expectAccessibleDialog(page, `duplicate dialog (${colorScheme})`)
     })
 
@@ -609,7 +609,6 @@ test.describe('announcements', () => {
     // fetch lands. A dialog name is spoken once, on focus, so without a live
     // region the reader is still holding the loading state.
     await openAddDialog(page)
-    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
     await expect(
       page.getByRole('dialog').getByRole('status').filter({ hasText: 'Duplicate found' })
     ).toBeVisible()
