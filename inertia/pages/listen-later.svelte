@@ -12,13 +12,10 @@
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName, findDuplicate } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
-  import type { LinkMetadata } from '../../src/domain/link'
-  import {
-    listenLaterStorage,
-  } from '../../src/infrastructure/storage/listen_later_storage'
+  import { ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
+  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
+  import { detectPlatform } from '../../src/shared/platform_registry'
 
   let {
     serializedItems = [],
@@ -55,9 +52,9 @@
   let isDialogLoading = $state(false)
   let dialogError = $state<string | null>(null)
   let pendingMusicItem = $state<MusicItem | null>(null)
-  let pendingLinkMetadata = $state<LinkMetadata | null>(null)
-  let pendingSource = $state<'musicbrainz' | 'link' | null>(null)
-  let existingDuplicate = $state<ListenLaterItem | null>(null)
+  let pendingSourceUrl = $state<string | undefined>()
+  let isSaving = $state(false)
+  let platformController: AbortController | null = null
   let highlightedItemId = $state<string | null>(null)
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
@@ -269,135 +266,102 @@
   }
 
   async function fetchLinkMetadata() {
+    platformController?.abort()
+    const controller = new AbortController()
+    platformController = controller
+    const sourceUrl = linkUrl.trim()
     isDialogLoading = true
     dialogError = null
     isProcessingLink = true
-
     try {
-      const response = await fetch('/api/link/metadata', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: linkUrl }),
+      const response = await fetch('/api/platform-metadata', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl }), signal: controller.signal,
       })
-
       const data = await response.json()
-
+      if (controller.signal.aborted || platformController !== controller) return
       if (!response.ok) {
         dialogError = data.error || 'Failed to fetch metadata'
         return
       }
-
-      // Check for duplicate before showing confirmation dialog
-      const title = data.musicItem?.title || data.linkMetadata?.title || ''
-      const artists =
-        data.musicItem?.artists || (data.linkMetadata?.artist ? [data.linkMetadata.artist] : [])
-      const duplicate = findDuplicate(listenLaterItems, title, artists)
-
-      // Update dialog with fetched data
-      pendingMusicItem = data.musicItem
-      pendingLinkMetadata = data.linkMetadata
-      pendingSource = data.source
-      existingDuplicate = duplicate
-    } catch (error) {
-      dialogError = 'Failed to connect to server. Please check your internet connection.'
-      console.error('Error fetching link metadata:', error)
+      pendingMusicItem = new MusicItem({ ...data.musicItem, id: crypto.randomUUID() })
+      pendingSourceUrl = data.linkMetadata.originalUrl
+    } catch {
+      if (!controller.signal.aborted && platformController === controller) {
+        dialogError = 'Failed to connect to server. Please check your internet connection.'
+      }
     } finally {
-      isDialogLoading = false
-      isProcessingLink = false
+      if (platformController === controller) {
+        isDialogLoading = false
+        isProcessingLink = false
+      }
     }
   }
 
   function handleRetry() {
-    fetchLinkMetadata()
+    void fetchLinkMetadata()
   }
 
-  async function fetchExternalLinks(
-    mbid: string,
-    itemType: SearchType,
-    sourceUrl?: string
-  ): Promise<ExternalLink[]> {
+  async function backfillExternalLinks(item: ListenLaterItem) {
     try {
       const params = new URLSearchParams({
-        mbid,
-        type: itemType === SearchType.album ? 'album' : 'track',
-        locale: navigator.language || 'fr-FR',
+        type: item.itemType, locale: navigator.language || 'fr-FR',
+        title: item.title, artists: item.artists.join(','),
       })
-      if (sourceUrl) params.set('sourceUrl', sourceUrl)
-      if (pendingMusicItem) {
-        if (pendingMusicItem.artists?.length) params.set('artists', pendingMusicItem.artists.join(','))
-        if (pendingMusicItem.title) params.set('title', pendingMusicItem.title)
-      }
-      const response = await fetch(`/api/links?${params.toString()}`)
-      if (!response.ok) return []
+      if (item.musicBrainzId) params.set('mbid', item.musicBrainzId)
+      if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl)
+      const response = await fetch(`/api/links?${params}`)
+      if (!response.ok) return
       const data = await response.json()
-      return data.externalLinks ?? []
+      const updated = await listenLaterStorage.updateExternalLinks(item.id, data.externalLinks ?? [])
+      if (updated) listenLaterItems = listenLaterItems.map((existing) => existing.id === updated.id ? updated : existing)
     } catch {
-      return []
+      // Saving succeeds independently of optional external provider lookups.
     }
   }
 
-  async function handleConfirmDialogConfirm(
-    itemType: SearchType,
-    title: string,
-    artists: string[],
-    albumName: string
-  ) {
-    if (!pendingMusicItem) return
-
-    const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
-
+  async function handleConfirmDialogConfirm(item: MusicItem, musicBrainzId?: string) {
+    if (isSaving || !pendingMusicItem) return
+    isSaving = true
+    dialogError = null
     try {
-      const stored = await listenLaterStorage.add({
-        id: pendingMusicItem.id,
-        title,
-        releaseDate: pendingMusicItem.releaseDate,
-        length: pendingMusicItem.length,
-        artists,
-        albumName,
-        itemType,
-        coverArt: pendingMusicItem.coverArt,
-        sourceUrl: linkUrl || undefined,
-        externalLinks,
+      const platform = pendingSourceUrl ? detectPlatform(pendingSourceUrl) : undefined
+      const stored = await listenLaterStorage.add({ ...item, musicBrainzId,
+        sourceUrl: pendingSourceUrl, externalLinks: platform && pendingSourceUrl ? [{ platform: platform.id, label: platform.label, category: platform.category, url: pendingSourceUrl, source: 'source-url' }] : [],
       })
-
-      // ponytail: appending assumes the store's oldest-first order, which puts a
-      // new item last. If that default order ever changes, replace this with a
-      // getAll().
       listenLaterItems = [...listenLaterItems, stored]
-
       isConfirmDialogOpen = false
       resetPendingState()
       linkUrl = ''
-
       toast.success(`${musicItemName(stored)} added to your list`)
+      void backfillExternalLinks(stored)
     } catch (error) {
       console.error('Error saving item to listen later list:', error)
       dialogError = 'Failed to save item. Please try again.'
+    } finally {
+      isSaving = false
     }
   }
 
   function handleConfirmDialogCancel() {
+    if (isSaving) return
     isConfirmDialogOpen = false
     resetPendingState()
   }
 
   function resetPendingState() {
+    platformController?.abort()
+    platformController = null
     pendingMusicItem = null
-    pendingLinkMetadata = null
-    pendingSource = null
-    existingDuplicate = null
+    pendingSourceUrl = undefined
     dialogError = null
     isDialogLoading = false
+    isProcessingLink = false
   }
 
-  function handleViewExisting() {
-    if (existingDuplicate) {
-      isConfirmDialogOpen = false
-      highlightedItemId = existingDuplicate.id
-      resetPendingState()
-    }
+  function handleViewExisting(item: ListenLaterItem) {
+    highlightedItemId = item.id
+    handleConfirmDialogCancel()
   }
 </script>
 
@@ -589,9 +553,8 @@
   isLoading={isDialogLoading}
   error={dialogError}
   musicItem={pendingMusicItem}
-  linkMetadata={pendingLinkMetadata}
-  source={pendingSource}
-  existingItem={existingDuplicate}
+  {isSaving}
+  {listenLaterItems}
   onConfirm={handleConfirmDialogConfirm}
   onCancel={handleConfirmDialogCancel}
   onViewExisting={handleViewExisting}

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **paste:** platform-first metadata with optional MusicBrainz candidate search, correction review and explicit Apply ([#42](https://github.com/Thomasevano/musickeeper/issues/42)). Saving does not wait for matching; pre-save identifying edits detach an applied match.
+- **listen-later:** persist optional MusicBrainz associations separately from local item keys; unmatched External Links retain platform search and the source URL. Distinct source and catalog destinations on the same platform remain available.
+- **paste:** distinguish candidate details and before/after corrections; explicitly choose whether to keep the current cover or use the MusicBrainz cover.
+
+### Bug Fixes
+
+- **paste:** retain mobile confirmation scrolling, safe-area padding, compact artwork and touch targets when reviewing MusicBrainz candidates or navigating to an existing item.
+- **links:** merge equivalent Apple Music song/album-track URLs by catalog ID, preserving the original source URL and distinct destinations. Source-platform searches remain enabled.
+- **paste:** allow cover load/error events to finish safely when cancelling a match or closing the confirmation dialog.
+
+### Storage compatibility
+
+- IndexedDB upgrades to version 4, preserving existing Listen Later Items, keys and links without inferring a match from UUID-shaped keys. The version fence prevents older code from treating new local UUIDs as MusicBrainz IDs. Older version-3 code cannot reopen an upgraded database. Roll back with version-4-capable code; do not delete the database, which would lose the user's list.
+
 ## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
 
 

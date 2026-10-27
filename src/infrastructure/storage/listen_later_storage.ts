@@ -6,7 +6,8 @@ import {
 } from '../../domain/music_item.js'
 
 const DB_NAME = 'listenLaterDB'
-const DB_VERSION = 3
+// Prevent older clients from interpreting new local UUID keys as catalog IDs.
+const DB_VERSION = 4
 const STORE_NAME = 'listenLaterList'
 
 export const DB_CONFIG = {
@@ -172,6 +173,7 @@ function addItem(
     addedAt,
     sourceUrl: input.sourceUrl,
     externalLinks: (input.externalLinks ?? []).map((link) => ({ ...link })),
+    musicBrainzId: input.musicBrainzId,
   }
 
   const request = storeFor(db, 'readwrite').add(item)

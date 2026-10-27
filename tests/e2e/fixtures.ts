@@ -19,7 +19,7 @@ export const mockMetadataResponse = {
     itemType: 'track',
     coverArt: 'https://coverartarchive.org/test-cover.jpg',
   },
-  source: 'musicbrainz',
+  source: 'link',
   linkMetadata: {
     title: 'Never Gonna Give You Up',
     artist: 'Rick Astley',
@@ -61,7 +61,7 @@ export function listenLaterSeed(overrides: ListenLaterSeedOverrides): ListenLate
 }
 
 export async function mockMetadataRoute(page: Page) {
-  await page.route('**/api/link/metadata', (route) =>
+  await page.route('**/api/platform-metadata', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
