@@ -227,22 +227,9 @@ test.describe('paste link - duplicate detection', () => {
     await linkInput.fill(SPOTIFY_URL)
     await addLinkButton(page).click()
 
-    // Dialog shows duplicate state
-    await expect(page.getByRole('dialog')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
-    // The exact match keeps this on the visible copy: the live region that
-    // announces the same resolution prefixes it with "Duplicate found."
-    await expect(
-      page.getByText('An item with the same title and the same artists is already in your list.', {
-        exact: true,
-      })
-    ).toBeVisible()
-
-    // Shows existing item info
-    await expect(page.getByText('Existing item in your list')).toBeVisible()
-
-    // Duplicate-specific buttons are present
-    await expect(page.getByRole('button', { name: 'Add Anyway' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add Anyway' })).toHaveCount(0)
+    await expect(page.getByRole('dialog').getByRole('textbox')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Skip and edit this new item' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'View Existing' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   })
@@ -272,10 +259,7 @@ test.describe('paste link - duplicate detection', () => {
     await linkInput.fill(SPOTIFY_URL)
     await addLinkButton(page).click()
 
-    // Wait for duplicate dialog to fully load
-    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
-
-    // Click "Add Anyway"
+    await page.getByRole('button', { name: 'Skip and edit this new item' }).click()
     await page.getByRole('button', { name: 'Add Anyway' }).click()
 
     // Two rows now exist with the same title
@@ -399,8 +383,12 @@ test.describe('mobile confirmation dialogs', () => {
 
       await linkInput.fill(SPOTIFY_URL)
       await addLinkButton(page).click()
-      await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
       await expectNoHorizontalOverflow(dialog)
+      await expect(dialog.getByRole('textbox')).toHaveCount(0)
+      const continueButton = dialog.getByRole('button', { name: 'Skip and edit this new item' })
+      await expectMinTouchTargetArea(continueButton)
+      await continueButton.click()
+      await expect(dialog).toBeFocused()
 
       for (const field of ['Title', 'Artists', 'Album']) {
         await dialog
@@ -1001,7 +989,6 @@ test.describe('reduced motion', () => {
     // only path that scrolls the list on the user's behalf.
     await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
     await addLinkButton(page).click()
-    await expect(page.getByRole('heading', { name: 'Duplicate Found' })).toBeVisible()
     await page.getByRole('button', { name: 'View Existing' }).click()
 
     await expect

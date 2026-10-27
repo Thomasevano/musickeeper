@@ -148,6 +148,97 @@ test('late cover events do not break cancelling a match or closing the dialog', 
   expect(errors).toEqual([])
 })
 
+for (const width of [320, 1280]) {
+  test(`duplicate warning gates the incoming draft without changing the saved item (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await paste(page)
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+    const savedDuplicate = {
+      ...listenLaterSeed({
+        id: 'saved-duplicate',
+        title: platformItem.title,
+        artists: platformItem.artists,
+        itemType: 'track',
+        hasBeenListened: true,
+      }),
+      albumName: 'Saved album',
+      sourceUrl: 'https://music.apple.com/us/song/saved/123',
+    }
+    await seedListenLaterItems(page, [savedDuplicate])
+    const before = await savedItems(page)
+    const openDuplicate = async () => {
+      await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+      await page.getByRole('button', { name: 'Add', exact: true }).click()
+      await expect(dialog.getByRole('region', { name: 'Existing saved item' })).toContainText(
+        'Saved album'
+      )
+      await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
+      await expect(dialog.getByRole('button', { name: 'Find MusicBrainz matches' })).toHaveCount(0)
+      await expect(dialog.getByRole('button', { name: 'Add Anyway' })).toHaveCount(0)
+    }
+    await openDuplicate()
+    await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+    await expect(dialog).toBeFocused()
+    await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
+    await expect(dialog.getByLabel('Album', { exact: true })).toHaveValue(platformItem.albumName)
+    expect(await savedItems(page)).toEqual(before)
+    await page.keyboard.press('Escape')
+    await expect(dialog).not.toBeVisible()
+    expect(await savedItems(page)).toEqual(before)
+    await openDuplicate()
+    await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+    await dialog.getByLabel('Title', { exact: true }).fill('')
+    await dialog
+      .getByLabel('Title', { exact: true })
+      .pressSequentially('Platform title — my new item')
+    await dialog.getByRole('button', { name: 'Add to List' }).click()
+    await expect(dialog).not.toBeVisible()
+    await page.reload()
+    const saved = await savedItems(page)
+    expect(saved.find((item) => item.id === 'saved-duplicate')).toEqual(before[0])
+    expect(saved.filter((item) => item.id !== 'saved-duplicate')).toEqual([
+      expect.objectContaining({
+        title: 'Platform title — my new item',
+        albumName: platformItem.albumName,
+        coverArt: platformItem.coverArt,
+        sourceUrl: SPOTIFY_URL,
+        hasBeenListened: false,
+      }),
+    ])
+  })
+}
+
+test('editing into a different Duplicate requires a fresh warning without losing the draft', async ({
+  page,
+}) => {
+  await paste(page)
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
+  await seedListenLaterItems(page, [
+    listenLaterSeed({ id: 'first', title: platformItem.title, artists: platformItem.artists }),
+    listenLaterSeed({ id: 'second', title: 'Second saved title', artists: platformItem.artists }),
+  ])
+  const before = await savedItems(page)
+  await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await dialog.getByLabel('Album', { exact: true }).fill('My incoming album edit')
+  await dialog.getByLabel('Title', { exact: true }).fill('Second saved title')
+  await expect(dialog.getByRole('region', { name: 'Existing saved item' })).toContainText(
+    'Second saved title'
+  )
+  await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
+  await expect(dialog).toBeFocused()
+  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue('Second saved title')
+  await expect(dialog.getByLabel('Album', { exact: true })).toHaveValue('My incoming album edit')
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+  expect(await savedItems(page)).toEqual(before)
+})
+
 async function savedItems(page: Page) {
   return page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -219,6 +310,7 @@ test('save abandons pending matching; late results cannot change saved metadata 
   expect(saved[0].musicBrainzId).toBeUndefined()
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
   await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
   release()
   await expect(dialog.getByRole('region', { name: 'Proposed corrections' })).not.toBeVisible()
@@ -403,6 +495,11 @@ test('current edits drive search; Apply rechecks Duplicate against reviewed meta
   await dialog.getByRole('button', { name: /Corrected title/ }).click()
   await expect(dialog.getByRole('button', { name: 'Add to List' })).toBeVisible()
   await dialog.getByRole('button', { name: 'Apply corrections' }).click()
+  await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
+  await expect(dialog).toBeFocused()
+  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(candidates[0].title)
+  await expect(dialog.getByText('MusicBrainz Match', { exact: true })).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Add Anyway' })).toBeVisible()
   await dialog.getByLabel('Title', { exact: true }).fill('Different version')
   await expect(dialog.getByRole('button', { name: 'Add to List' })).toBeVisible()
