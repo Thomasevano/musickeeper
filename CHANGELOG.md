@@ -10,6 +10,7 @@
 ### Bug Fixes
 
 - **paste:** retain mobile confirmation scrolling, safe-area padding, compact artwork and touch targets when reviewing MusicBrainz candidates or navigating to an existing item.
+- **links:** merge equivalent Apple Music song/album-track URLs by catalog ID, preserving the original source URL and distinct destinations. Source-platform searches remain enabled.
 
 ### Storage compatibility
 
