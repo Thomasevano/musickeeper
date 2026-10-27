@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0](https://github.com/Thomasevano/musickeeper/compare/v0.9.0...v0.10.0) (2026-10-27)
+
+
+### Features
+
+* wire error pages with Inertia and navigation ([d0c6ca8](https://github.com/Thomasevano/musickeeper/commit/d0c6ca803f38c44b4f077a14e188e74e7f92451e)), closes [#54](https://github.com/Thomasevano/musickeeper/issues/54)
+
+
+### Bug Fixes
+
+* **listen-later:** fit music dialogs on mobile ([dc6099e](https://github.com/Thomasevano/musickeeper/commit/dc6099ebdfe7987e6c16c32a778d4134a1828ff5))
+* **listen-later:** keep mobile actions reachable ([184c5b7](https://github.com/Thomasevano/musickeeper/commit/184c5b75821f3ddb3d876e7dcbb4cd11984d4396)), closes [#49](https://github.com/Thomasevano/musickeeper/issues/49)
+* **listen-later:** target visible highlighted item ([4aeb3ac](https://github.com/Thomasevano/musickeeper/commit/4aeb3ac0bb4ba42f4fc6d71980b624b8f1a28fd5))
+
 ## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
 
 
