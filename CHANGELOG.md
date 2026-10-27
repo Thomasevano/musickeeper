@@ -7,6 +7,7 @@
 - **paste:** platform-first metadata with optional MusicBrainz candidate search, correction review and explicit Apply ([#42](https://github.com/Thomasevano/musickeeper/issues/42)). Saving does not wait for matching; pre-save identifying edits detach an applied match.
 - **listen-later:** persist optional MusicBrainz associations separately from local item keys; unmatched External Links retain platform search and the source URL. Distinct source and catalog destinations on the same platform remain available.
 - **paste:** distinguish candidate details and before/after corrections; explicitly choose whether to keep the current cover or use the MusicBrainz cover.
+- **listen-later:** review duplicates before editing a new item ([#74](https://github.com/Thomasevano/musickeeper/issues/74)). Show the saved item first; “Skip and edit this new item” reveals the incoming draft without modifying the saved entry.
 
 ### Bug Fixes
 

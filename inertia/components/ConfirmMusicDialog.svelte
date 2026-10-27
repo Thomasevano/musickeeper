@@ -37,6 +37,20 @@
   let isMatching = $state(false)
   let matchController: AbortController | null = null
   let matchButton = $state<HTMLButtonElement | null>(null)
+  let dialogElement = $state<HTMLDivElement | null>(null)
+  let acknowledgedDuplicateId = $state<string | null>(null)
+
+  async function focusDialog() {
+    await tick()
+    dialogElement?.scrollTo({ top: 0 })
+    dialogElement?.focus()
+  }
+
+  function editNewItem() {
+    if (!duplicate || isSaving) return
+    acknowledgedDuplicateId = duplicate.id
+    void focusDialog()
+  }
 
   async function cancelMatchingAndFocus() {
     cancelMatching()
@@ -60,6 +74,7 @@
     untrack(() => {
       cancelMatching()
       musicBrainzId = undefined
+      acknowledgedDuplicateId = null
       appliedDraftBaseline = initial
       editableTitle = initial?.title ?? ''
       editableArtists = initial?.artists.join(', ') ?? ''
@@ -76,6 +91,11 @@
     albumName: editableAlbumName.trim(), itemType: selectedType,
   }) : null)
   const duplicate = $derived(draft ? findDuplicate(listenLaterItems, draft.title, draft.artists) : null)
+  const showDuplicateWarning = $derived(!!duplicate && duplicate.id !== acknowledgedDuplicateId)
+
+  $effect(() => {
+    if (open && showDuplicateWarning) void focusDialog()
+  })
   const proposed = $derived(draft && selectedCandidate ? new MusicItem({
     ...draft,
     title: selectedCandidate.title,
@@ -141,7 +161,7 @@
   }
 
   function save() {
-    if (!draft || isSaving) return
+    if (!draft || isSaving || showDuplicateWarning) return
     cancelMatching()
     onConfirm(draft, musicBrainzId)
   }
@@ -156,6 +176,7 @@
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
   <Dialog.Content
+    bind:ref={dialogElement}
     class="music-confirmation min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain [overflow-wrap:anywhere] sm:max-w-xl [&>[data-dialog-close]]:flex [&>[data-dialog-close]]:size-11 [&>[data-dialog-close]]:items-center [&>[data-dialog-close]]:justify-center"
     style="translate: var(--confirmation-translate, -50% -50%)"
     showCloseButton={!isSaving}
@@ -163,10 +184,10 @@
     interactOutsideBehavior={isSaving ? 'ignore' : 'close'}
   >
     <Dialog.Header class="min-w-0 pe-12 text-start">
-      <Dialog.Title>{isLoading ? 'Processing Link' : error && !draft ? 'Error' : duplicate ? 'Duplicate Found' : 'Add to Listen Later'}</Dialog.Title>
-      <Dialog.Description>Review platform metadata. MusicBrainz matching is optional.</Dialog.Description>
+      <Dialog.Title>{isLoading ? 'Processing Link' : error && !draft ? 'Error' : showDuplicateWarning ? 'Already in your list' : 'Add to Listen Later'}</Dialog.Title>
+      <Dialog.Description>{showDuplicateWarning ? 'Review the saved item before continuing with the new one.' : 'Check the details below, then add to your list. MusicBrainz matching is optional.'}</Dialog.Description>
     </Dialog.Header>
-    <p class="sr-only" role="status">{isLoading || error ? '' : duplicate ? 'Duplicate found. An item with the same title and the same artists is already in your list.' : draft ? 'Music information ready. Review before adding.' : ''}</p>
+    <p class="sr-only" role="status">{isLoading || error ? '' : showDuplicateWarning ? 'Duplicate found. An item with the same title and the same artists is already in your list.' : draft ? 'Music information ready. Review before adding.' : ''}</p>
     {#if isLoading}
       <p role="status" aria-busy="true">Loading metadata...</p>
     {/if}
@@ -179,15 +200,28 @@
       </div>
     {/if}
     {#if draft && !isLoading}
-      {#if duplicate}
-        <div class="rounded-md border border-warning p-3 text-warning-foreground">
-          <p>An item with the same title and the same artists is already in your list.</p>
-          <p>Existing item in your list: {duplicate.title} — {duplicate.artists.join(', ')}</p>
-        </div>
-      {/if}
+      {#if showDuplicateWarning && duplicate}
+        <section aria-label="Existing saved item" class="space-y-3 rounded-lg border-2 border-warning bg-warning/10 p-4">
+          <p class="text-sm font-semibold">You already saved this {duplicate.itemType === SearchType.album ? 'album' : 'track'}</p>
+          <div class="flex min-w-0 items-start gap-3">
+            <CoverArt src={duplicate?.coverArt} alt="" size="sm" class="shrink-0" />
+            <div class="min-w-0 space-y-1">
+              <p class="font-semibold">{duplicate.title}</p>
+              <p class="text-sm">{duplicate.artists.join(', ') || 'Unknown artist'}</p>
+              {#if duplicate.albumName}<p class="text-sm text-muted-foreground">{duplicate.albumName}</p>{/if}
+              <Badge variant="outline">{duplicate.hasBeenListened ? 'Listened' : 'Not listened'}</Badge>
+            </div>
+          </div>
+          <p class="text-sm text-muted-foreground">This saved item stays unchanged. Continue to edit the new item, or view the one already in your list.</p>
+          <Button class="min-h-11 w-full whitespace-normal md:h-auto" onclick={editNewItem} disabled={isSaving}>Skip and edit this new item</Button>
+        </section>
+      {:else}
       <div class="flex items-center gap-4">
         <CoverArt src={draft?.coverArt} alt={'Cover of ' + (draft?.title ?? '')} size="sm" class="confirmation-cover shrink-0" />
-        <Badge variant="outline">{musicBrainzId ? 'MusicBrainz Match' : 'From Link'}</Badge>
+        <div class="space-y-2">
+          <p class="text-sm font-medium">New item</p>
+          <Badge variant="outline">{musicBrainzId ? 'MusicBrainz Match' : 'From Link'}</Badge>
+        </div>
       </div>
       <fieldset disabled={isSaving} class="min-w-0 space-y-3 [&_button]:min-h-11">
         <div class="space-y-1"><label for="edit-title" class="text-sm font-medium">Title</label>
@@ -283,12 +317,17 @@
           {/if}
         </section>
       </fieldset>
+      {/if}
     {/if}
-    <Dialog.Footer class="border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
+    <Dialog.Footer class="flex-wrap border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
       <Button variant="outline" onclick={onCancel} disabled={isSaving}>Cancel</Button>
       {#if error && !draft}<Button onclick={onRetry}>Retry</Button>{/if}
-      {#if duplicate}<Button variant="secondary" onclick={() => onViewExisting(duplicate)} disabled={isSaving}>View Existing</Button>{/if}
-      {#if draft}<Button onclick={save} disabled={isSaving || !draft?.title} aria-busy={isSaving}>{isSaving ? 'Saving…' : duplicate ? 'Add Anyway' : 'Add to List'}</Button>{/if}
+      {#if duplicate}
+        <Button variant="outline" onclick={() => onViewExisting(duplicate)} disabled={isSaving}>View Existing</Button>
+      {/if}
+      {#if draft && !showDuplicateWarning}
+        <Button variant={duplicate ? 'outline' : 'default'} onclick={save} disabled={isSaving || !draft.title} aria-busy={isSaving}>{isSaving ? 'Saving…' : duplicate ? 'Add Anyway' : 'Add to List'}</Button>
+      {/if}
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
