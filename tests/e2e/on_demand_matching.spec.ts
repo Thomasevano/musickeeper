@@ -62,7 +62,7 @@ test('candidate selection previews corrections; only Apply changes the draft; as
   await expect(dialog.getByRole('button', { name: /Other recording/ })).toBeVisible()
   await dialog.getByRole('button', { name: /Corrected title/ }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue('Platform title')
-  await expect(dialog.getByRole('table', { name: 'Proposed corrections' })).toContainText(
+  await expect(dialog.getByRole('region', { name: 'Proposed corrections' })).toContainText(
     'Corrected title'
   )
   await dialog.getByRole('button', { name: 'Apply corrections' }).click()
@@ -84,6 +84,68 @@ test('candidate selection previews corrections; only Apply changes the draft; as
     releaseDate: '2001-02-03',
   })
   expect(saved[0].id).not.toBe(candidates[0].id)
+})
+
+test('a chosen MusicBrainz cover changes only on Apply and survives reload', async ({ page }) => {
+  await page.route('**/library/listen-later?**', (route) =>
+    route.fulfill({ json: { serializedItems: candidates } })
+  )
+  await paste(page)
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
+  await dialog.getByRole('button', { name: /Corrected title/ }).click()
+  await dialog.getByRole('radio', { name: 'Use MusicBrainz cover' }).check()
+  await expect(dialog.getByAltText('Cover of Platform title')).toHaveAttribute(
+    'src',
+    platformItem.coverArt
+  )
+  await dialog.getByRole('button', { name: 'Apply corrections' }).click()
+  await dialog.getByRole('button', { name: 'Add to List' }).click()
+  await expect(dialog).not.toBeVisible()
+  await page.reload()
+  const saved = await savedItems(page)
+  expect(saved[0]).toMatchObject({
+    coverArt: candidates[0].coverArt,
+    albumName: platformItem.albumName,
+    sourceUrl: SPOTIFY_URL,
+    musicBrainzId: candidates[0].id,
+  })
+})
+
+test('late cover events do not break cancelling a match or closing the dialog', async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => {
+    if (!error.message.includes('Failed to register a ServiceWorker')) errors.push(error.message)
+  })
+  await page.route('**/library/listen-later?**', (route) =>
+    route.fulfill({ json: { serializedItems: candidates } })
+  )
+  await paste(page)
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
+  await dialog.getByRole('button', { name: /Corrected title/ }).click()
+  await dialog.evaluate((element) => {
+    const image = element.querySelector<HTMLImageElement>('img[alt="MusicBrainz cover"]')!
+    const cancel = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Cancel matching'
+    )!
+    cancel.click()
+    image.dispatchEvent(new Event('error'))
+  })
+  await expect(dialog.getByRole('region', { name: 'Proposed corrections' })).not.toBeVisible()
+  await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
+  await dialog.evaluate((element) => {
+    const image = element.querySelector<HTMLImageElement>('img[alt="Cover of Platform title"]')!
+    const cancel = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Cancel'
+    )!
+    cancel.click()
+    image.dispatchEvent(new Event('load'))
+  })
+  await expect(dialog).not.toBeVisible()
+  expect(errors).toEqual([])
 })
 
 async function savedItems(page: Page) {
@@ -159,7 +221,7 @@ test('save abandons pending matching; late results cannot change saved metadata 
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
   release()
-  await expect(dialog.getByRole('table', { name: 'Proposed corrections' })).not.toBeVisible()
+  await expect(dialog.getByRole('region', { name: 'Proposed corrections' })).not.toBeVisible()
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.reload()
   const reloaded = await savedItems(page)
