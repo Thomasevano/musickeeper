@@ -32,6 +32,7 @@
   let musicBrainzId = $state<string | undefined>()
   let candidates = $state<MusicItem[]>([])
   let selectedCandidate = $state<MusicItem | null>(null)
+  let useCandidateCover = $state(false)
   let matchStatus = $state('')
   let isMatching = $state(false)
   let matchController: AbortController | null = null
@@ -49,6 +50,7 @@
     isMatching = false
     candidates = []
     selectedCandidate = null
+    useCandidateCover = false
     matchStatus = ''
   }
 
@@ -80,7 +82,7 @@
     artists: selectedCandidate.artists,
     releaseDate: selectedCandidate.releaseDate || draft.releaseDate,
     length: selectedCandidate.length ?? draft.length,
-    coverArt: musicItem?.coverArt || selectedCandidate.coverArt || draft.coverArt,
+    coverArt: useCandidateCover ? selectedCandidate.coverArt : draft.coverArt || selectedCandidate.coverArt,
     albumName: musicItem?.albumName || selectedCandidate.albumName || draft.albumName,
   }) : null)
   const corrections = $derived(draft && proposed ? [
@@ -89,7 +91,6 @@
     ['Album', draft.albumName ?? '', proposed.albumName ?? ''],
     ['Release date', draft.releaseDate, proposed.releaseDate],
     ['Duration', draft.length ? `${draft.length / 1000} s` : '', proposed.length ? `${proposed.length / 1000} s` : ''],
-    ['Artwork', draft.coverArt ?? '', proposed.coverArt ?? ''],
   ].filter(([, current, next]) => current !== next) : [])
 
   function identifyingEdit() {
@@ -185,7 +186,7 @@
         </div>
       {/if}
       <div class="flex items-center gap-4">
-        <CoverArt src={draft?.coverArt} alt={draft ? 'Cover of ' + draft.title : ''} size="lg" class="confirmation-cover shrink-0" />
+        <CoverArt src={draft?.coverArt} alt={'Cover of ' + (draft?.title ?? '')} size="sm" class="confirmation-cover shrink-0" />
         <Badge variant="outline">{musicBrainzId ? 'MusicBrainz Match' : 'From Link'}</Badge>
       </div>
       <fieldset disabled={isSaving} class="min-w-0 space-y-3 [&_button]:min-h-11">
@@ -208,36 +209,79 @@
               <option value={SearchType.track}>Track</option><option value={SearchType.album}>Album</option>
             </Select></div>
         {/if}
-        <div class="flex flex-wrap gap-2">
-          <Button bind:ref={matchButton} variant="secondary" onclick={findMatches} disabled={isMatching || (!draft?.title && !artists.length)}>Find MusicBrainz matches</Button>
-          {#if isMatching || candidates.length || selectedCandidate}
-            <Button variant="outline" onclick={cancelMatchingAndFocus}>Cancel matching</Button>
-          {/if}
-        </div>
-        <p role="status" aria-busy={isMatching} class="text-sm text-muted-foreground">{matchStatus}</p>
-        {#if candidates.length}
-          <ul aria-label="MusicBrainz candidates" class="space-y-2">
-            {#each candidates as candidate (candidate.id)}
-              <li><Button variant={selectedCandidate?.id === candidate.id ? 'secondary' : 'outline'} class="w-full h-auto min-h-11 justify-start whitespace-normal text-left" onclick={() => { selectedCandidate = candidate }} aria-pressed={selectedCandidate?.id === candidate.id}>
-                {candidate.title} — {candidate.artists.join(', ')} · {candidate.releaseDate || 'Unknown date'}{candidate.albumName ? ` · ${candidate.albumName}` : ''}
-              </Button></li>
-            {/each}
-          </ul>
-        {/if}
-        {#if proposed}
-          <div class="space-y-2">
-            <h3 class="font-medium">Review corrections</h3>
-            <table aria-label="Proposed corrections" class="w-full text-sm table-fixed">
-              <thead><tr><th class="text-left">Field</th><th class="text-left">Current</th><th class="text-left">After Apply</th></tr></thead>
-              <tbody>{#each corrections as [label, current, next]}
-                <tr><th class="text-left align-top">{label}</th><td class="break-words align-top">{current || 'Not available'}</td><td class="break-words align-top">{next || 'Not available'}</td></tr>
-              {/each}</tbody>
-            </table>
-            {#if !corrections.length}<p>No metadata changes. Apply to associate this candidate.</p>{/if}
-            <p class="text-sm text-muted-foreground">Source URL and item type stay unchanged. Platform artwork and album take precedence.</p>
-            <Button onclick={applyCorrections}>Apply corrections</Button>
+        <section aria-labelledby="matching-heading" class="space-y-3 rounded-lg border bg-muted/30 p-3 sm:p-4">
+          <div class="space-y-1">
+            <h3 id="matching-heading" class="font-semibold">Match with MusicBrainz <span class="text-sm font-normal text-muted-foreground">(optional)</span></h3>
+            <p class="text-sm text-muted-foreground">Find the right recording to fill in or correct its details. Nothing changes until you apply.</p>
           </div>
-        {/if}
+          <div class="flex flex-wrap gap-2">
+            <Button bind:ref={matchButton} variant="secondary" onclick={findMatches} disabled={isMatching || (!draft?.title && !artists.length)}>Find MusicBrainz matches</Button>
+            {#if isMatching || candidates.length || selectedCandidate}
+              <Button variant="outline" onclick={cancelMatchingAndFocus}>Cancel matching</Button>
+            {/if}
+          </div>
+          <p role="status" aria-busy={isMatching} class="text-sm text-muted-foreground">{matchStatus}</p>
+          {#if candidates.length}
+            <ul aria-label="MusicBrainz candidates" class="max-h-64 space-y-2 overflow-y-auto overscroll-contain p-1">
+              {#each candidates as candidate (candidate.id)}
+                <li>
+                  <Button variant="outline" class={['h-auto min-h-11 w-full justify-start gap-3 whitespace-normal p-3 text-left md:h-auto', selectedCandidate?.id === candidate.id ? 'border-primary bg-muted ring-1 ring-primary' : ''].join(' ')} onclick={() => { selectedCandidate = candidate; useCandidateCover = false }} aria-pressed={selectedCandidate?.id === candidate.id}>
+                    <CoverArt src={candidate.coverArt} alt="" size="sm" class="shrink-0" />
+                    <span class="min-w-0 flex-1 space-y-1">
+                      <span class="block font-semibold">{candidate.title}</span>
+                      <span class="block text-sm">{candidate.artists.join(', ') || 'Unknown artist'}</span>
+                      <span class="block text-xs text-muted-foreground">{candidate.albumName || 'Unknown album'} · {candidate.releaseDate || 'Unknown date'}</span>
+                      <span class="block text-xs font-medium">{selectedCandidate?.id === candidate.id ? 'Selected for review' : 'Review this match'}</span>
+                    </span>
+                  </Button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {#if proposed}
+            <section aria-label="Proposed corrections" class="space-y-4 border-t pt-4">
+              <div class="space-y-1">
+                <h4 class="font-semibold">Review changes</h4>
+                <p class="text-sm text-muted-foreground">Only the differences are shown. Your item is not changed yet.</p>
+              </div>
+              {#if corrections.length}
+                <dl class="space-y-3">
+                  {#each corrections as [label, current, next]}
+                    <div class="rounded-md border bg-background p-3">
+                      <dt class="mb-2 text-sm font-semibold">{label}</dt>
+                      <dd class="grid min-w-0 gap-3 sm:grid-cols-2">
+                        <div><span class="mb-1 block text-xs text-muted-foreground">Current</span><span class="text-sm">{current || 'Not available'}</span></div>
+                        <div><span class="mb-1 block text-xs font-medium text-muted-foreground">After applying</span><span class="text-sm font-medium">{next || 'Not available'}</span></div>
+                      </dd>
+                    </div>
+                  {/each}
+                </dl>
+              {:else}
+                <p class="text-sm">The text details already match. Applying will link this item to MusicBrainz.</p>
+              {/if}
+              {#if selectedCandidate?.coverArt && selectedCandidate.coverArt !== draft.coverArt}
+                <fieldset class="space-y-2">
+                  <legend class="mb-2 text-sm font-semibold">Cover artwork</legend>
+                  <p class="text-sm text-muted-foreground">Choose which cover to use when applying this match.</p>
+                  <div class="grid grid-cols-2 gap-3">
+                    {#if draft.coverArt}
+                      <label class="flex min-w-0 cursor-pointer flex-col gap-2 rounded-md border bg-background p-3">
+                        <CoverArt src={draft?.coverArt} alt="Current cover" size="sm" />
+                        <span class="flex min-h-11 items-center gap-2 text-sm"><input type="radio" name="match-cover" checked={!useCandidateCover} onchange={() => { useCandidateCover = false }} />Keep current cover</span>
+                      </label>
+                    {/if}
+                    <label class="flex min-w-0 cursor-pointer flex-col gap-2 rounded-md border bg-background p-3">
+                      <CoverArt src={selectedCandidate?.coverArt} alt="MusicBrainz cover" size="sm" />
+                      <span class="flex min-h-11 items-center gap-2 text-sm"><input type="radio" name="match-cover" checked={useCandidateCover || !draft.coverArt} onchange={() => { useCandidateCover = true }} />Use MusicBrainz cover</span>
+                    </label>
+                  </div>
+                </fieldset>
+              {/if}
+              <p class="text-xs text-muted-foreground">Your source link and item type stay unchanged. An existing platform album is kept.</p>
+              <Button onclick={applyCorrections}>Apply corrections</Button>
+            </section>
+          {/if}
+        </section>
       </fieldset>
     {/if}
     <Dialog.Footer class="border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
