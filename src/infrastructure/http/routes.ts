@@ -16,6 +16,10 @@ const LinksController = () => import('./controllers/links_controller.js')
 
 router.get('/', [HomeController, 'index'])
 
+router.get('/app-version', ({ inertia, response }) => {
+  return response.header('Cache-Control', 'no-store').json({ version: inertia.getVersion() })
+})
+
 router.post('/api/link/metadata', [LinkController, 'metadata'])
 
 router.get('/api/links', [LinksController, 'index'])
