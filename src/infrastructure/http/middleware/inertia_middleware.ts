@@ -20,8 +20,16 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     await this.init(ctx)
 
+    ctx.response.header('X-App-Version', ctx.inertia.getVersion())
+
     const output = await next()
+    const vary = ctx.response.getHeader('Vary')
     this.dispose(ctx)
+    if (vary) ctx.response.vary(Array.isArray(vary) ? vary : String(vary))
+    ctx.response.vary(['Accept', 'X-Inertia'])
+    if (ctx.response.getStatus() === 409 && ctx.response.getHeader('X-Inertia-Location')) {
+      ctx.response.header('Cache-Control', 'no-store')
+    }
 
     return output
   }

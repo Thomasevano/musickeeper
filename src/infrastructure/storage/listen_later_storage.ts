@@ -174,9 +174,12 @@ function addItem(
     externalLinks: (input.externalLinks ?? []).map((link) => ({ ...link })),
   }
 
-  const request = storeFor(db, 'readwrite').add(item)
+  const store = storeFor(db, 'readwrite')
+  const request = store.add(item)
 
-  request.onsuccess = () => resolve(item)
+  store.transaction.oncomplete = () => resolve(item)
+  store.transaction.onabort = () =>
+    reject(new Error(`Failed to add item: ${store.transaction.error?.message}`))
   request.onerror = () => reject(new Error(`Failed to add item: ${request.error?.message}`))
 
   return promise
@@ -184,9 +187,12 @@ function addItem(
 
 function removeItem(db: IDBDatabase, itemId: string | number): Promise<void> {
   const { promise, resolve, reject } = Promise.withResolvers<void>()
-  const request = storeFor(db, 'readwrite').delete(itemId)
+  const store = storeFor(db, 'readwrite')
+  const request = store.delete(itemId)
 
-  request.onsuccess = () => resolve()
+  store.transaction.oncomplete = () => resolve()
+  store.transaction.onabort = () =>
+    reject(new Error(`Failed to remove item: ${store.transaction.error?.message}`))
   request.onerror = () => reject(new Error(`Failed to remove item: ${request.error?.message}`))
 
   return promise
@@ -202,18 +208,19 @@ function toggleItemListened(
   // interleave with another writer.
   const store = storeFor(db, 'readwrite')
   const getRequest = store.get(itemId)
+  let updatedItem: ListenLaterItem | null = null
+  store.transaction.oncomplete = () => resolve(updatedItem)
+  store.transaction.onabort = () =>
+    reject(new Error(`Failed to update item: ${store.transaction.error?.message}`))
 
   getRequest.onsuccess = () => {
     const item = getRequest.result
-    if (!item) {
-      resolve(null)
-      return
-    }
+    if (!item) return
 
     item.hasBeenListened = !item.hasBeenListened
     const updateRequest = store.put(item)
 
-    updateRequest.onsuccess = () => resolve(item)
+    updatedItem = item
     updateRequest.onerror = () =>
       reject(new Error(`Failed to update item: ${updateRequest.error?.message}`))
   }
@@ -236,20 +243,21 @@ function updateItemExternalLinks(
 
   const store = storeFor(db, 'readwrite')
   const getRequest = store.get(itemId)
+  let updatedItem: ListenLaterItem | null = null
+  store.transaction.oncomplete = () => resolve(updatedItem)
+  store.transaction.onabort = () =>
+    reject(new Error(`Failed to update item: ${store.transaction.error?.message}`))
 
   getRequest.onsuccess = () => {
     const item = getRequest.result
-    if (!item) {
-      resolve(null)
-      return
-    }
+    if (!item) return
 
     // Rebuilt for the same reason `addItem` rebuilds arrays: a Svelte proxy
     // reaching IndexedDB throws a DataCloneError.
     item.externalLinks = externalLinks.map((link) => ({ ...link }))
     const updateRequest = store.put(item)
 
-    updateRequest.onsuccess = () => resolve(item)
+    updatedItem = item
     updateRequest.onerror = () =>
       reject(new Error(`Failed to update item: ${updateRequest.error?.message}`))
   }
