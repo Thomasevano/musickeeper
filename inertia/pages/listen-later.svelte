@@ -13,6 +13,8 @@
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
   import { trackQualifyingActivity } from '~/lib/analytics'
+  import { appFetch } from '~/lib/app_update.svelte'
+  import { registerUnsavedWork, trackWrite } from '~/lib/reload_guard'
   import { ListenLaterItem, MusicItem, SearchType, musicItemName, findDuplicate } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/domain/link'
@@ -66,6 +68,10 @@
   let resultsListEl = $state<HTMLUListElement | null>(null)
   let titleInputEl = $state<HTMLInputElement | null>(null)
 
+  $effect(() => registerUnsavedWork(() =>
+    !!(searchTerm || artistName || linkUrl || isConfirmDialogOpen || pendingMusicItem || pendingLinkMetadata)
+  ))
+
   const debouncedSearch = new Debounced(() => searchTerm, 300)
   const debouncedArtist = new Debounced(() => artistName, 300)
   const searchInputClasses = [
@@ -100,7 +106,7 @@
         params.set('artist', debouncedArtist.current)
       }
 
-      const response = await fetch(`/library/listen-later?${params.toString()}`, {
+      const response = await appFetch(`/library/listen-later?${params.toString()}`, {
         signal: controller.signal,
         headers: { Accept: 'application/json' },
       })
@@ -202,7 +208,7 @@
 
   async function handleListen(item: ListenLaterItem) {
     try {
-      const updated = await listenLaterStorage.toggleListened(item.id)
+      const updated = await trackWrite(() => listenLaterStorage.toggleListened(item.id))
       if (updated) {
         trackQualifyingActivity(updated.hasBeenListened ? 'marked_listened' : 'marked_unlistened')
         listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
@@ -220,7 +226,7 @@
 
   async function handleDelete(item: ListenLaterItem) {
     try {
-      await listenLaterStorage.remove(item.id)
+      await trackWrite(() => listenLaterStorage.remove(item.id))
       trackQualifyingActivity('item_removed')
       listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
       toast.success(`${musicItemName(item)} removed from your list`)
@@ -277,7 +283,7 @@
     isProcessingLink = true
 
     try {
-      const response = await fetch('/api/link/metadata', {
+      const response = await appFetch('/api/link/metadata', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -332,7 +338,7 @@
         if (pendingMusicItem.artists?.length) params.set('artists', pendingMusicItem.artists.join(','))
         if (pendingMusicItem.title) params.set('title', pendingMusicItem.title)
       }
-      const response = await fetch(`/api/links?${params.toString()}`)
+      const response = await appFetch(`/api/links?${params.toString()}`)
       if (!response.ok) return []
       const data = await response.json()
       return data.externalLinks ?? []
@@ -348,21 +354,23 @@
     albumName: string
   ) {
     if (!pendingMusicItem) return
-
-    const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
+    const musicItem = pendingMusicItem
 
     try {
-      const stored = await listenLaterStorage.add({
-        id: pendingMusicItem.id,
-        title,
-        releaseDate: pendingMusicItem.releaseDate,
-        length: pendingMusicItem.length,
-        artists,
-        albumName,
-        itemType,
-        coverArt: pendingMusicItem.coverArt,
-        sourceUrl: linkUrl || undefined,
-        externalLinks,
+      const stored = await trackWrite(async () => {
+        const externalLinks = await fetchExternalLinks(musicItem.id, itemType, linkUrl || undefined)
+        return listenLaterStorage.add({
+          id: musicItem.id,
+          title,
+          releaseDate: musicItem.releaseDate,
+          length: musicItem.length,
+          artists,
+          albumName,
+          itemType,
+          coverArt: musicItem.coverArt,
+          sourceUrl: linkUrl || undefined,
+          externalLinks,
+        })
       })
       trackQualifyingActivity('item_saved')
 
