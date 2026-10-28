@@ -57,6 +57,16 @@ You can now access the app on <http://127.0.0.1:3333>
 
 To build and run a production bundle instead, use `pnpm build` then `pnpm start`.
 
+### Frontend updates
+
+An open tab shows a nonblocking update banner when it detects a different frontend build. Reloading is explicit: unfinished input requires confirmation, and pending Listen Later writes must finish before navigation. A failed write or an offline reload keeps the current page open. Saved items remain in IndexedDB; unfinished input is not restored after reloading.
+
+The build identity comes from Inertia's Vite manifest fingerprint, not the package version. Existing application requests expose `X-App-Version`; returning to a visible tab or reconnecting checks the uncached `GET /app-version` endpoint. There is no polling, so an idle tab does not receive an immediate deployment notification. Failed checks do not imply that the tab is up to date.
+
+Deploy the server, manifest and hashed assets together. With multiple instances, switch traffic consistently and retain assets needed by older tabs; do not advertise a build before its assets are available. Explicit update navigation bypasses the service worker's cached-page fallback. Detection also works without a service worker and when the worker script has not changed.
+
+Only tabs that loaded this notification feature can participate. This does not guarantee compatibility between old clients and new APIs, coordinate IndexedDB schema upgrades, or synchronize saved data across tabs.
+
 ## FAQ
 
 ### What ?

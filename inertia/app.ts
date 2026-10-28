@@ -4,6 +4,7 @@ import '../resources/css/app.css'
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { hydrate, mount } from 'svelte'
+import { initializeAppUpdate } from './lib/app_update.svelte'
 // Using native SW registration instead of vite-pwa-register for explicit scope control
 
 const appName = import.meta.env.VITE_APP_NAME || 'AdonisJS'
@@ -24,6 +25,8 @@ createInertiaApp({
     if (!el) {
       throw new Error('Inertia root element not found')
     }
+    const disposeAppUpdate = initializeAppUpdate(props.initialPage)
+    import.meta.hot?.dispose(disposeAppUpdate)
     if (el.dataset.serverRendered === 'true') {
       hydrate(App, { target: el, props })
     } else {
