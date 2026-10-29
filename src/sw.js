@@ -4,6 +4,16 @@ import { NetworkFirst, CacheFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 
+// Register before precaching and page routes so update checks and explicit
+// reloads cannot fall back to a cached response when the network is unavailable.
+registerRoute(
+  ({ request, sameOrigin, url }) =>
+    sameOrigin &&
+    (url.pathname === '/app-version' ||
+      (request.mode === 'navigate' && url.searchParams.has('__mk_update'))),
+  ({ request }) => fetch(new Request(request, { cache: 'no-store' }))
+)
+
 // Precache assets injected by workbox
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
