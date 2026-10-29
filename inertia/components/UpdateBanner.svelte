@@ -41,7 +41,7 @@
   <section aria-label="Application update" class="border-y border-border bg-muted/50 px-4 py-3 md:px-12 lg:px-16">
     <div class="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-3">
       <p aria-hidden="true" class="text-sm">A MusicKeeper update is available.</p>
-      <Button bind:ref={reloadButton} variant="outline" aria-disabled={busy} onclick={() => reload()}>
+      <Button bind:ref={reloadButton} variant="outline" class={busy ? 'cursor-wait' : 'cursor-pointer'} aria-disabled={busy} onclick={() => reload()}>
         {busy ? 'Preparing update…' : 'Reload MusicKeeper'}
       </Button>
     </div>
