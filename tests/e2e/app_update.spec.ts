@@ -313,3 +313,110 @@ test('reconnection is not suppressed by a foreground check that just failed', as
   await expect(banner(page)).toBeVisible()
   expect(checks).toBe(2)
 })
+
+test('reconnection survives a foreground check that fails after the online event', async ({
+  page,
+}) => {
+  const answer = Promise.withResolvers<void>()
+  const requested = Promise.withResolvers<void>()
+  let checks = 0
+  await page.route('**/app-version', async (route) => {
+    checks++
+    if (checks === 1) {
+      requested.resolve()
+      await answer.promise
+      await route.abort('internetdisconnected')
+    } else {
+      await route.fulfill({ json: { version: changedVersion } })
+    }
+  })
+  await page.goto('/library/listen-later')
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await requested.promise
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  answer.resolve()
+  await expect(banner(page)).toBeVisible()
+  expect(checks).toBe(2)
+})
+
+test('a reload superseded by another deployment does not report a false failure', async ({
+  page,
+}) => {
+  const deployed = await page.request.get('/app-version')
+  const { version: currentVersion } = await deployed.json()
+  let reloaded = false
+  await page.route('**/app-version', (route) =>
+    route.fulfill({ json: { version: reloaded ? currentVersion : changedVersion } })
+  )
+  await page.route(
+    (url) => url.searchParams.has('__mk_update'),
+    async (route) => {
+      reloaded = true
+      await route.continue()
+    }
+  )
+  await page.goto('/library/listen-later')
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect(banner(page)).toBeVisible()
+  const reconciled = page.waitForResponse(
+    (response) => response.url().endsWith('/app-version') && reloaded
+  )
+  await reloadButton(page).click()
+  await reconciled
+  await page.waitForURL((url) => !url.searchParams.has('__mk_update'))
+  await expect.poll(() => reloaded).toBe(true)
+  await expect(page.getByRole('heading', { name: 'Listen Later', exact: true })).toBeVisible()
+  await expect(banner(page)).not.toBeVisible()
+})
+
+test('a marked reload still warns when a fresh check confirms the loaded frontend is old', async ({
+  page,
+}) => {
+  await page.route('**/app-version', (route) =>
+    route.fulfill({ json: { version: changedVersion } })
+  )
+  await page.goto(`/library/listen-later?__mk_update=${changedVersion}`)
+  await expect(banner(page)).toBeVisible()
+  await expect(banner(page).getByRole('alert')).toBeVisible()
+  await expect(page).toHaveURL(/\/library\/listen-later$/)
+})
+
+test('a failed marked-reload reconciliation makes no update claim', async ({ page }) => {
+  await page.route('**/app-version', (route) => route.fulfill({ status: 503, body: '' }))
+  const checked = page.waitForResponse('**/app-version')
+  await page.goto(`/library/listen-later?__mk_update=${changedVersion}`)
+  await checked
+  await expect(page.getByRole('heading', { name: 'Listen Later', exact: true })).toBeVisible()
+  await expect(banner(page)).not.toBeVisible()
+  await expect(page).toHaveURL(/\/library\/listen-later$/)
+})
+
+test('a deferred reconnection check does not retry again without another event', async ({
+  page,
+}) => {
+  const answer = Promise.withResolvers<void>()
+  const requested = Promise.withResolvers<void>()
+  let checks = 0
+  await page.route('**/app-version', async (route) => {
+    checks++
+    if (checks === 1) {
+      requested.resolve()
+      await answer.promise
+    }
+    await route.abort('internetdisconnected')
+  })
+  await page.goto('/library/listen-later')
+  await page.clock.install()
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await requested.promise
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  const failed = page.waitForEvent(
+    'requestfailed',
+    (request) => request.url().endsWith('/app-version') && checks === 2
+  )
+  answer.resolve()
+  await failed
+  await page.clock.fastForward(600_000)
+  expect(checks).toBe(2)
+  await expect(banner(page)).not.toBeVisible()
+})
