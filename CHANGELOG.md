@@ -6,6 +6,10 @@
 
 * **updates:** notify open tabs of frontend updates, with explicit reload, unfinished-input confirmation and pending-write protection ([#77](https://github.com/Thomasevano/musickeeper/issues/77)).
 
+### Bug Fixes
+
+* **updates:** preserve reconnection checks overlapping a failed request and reconcile superseded reload targets before reporting failure.
+
 ## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
 
 

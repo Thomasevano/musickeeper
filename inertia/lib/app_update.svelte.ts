@@ -56,18 +56,32 @@ export function initializeAppUpdate(page: Pick<Page, 'version' | 'url'>): () => 
   const expectedVersion = url.searchParams.get('__mk_update')
   if (expectedVersion) {
     if (expectedVersion !== version) {
-      appUpdate.available = true
-      appUpdate.error = 'The update could not be loaded. Please try again when online.'
+      // Another deployment may have superseded the preflight's target.
+      void checkForUpdate()
+        .then((deployedVersion) => {
+          if (deployedVersion !== version) {
+            appUpdate.error = 'The update could not be loaded. Please try again when online.'
+          }
+        })
+        .catch(() => {
+          /* A mismatched target and a failed check do not establish the deployed version. */
+        })
     }
     url.searchParams.delete('__mk_update')
     page.url = url.pathname + url.search + url.hash
     window.history.replaceState(window.history.state, '', url)
   }
 
-  const checkWhenVisible = () => {
+  const checkWhenVisible = (event: Event) => {
     if (document.visibilityState !== 'visible' || Date.now() - lastCheck < 1_000) return
+    const deferredReconnect = event.type === 'online' && checking !== undefined
     void checkForUpdate().catch(() => {
-      /* A failed check says nothing about the deployed version. */
+      // A reconnect joined an older request. If it fails, consume that event once.
+      if (deferredReconnect && navigator.onLine && document.visibilityState === 'visible') {
+        void checkForUpdate().catch(() => {
+          /* A failed check says nothing about the deployed version. */
+        })
+      }
     })
   }
   document.addEventListener('visibilitychange', checkWhenVisible)
