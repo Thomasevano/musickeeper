@@ -2,6 +2,7 @@
   import Music from '@lucide/svelte/icons/music'
   import ShoppingBag from '@lucide/svelte/icons/shopping-bag'
   import type { ListenLaterItem } from '../../../src/domain/music_item'
+  import { trackQualifyingActivity } from '~/lib/analytics'
   type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
   let { item, describedBy }: { item: PendingListenLaterItem; describedBy: string } = $props()
   const links = $derived(item.externalLinks ?? [])
@@ -36,6 +37,10 @@
           href={link.url}
           target="_blank"
           rel="noopener noreferrer"
+          onclick={() => trackQualifyingActivity('open_external_link')}
+          onauxclick={(event) => {
+            if (event.button === 1) trackQualifyingActivity('open_external_link')
+          }}
           aria-describedby={describedBy}
           class={presentation.classes}
         >

@@ -6,6 +6,7 @@
   import Skeleton from 'boneyard-js/svelte'
   import { toast } from 'svelte-sonner'
   import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
+  import { trackQualifyingActivity } from '~/lib/analytics'
   type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
 
   let {
@@ -48,6 +49,7 @@
         coverArt: item.coverArt,
         externalLinks: [],
       })
+      trackQualifyingActivity('item_saved')
 
       // ponytail: appending assumes the store's oldest-first order, which puts a
       // new item last. If that default order ever changes, replace this with a
@@ -87,6 +89,7 @@
   async function removeFromListenLater(item: MusicItem) {
     try {
       await listenLaterStorage.remove(item.id)
+      trackQualifyingActivity('item_removed')
       listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
       toast.success(`${musicItemName(item)} removed from your list`)
     } catch (error) {

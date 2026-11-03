@@ -12,6 +12,7 @@
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
+  import { trackQualifyingActivity } from '~/lib/analytics'
   import { ListenLaterItem, MusicItem, SearchType, musicItemName, findDuplicate } from '../../src/domain/music_item'
   import type { ExternalLink } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/domain/link'
@@ -203,6 +204,7 @@
     try {
       const updated = await listenLaterStorage.toggleListened(item.id)
       if (updated) {
+        trackQualifyingActivity(updated.hasBeenListened ? 'marked_listened' : 'marked_unlistened')
         listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
         // Every other list write confirms itself. This one changed a badge on a row
         // the reader has already moved past, so it needs saying out loud too.
@@ -219,6 +221,7 @@
   async function handleDelete(item: ListenLaterItem) {
     try {
       await listenLaterStorage.remove(item.id)
+      trackQualifyingActivity('item_removed')
       listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
       toast.success(`${musicItemName(item)} removed from your list`)
     } catch (error) {
@@ -361,6 +364,7 @@
         sourceUrl: linkUrl || undefined,
         externalLinks,
       })
+      trackQualifyingActivity('item_saved')
 
       // ponytail: appending assumes the store's oldest-first order, which puts a
       // new item last. If that default order ever changes, replace this with a
