@@ -59,7 +59,7 @@ To build and run a production bundle instead, use `pnpm build` then `pnpm start`
 
 ### Frontend updates
 
-An open tab shows a nonblocking update banner when it detects a different frontend build. Reloading is explicit: unfinished input requires confirmation, and pending Listen Later writes must finish before navigation. A failed write or an offline reload keeps the current page open. Saved items remain in IndexedDB; unfinished input is not restored after reloading.
+An open tab shows a nonblocking update banner when it detects a different frontend build, encouraging a reload to help avoid issues with an outdated version. Reloading is explicit: unfinished input requires confirmation, and pending Listen Later writes must finish before navigation. While the new page loads, a modal blocks further edits and list actions. Cancel reload stops navigation before editing is enabled again and retains unfinished input. A failed write or an offline reload keeps the current page open. Saved items remain in IndexedDB; unfinished input is not restored after reloading.
 
 The build identity comes from Inertia's Vite manifest fingerprint, not the package version. Existing application requests expose `X-App-Version`; returning to a visible tab or reconnecting checks the uncached `GET /app-version` endpoint. There is no polling, so an idle tab does not receive an immediate deployment notification. Failed checks do not imply that the tab is up to date.
 
@@ -92,6 +92,10 @@ each browser/profile/device; clearing site storage removes it. If the preference
 be read, tracking stays disabled. Events may wait in memory while the tracker loads,
 but there is no persistent replay queue or blocker bypass. Analytics failure must not
 change the outcome of a library action.
+
+Analytics browser tests proxy the production origin to a test server and replace the
+collector. Teardown blocks new requests and drains in-flight proxy handlers before
+closing each page; real proxy fetch failures still fail the run.
 
 ## FAQ
 

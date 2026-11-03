@@ -10,8 +10,7 @@ import {
 test.use({ serviceWorkers: 'block' })
 
 const banner = (page: Page) => page.getByRole('region', { name: 'Application update' })
-const reloadButton = (page: Page) =>
-  page.getByRole('button', { name: 'Reload MusicKeeper', exact: true })
+const reloadButton = (page: Page) => banner(page).getByRole('button')
 const changedVersion = '11111111111111111111111111111111'
 
 async function detectUpdate(page: Page) {
@@ -63,7 +62,7 @@ test('a frontend change during search offers reload without losing input or focu
   await page.goto('/library/listen-later')
   const title = page.getByRole('combobox', { name: 'Song or album title' })
   await title.fill('Nightcall')
-  await expect(page.getByRole('button', { name: 'Reload MusicKeeper', exact: true })).toBeVisible()
+  await expect(reloadButton(page)).toBeVisible()
   await expect(title).toHaveValue('Nightcall')
   await expect(title).toBeFocused()
 })
@@ -155,6 +154,75 @@ test('an aborted pending transaction keeps its error instead of reloading', asyn
       .getByText('Not listened', { exact: true })
   ).toBeVisible()
   await expect(banner(page)).toBeVisible()
+})
+
+test('update navigation prevents new input while its document response is pending', async ({
+  page,
+}) => {
+  await page.goto('/library/listen-later')
+  await detectUpdate(page)
+  const input = page.getByRole('textbox', { name: 'Music link URL' })
+  const bounds = await input.boundingBox()
+  if (!bounds) throw new Error('Source URL input is not visible')
+  await input.evaluate((element) => {
+    element.addEventListener('input', () => {
+      sessionStorage.setItem('inputDuringUpdate', (element as HTMLInputElement).value)
+    })
+  })
+  const requested = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<void>()
+  await page.route(
+    (url) => url.searchParams.has('__mk_update'),
+    async (route) => {
+      requested.resolve()
+      await release.promise
+      await route.continue()
+    }
+  )
+  await reloadButton(page).click({ noWaitAfter: true })
+  await requested.promise
+  // Raw input does not wait for the pending navigation like locator actions do.
+  await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await page.keyboard.type('https://example.com/unfinished')
+  const navigation = page.waitForNavigation()
+  release.resolve()
+  await navigation
+  await page.waitForURL((url) => !url.searchParams.has('__mk_update'))
+  await expect(page.getByRole('heading', { name: 'Listen Later', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => sessionStorage.getItem('inputDuringUpdate'))).toBeNull()
+})
+
+test('cancelling a stalled update stops navigation before editing resumes', async ({ page }) => {
+  await page.goto('/library/listen-later')
+  const input = page.getByRole('textbox', { name: 'Music link URL' })
+  await input.fill(SPOTIFY_URL)
+  await detectUpdate(page)
+  const requested = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<void>()
+  await page.route(
+    (url) => url.searchParams.has('__mk_update'),
+    async (route) => {
+      requested.resolve()
+      await release.promise
+      await route.continue()
+    }
+  )
+  await reloadButton(page).click()
+  await page
+    .getByRole('button', { name: 'Discard changes and reload' })
+    .click({ noWaitAfter: true })
+  await requested.promise
+  // Escape cannot unlock the page while its navigation is still active.
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+  await expect(input).toHaveValue(SPOTIFY_URL)
+  await expect(reloadButton(page)).toBeFocused()
+  await input.fill('https://example.com/kept-after-cancel')
+  release.resolve()
+  await expect(input).toHaveValue('https://example.com/kept-after-cancel')
+  expect(page.url()).not.toContain('__mk_update')
 })
 
 test('foreground checks coalesce without polling and stale signals cannot dismiss an update', async ({
