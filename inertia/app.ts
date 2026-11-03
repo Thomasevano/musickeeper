@@ -4,9 +4,12 @@ import '../resources/css/app.css'
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { hydrate, mount } from 'svelte'
+import { initializeAnalytics } from './lib/analytics'
 // Using native SW registration instead of vite-pwa-register for explicit scope control
 
 const appName = import.meta.env.VITE_APP_NAME || 'AdonisJS'
+
+initializeAnalytics()
 
 createInertiaApp({
   progress: { color: '#5468FF' },

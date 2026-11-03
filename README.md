@@ -57,6 +57,32 @@ You can now access the app on <http://127.0.0.1:3333>
 
 To build and run a production bundle instead, use `pnpm build` then `pnpm start`.
 
+## Usage measurement
+
+MusicKeeper uses Plausible to estimate daily active visitors from successful Listen Later
+saves, removals, listened-status changes, and External Link openings from the list.
+Reading alone, cancelled actions, rejected duplicates, and failed actions do not count.
+An External Link opening is not proof of playback.
+
+Only the action category is sent as a custom property—not music metadata, searches,
+music URLs, or visitor identifiers. No accounts or persistent visitor IDs are introduced.
+The estimate cannot establish exact people counts, cross-device identity, or retention.
+Offline use, blockers, and network failures can undercount activity.
+
+Tracking is limited to the production site; development, previews, and browser automation
+are excluded. To opt out in a browser/profile, open MusicKeeper's browser console and run:
+
+```js
+localStorage.setItem('plausible_ignore', 'true')
+location.reload()
+```
+
+This preference suppresses both pageviews and activity tracking. Apply it separately in
+each browser/profile/device; clearing site storage removes it. If the preference cannot
+be read, tracking stays disabled. Events may wait in memory while the tracker loads,
+but there is no persistent replay queue or blocker bypass. Analytics failure must not
+change the outcome of a library action.
+
 ## FAQ
 
 ### What ?
