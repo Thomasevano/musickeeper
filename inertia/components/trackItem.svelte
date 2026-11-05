@@ -7,6 +7,8 @@
   import { toast } from 'svelte-sonner'
   import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
   import { trackQualifyingActivity } from '~/lib/analytics'
+  import { appFetch } from '~/lib/app_update.svelte'
+  import { trackWrite } from '~/lib/reload_guard'
   type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
 
   let {
@@ -26,7 +28,7 @@
       })
       if (item.artists?.length) params.set('artists', item.artists.join(','))
       if (item.title) params.set('title', item.title)
-      const response = await fetch(`/api/links?${params.toString()}`)
+      const response = await appFetch(`/api/links?${params.toString()}`)
       if (!response.ok) return []
       const data = await response.json()
       return data.externalLinks ?? []
@@ -38,7 +40,7 @@
   async function addToListenLater(item: MusicItem) {
     // Links resolve in the background: the item is saved and on screen first.
     try {
-      const stored = await listenLaterStorage.add({
+      const stored = await trackWrite(() => listenLaterStorage.add({
         id: item.id,
         title: item.title,
         releaseDate: item.releaseDate,
@@ -48,7 +50,7 @@
         itemType: item.itemType,
         coverArt: item.coverArt,
         externalLinks: [],
-      })
+      }))
       trackQualifyingActivity('item_saved')
 
       // ponytail: appending assumes the store's oldest-first order, which puts a
@@ -67,16 +69,18 @@
   // already saved and on screen by then, so patch it in place when the links
   // land — and skip the write if the user removed it while we waited.
   async function backfillExternalLinks(item: MusicItem) {
-    let resolvedExternalLinks = await fetchExternalLinks(item)
-
-    if (resolvedExternalLinks.length) {
-      try {
-        const updated = await listenLaterStorage.updateExternalLinks(item.id, resolvedExternalLinks)
-        if (!updated) resolvedExternalLinks = []
-      } catch (error) {
-        console.error('Error backfilling external links:', error)
-        resolvedExternalLinks = []
-      }
+    let resolvedExternalLinks: ExternalLink[] = []
+    try {
+      resolvedExternalLinks = await trackWrite(async () => {
+        const links = await fetchExternalLinks(item)
+        if (links.length) {
+          const updated = await listenLaterStorage.updateExternalLinks(item.id, links)
+          return updated ? links : []
+        }
+        return links
+      })
+    } catch (error) {
+      console.error('Error backfilling external links:', error)
     }
 
     listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
@@ -88,7 +92,7 @@
 
   async function removeFromListenLater(item: MusicItem) {
     try {
-      await listenLaterStorage.remove(item.id)
+      await trackWrite(() => listenLaterStorage.remove(item.id))
       trackQualifyingActivity('item_removed')
       listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
       toast.success(`${musicItemName(item)} removed from your list`)

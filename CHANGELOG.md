@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+* **updates:** notify open tabs of frontend updates with clearer banner wording, explicit reload, unfinished-input confirmation and pending-write protection ([#77](https://github.com/Thomasevano/musickeeper/issues/77)).
+
+### Bug Fixes
+
+* **updates:** preserve reconnection checks overlapping a failed request and reconcile superseded reload targets before reporting failure.
+* **updates:** show a pointer on the reload button and a wait cursor while preparing the update.
+* **updates:** block new edits and list actions while an update navigation is pending; allow cancelling a stalled reload without losing unfinished input.
+
 ## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
 
 

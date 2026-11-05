@@ -6,6 +6,12 @@ const listPath = '/library/listen-later'
 
 test.use({ serviceWorkers: 'block' })
 
+test.afterEach(async ({ page }) => {
+  // Block new requests while proxy fetches finish, before fixture teardown disposes their context.
+  await page.context().route('**/*', (route) => route.abort())
+  await page.unrouteAll({ behavior: 'wait' })
+})
+
 // Serve the app at its production origin without reaching the live app or collector.
 async function productionPage(page: Page, baseURL: string) {
   await page.route(`${productionOrigin}/**`, async (route) => {
