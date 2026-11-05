@@ -22,7 +22,8 @@ export const PLATFORMS: PlatformSpec[] = [
     id: 'youtube-music',
     label: 'YouTube Music',
     category: 'stream',
-    hostMatcher: (h: string) => h === 'youtube.com' || h.endsWith('.youtube.com'),
+    hostMatcher: (h: string) =>
+      h === 'youtu.be' || h === 'youtube.com' || h.endsWith('.youtube.com'),
   },
   {
     id: 'soundcloud',
