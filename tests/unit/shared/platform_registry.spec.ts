@@ -26,6 +26,30 @@ test.group('platform_registry — detectPlatform', () => {
     assert.equal(detectPlatform('https://www.youtube.com/watch?v=abc')?.id, 'youtube-music')
   })
 
+  test('recognizes short YouTube share URLs without changing the source', ({ assert }) => {
+    for (const url of [
+      'https://youtu.be/Fvr33bVSglE?si=sTH8gVBiwjJ0MOAe',
+      'https://youtu.be/Fvr33bVSglE',
+    ]) {
+      assert.equal(detectPlatform(url)?.id, 'youtube-music')
+      assert.equal(normalizeLinkUrl(url, 'fr-FR'), url)
+    }
+  })
+
+  test('does not recognize YouTube lookalikes or URLs mentioning the host elsewhere', ({
+    assert,
+  }) => {
+    for (const url of [
+      'https://youtu.be.example.com/video',
+      'https://notyoutu.be/video',
+      'https://youtu.be@example.com/video',
+      'https://example.com/youtu.be/video',
+      'https://example.com/?source=https://youtu.be/video',
+    ]) {
+      assert.isNull(detectPlatform(url))
+    }
+  })
+
   test('matches soundcloud for soundcloud.com', ({ assert }) => {
     assert.equal(detectPlatform('https://soundcloud.com/foo/bar')?.id, 'soundcloud')
   })
