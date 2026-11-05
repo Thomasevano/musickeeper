@@ -8,6 +8,9 @@ Use one field per artist. Keep commas in names such as “Tyler, The Creator”;
 
 If the details need fixing, search MusicBrainz and review a match before applying changes. Links to other platforms are available even without a match.
 
+Short YouTube share URLs (`https://youtu.be/...`) are recognized as YouTube Music
+destinations. Recognition preserves the original URL, including share parameters.
+
 **Live demo:** [musickeeper.app](https://musickeeper.app)
 
 **Stack:** Svelte + Inertia on AdonisJS (hexagonal architecture — domain/application/infrastructure layers), TypeScript, unit + functional + E2E tests (Playwright), self-hosted via Docker.
