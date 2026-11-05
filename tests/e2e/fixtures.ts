@@ -60,12 +60,15 @@ export function listenLaterSeed(overrides: ListenLaterSeedOverrides): ListenLate
   }
 }
 
-export async function mockMetadataRoute(page: Page) {
+export async function mockMetadataRoute(page: Page, sourceUrl = SPOTIFY_URL) {
   await page.route('**/api/link/metadata', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(mockMetadataResponse),
+      body: JSON.stringify({
+        ...mockMetadataResponse,
+        linkMetadata: { ...mockMetadataResponse.linkMetadata, originalUrl: sourceUrl },
+      }),
     })
   )
 }
