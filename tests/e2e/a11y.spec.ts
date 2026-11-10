@@ -313,6 +313,57 @@ test('landing theme selection persists and can follow the system again', async (
   await expect.poll(surfaceLightness).toBeGreaterThan(128)
 })
 
+test('landing previews follow the theme across reloads', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' })
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+
+  const journey = page.locator('#how-it-works')
+  const savedImage = journey.getByRole('img', {
+    name: 'To Pimp a Butterfly in the list, marked listened, with platform links.',
+    exact: true,
+  })
+  const selectTheme = async (name: 'Light' | 'Dark' | 'System') => {
+    await page.getByRole('button', { name: 'Toggle theme' }).press('Enter')
+    await page.getByRole('menuitem', { name, exact: true }).click()
+  }
+  const loadedImage = async (image: Locator, suffix: string) => {
+    await expect
+      .poll(() =>
+        image.evaluate((element, expectedSuffix) => {
+          const img = element as HTMLImageElement
+          return (
+            img.complete &&
+            img.naturalWidth > 0 &&
+            new URL(img.currentSrc).pathname.endsWith(expectedSuffix)
+          )
+        }, suffix)
+      )
+      .toBe(true)
+  }
+
+  await loadedImage(savedImage, '-light-desktop.png')
+  await selectTheme('Dark')
+  await loadedImage(savedImage, '-dark-desktop.png')
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await loadedImage(savedImage, '-dark-desktop.png')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload({ waitUntil: 'networkidle' })
+  await loadedImage(savedImage, '-dark-mobile.png')
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  await selectTheme('System')
+  await loadedImage(savedImage, '-light-desktop.png')
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await loadedImage(savedImage, '-dark-desktop.png')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await loadedImage(savedImage, '-dark-mobile.png')
+  await page.emulateMedia({ colorScheme: 'light' })
+  await loadedImage(savedImage, '-light-mobile.png')
+})
+
 test.describe('mobile keyboard', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 

@@ -4,6 +4,7 @@
   import { Button } from '$lib/components/ui/button'
   import HeroSection from '$components/landing/HeroSection.svelte'
   import Features from '$components/landing/Features.svelte'
+  import ProductPreview from '$components/landing/ProductPreview.svelte'
   import ListeningJourney from '$components/landing/ListeningJourney.svelte'
   import { ModeWatcher } from 'mode-watcher'
   import ToggleTheme from '$components/ToggleTheme.svelte'
@@ -71,6 +72,7 @@
 
   <main id="main-content" tabindex="-1" class="mx-auto max-w-[1168px] px-6">
     <HeroSection />
+    <ProductPreview />
     <ListeningJourney />
     <Features />
     <section
