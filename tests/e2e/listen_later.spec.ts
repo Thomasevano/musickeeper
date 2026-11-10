@@ -800,13 +800,13 @@ test.describe('desktop navigation', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
 
   test('hides the compact navigation trigger', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/library/listen-later')
 
     // The trigger's `md:hidden` is forwarded through a bits-ui child snippet, so
     // a stray `class` on the Button silently drops it and ships the burger on
     // desktop next to the inline links.
     await expect(page.getByRole('button', { name: 'Open navigation' })).not.toBeVisible()
-    await expect(page.getByRole('link', { name: 'Features' })).toBeVisible()
+    await expect(page.locator('a[href="/#how-it-works"]')).toBeVisible()
   })
 })
 
@@ -972,7 +972,7 @@ test.describe('reduced motion', () => {
     await page.setViewportSize({ width: 320, height: 568 })
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await recordMotion(page)
-    await page.goto('/')
+    await page.goto('/library/listen-later')
     await page.getByRole('button', { name: 'Open navigation' }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
 
@@ -1072,7 +1072,7 @@ test.describe('mobile breakpoint controls', () => {
 
     await page.getByRole('button', { name: 'Open navigation' }).click()
     const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
-    await expectMinTouchTarget(navigation.getByRole('link', { name: 'Features' }))
+    await expectMinTouchTarget(navigation.locator('a[href="/#how-it-works"]'))
     await expectMinTouchTarget(navigation.getByRole('link', { name: 'Blog' }))
     await expectMinTouchTarget(page.getByRole('button', { name: 'Toggle theme' }))
     await page.getByRole('button', { name: 'Toggle theme' }).click()
@@ -1086,26 +1086,26 @@ test.describe('mobile navigation', () => {
   test.use({ viewport: { width: 320, height: 568 } })
 
   test('opens the compact navigation sheet', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/library/listen-later')
     await page.getByRole('button', { name: 'Open navigation' }).click()
 
     const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
     await expect(navigation).toBeVisible()
-    await expect(navigation.getByRole('link', { name: 'Features' })).toBeVisible()
-    await navigation.getByRole('link', { name: 'Features' }).click()
-    await expect(page).toHaveURL(/\/#features$/)
+    await navigation.locator('a[href="/#how-it-works"]').click()
+    await expect(page).toHaveURL(/\/#how-it-works$/)
+    await expect(page.locator('#how-it-works')).toBeInViewport()
     await expect(navigation).not.toBeVisible()
   })
 
   test('closes the compact navigation sheet at the desktop breakpoint', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/library/listen-later')
     await page.getByRole('button', { name: 'Open navigation' }).click()
     const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
     await expect(navigation).toBeVisible()
 
     await page.setViewportSize({ width: 1280, height: 800 })
     await expect(navigation).not.toBeVisible()
-    await expect(page.getByRole('link', { name: 'Features' })).toBeVisible()
+    await expect(page.locator('a[href="/#how-it-works"]')).toBeVisible()
   })
 
   test('keeps both filters full width and filters mobile cards', async ({ page }) => {

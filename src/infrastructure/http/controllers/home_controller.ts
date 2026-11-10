@@ -5,9 +5,9 @@ export default class HomeController {
       'home',
       {},
       {
-        title: 'MusicKeeper',
+        title: 'MusicKeeper — Save music for later',
         description:
-          'A simple app to keep track of music you want or have been recommended to listen to',
+          'Save the tracks and albums you mean to listen to. Paste a link or search, then come back when you’re ready. No account. Just your music.',
       }
     )
   }
