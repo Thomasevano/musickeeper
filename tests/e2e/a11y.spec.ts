@@ -277,6 +277,42 @@ for (const colorScheme of ['light', 'dark'] as const) {
   })
 }
 
+test('landing theme selection persists and can follow the system again', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 })
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.goto('/')
+  const surface = page.locator('main').locator('..')
+  const surfaceLightness = () =>
+    surface.evaluate((element) => {
+      const channels = getComputedStyle(element).backgroundColor.match(/\d+/g)!.map(Number)
+      return (channels[0] + channels[1] + channels[2]) / 3
+    })
+  const selectTheme = async (name: 'Light' | 'Dark' | 'System') => {
+    // Native navigation can paint the SSR page before its dropdown hydrates.
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Toggle theme' }).press('Enter')
+    await page.getByRole('menuitem', { name, exact: true }).click()
+  }
+
+  await selectTheme('Dark')
+  await expect.poll(surfaceLightness).toBeLessThan(128)
+  await selectTheme('Light')
+  await expect.poll(surfaceLightness).toBeGreaterThan(128)
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.reload()
+  await expect.poll(surfaceLightness).toBeGreaterThan(128)
+
+  await page.getByRole('link', { name: 'Open app', exact: true }).click()
+  await expect(page).toHaveURL(/\/library\/listen-later$/)
+  await expect(page.locator('html')).not.toHaveClass(/dark/)
+  await page.getByRole('link', { name: 'MusicKeeper home', exact: true }).click()
+  await expect.poll(surfaceLightness).toBeGreaterThan(128)
+  await selectTheme('System')
+  await expect.poll(surfaceLightness).toBeLessThan(128)
+  await page.emulateMedia({ colorScheme: 'light' })
+  await expect.poll(surfaceLightness).toBeGreaterThan(128)
+})
+
 test.describe('mobile keyboard', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 

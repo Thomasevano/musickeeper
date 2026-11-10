@@ -9,6 +9,10 @@
     </title>
     <meta name="description" content="{{ description }}" />
     <meta name="theme-color" content="#ffffff" />
+    @if(page.component === 'home')
+      <link rel="preload" href="/landing/fonts/font-05.woff2" as="font" type="font/woff2" crossorigin />
+      <link rel="preload" href="/landing/fonts/font-12.woff2" as="font" type="font/woff2" crossorigin />
+    @end
 
     {{-- Favicon --}}
     <link rel="icon" href="/musickeeper.svg" type="image/svg+xml" />
