@@ -313,13 +313,16 @@ test('landing theme selection persists and can follow the system again', async (
   await expect.poll(surfaceLightness).toBeGreaterThan(128)
 })
 
-test('landing previews follow the theme across reloads', async ({ page }) => {
+test('landing journey changes media without continuing playback across themes', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' })
   await page.goto('/')
   await page.waitForLoadState('networkidle')
 
   const journey = page.locator('#how-it-works')
+  const video = journey.locator('video')
   const savedImage = journey.getByRole('img', {
     name: 'To Pimp a Butterfly in the list, marked listened, with platform links.',
     exact: true,
@@ -343,25 +346,70 @@ test('landing previews follow the theme across reloads', async ({ page }) => {
       .toBe(true)
   }
 
+  await expect(video).toHaveCount(1)
+  await expect(video).not.toHaveAttribute('autoplay')
+  await expect(video).not.toHaveAttribute('loop')
+  await expect
+    .poll(() => video.evaluate((element) => (element as HTMLVideoElement).paused))
+    .toBe(true)
   await loadedImage(savedImage, '-light-desktop.png')
+  await video.click()
+  await video.evaluate(async (element) => {
+    const media = element as HTMLVideoElement
+    media.muted = true
+    await media.play()
+  })
+  await expect
+    .poll(() => video.evaluate((element) => !(element as HTMLVideoElement).paused))
+    .toBe(true)
+  const oldVideo = await video.elementHandle()
+  if (!oldVideo) throw new Error('Journey video was not mounted')
+  const oldPoster = await video.getAttribute('poster')
+
   await selectTheme('Dark')
+  await expect
+    .poll(() => oldVideo.evaluate((element) => (element as HTMLVideoElement).paused))
+    .toBe(true)
+  await expect(video).not.toHaveAttribute('poster', oldPoster!)
+  await expect(video).toHaveAttribute('poster', /journey-search-dark\.png$/)
+  await expect
+    .poll(() => video.evaluate((element) => (element as HTMLVideoElement).paused))
+    .toBe(true)
+  await video.evaluate((element) => (element as HTMLVideoElement).load())
+  await expect
+    .poll(() =>
+      video.evaluate((element) => {
+        const media = element as HTMLVideoElement
+        return media.readyState >= HTMLMediaElement.HAVE_METADATA && media.videoWidth > 0
+          ? new URL(media.currentSrc).pathname
+          : ''
+      })
+    )
+    .toBe('/landing/journey-search-dark.mp4')
+  await expect
+    .poll(() => video.evaluate((element) => (element as HTMLVideoElement).paused))
+    .toBe(true)
   await loadedImage(savedImage, '-dark-desktop.png')
 
   await page.reload({ waitUntil: 'networkidle' })
   await loadedImage(savedImage, '-dark-desktop.png')
+  await expect(video).toHaveAttribute('poster', /journey-search-dark\.png$/)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload({ waitUntil: 'networkidle' })
   await loadedImage(savedImage, '-dark-mobile.png')
+  await expect(video).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await selectTheme('System')
-  await loadedImage(savedImage, '-light-desktop.png')
+  await expect(video).toHaveAttribute('poster', /journey-search-light\.png$/)
   await page.emulateMedia({ colorScheme: 'dark' })
-  await loadedImage(savedImage, '-dark-desktop.png')
+  await expect(video).toHaveAttribute('poster', /journey-search-dark\.png$/)
   await page.setViewportSize({ width: 390, height: 844 })
+  await expect(video).toHaveCount(0)
   await loadedImage(savedImage, '-dark-mobile.png')
   await page.emulateMedia({ colorScheme: 'light' })
   await loadedImage(savedImage, '-light-mobile.png')
+  await expect(video).toHaveCount(0)
 })
 
 test.describe('mobile keyboard', () => {

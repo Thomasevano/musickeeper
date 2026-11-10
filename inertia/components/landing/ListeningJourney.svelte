@@ -1,6 +1,8 @@
 <script lang="ts">
   import { mode } from 'mode-watcher'
+  import { MediaQuery } from 'svelte/reactivity'
 
+  const isDesktop = new MediaQuery('min-width: 1280px')
   // Hydrate the same image URLs as SSR; Svelte preserves mismatched initial src attributes.
   let mediaMode = $state('light')
   $effect(() => {
@@ -44,6 +46,38 @@
     </div>
 
     <div class="hidden flex-col gap-4 xl:flex">
+      <p class="text-[13px] text-muted-foreground dark:text-[#D3D4D7]">Search by title and artist · Click the item to save</p>
+      {#if isDesktop.current}
+        {#key mediaMode}
+          <!-- svelte-ignore a11y_media_has_caption (Silent visual demonstration; text equivalent follows.) -->
+          <video
+            controls
+            playsinline
+            preload="none"
+            poster="/landing/journey-search-{mediaMode}.png"
+            width="720"
+            height="270"
+            aria-label="Searching for and saving To Pimp a Butterfly"
+            aria-describedby="journey-video-description"
+            class="aspect-[720/270] w-full rounded-[6px]"
+          >
+            <source src="/landing/journey-search-{mediaMode}.mp4" type="video/mp4" />
+          </video>
+        {/key}
+      {:else}
+        <img
+          src="/landing/journey-search-{mediaMode}.png"
+          alt="An empty album search."
+          width="720"
+          height="270"
+          loading="lazy"
+          class="aspect-[720/270] h-auto w-full rounded-[6px]"
+        />
+      {/if}
+      <p id="journey-video-description" class="sr-only">
+        This silent demonstration starts with an empty search. A title and artist are typed,
+        search results appear, and the matching result row is clicked to save it as not listened.
+      </p>
       <p class="text-[13px] text-muted-foreground dark:text-[#D3D4D7]">Added from search · Marked listened</p>
       <img
         src="/landing/tpab-listened-{mediaMode}-desktop.png"
