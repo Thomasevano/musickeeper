@@ -1,5 +1,17 @@
 import type { HttpContext } from '@adonisjs/core/http'
 export default class HomeController {
+  async qobuz({ inertia }: HttpContext) {
+    return inertia.render(
+      'qobuz',
+      {},
+      {
+        title: 'Qobuz × MusicKeeper — Independent concept',
+        description:
+          'An independent product exploration: turn music discovery into deeper listening.',
+      }
+    )
+  }
+
   async index({ inertia }: HttpContext) {
     return inertia.render(
       'home',
