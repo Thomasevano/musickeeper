@@ -5,9 +5,9 @@ export default class HomeController {
       'qobuz',
       {},
       {
-        title: 'Qobuz × MusicKeeper — Independent concept',
+        title: 'Qobuz — À écouter plus tard · PoC MusicKeeper',
         description:
-          'An independent product exploration: turn music discovery into deeper listening.',
+          'Prototype indépendant : une liste à écouter plus tard intégrée à la bibliothèque Qobuz, enregistrée uniquement dans ce navigateur.',
       }
     )
   }

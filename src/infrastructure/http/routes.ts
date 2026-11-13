@@ -17,6 +17,10 @@ const LinksController = () => import('./controllers/links_controller.js')
 router.get('/', [HomeController, 'index'])
 
 router.get('/qobuz', [HomeController, 'qobuz'])
+router.get('/qobuz/discover', [HomeController, 'qobuz']).as('qobuz.discover')
+router.get('/qobuz/user-library', [HomeController, 'qobuz']).as('qobuz.library')
+router.get('/qobuz/user-library/:section', [HomeController, 'qobuz']).as('qobuz.library.section')
+router.get('/qobuz/album/:id', [HomeController, 'qobuz']).as('qobuz.album')
 
 router.post('/api/link/metadata', [LinkController, 'metadata'])
 

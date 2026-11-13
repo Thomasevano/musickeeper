@@ -1,103 +1,90 @@
 import type { SearchType } from '../../src/domain/music_item'
 import type { NewListenLaterItem } from '../../src/infrastructure/storage/listen_later_storage'
 
+/** An observed Discover card, not a live catalog response. */
 export interface ConceptAlbum {
+  /** Actual Qobuz album identifier; slug is retained for existing callers. */
+  id: string
   slug: string
   title: string
   artist: string
+  artists: string[]
   year: string
-  genre: 'Jazz' | 'Alternative' | 'Electronic'
+  genre: string
   note: string
   description: string
+  coverArt: string
+  sourceUrl: string
+  itemType: SearchType.album
+  releaseDate: string
 }
 
-// A fixed, illustrative editorial selection — not a live Qobuz catalog response.
-// Covers are sample thumbnails sourced from Apple's public iTunes Search API.
+export type QobuzCatalogItem = ConceptAlbum
+
+function album(id: string, title: string, artists: string[], note = ''): ConceptAlbum {
+  return {
+    id,
+    slug: id,
+    title,
+    artist: artists.join(' • '),
+    artists,
+    // The captured Discover cards did not expose these metadata fields.
+    year: '',
+    genre: '',
+    note,
+    description: '',
+    coverArt: `/qobuz-concept/covers/${id}.jpg`,
+    sourceUrl: `https://play.qobuz.com/album/${id}`,
+    itemType: 'album' as SearchType.album,
+    releaseDate: '',
+  }
+}
+
+// Titles, artists, player paths and artwork observed on play.qobuz.com Discover.
+// This fixed illustrative selection is not a live or exhaustive catalog.
 export const conceptAlbums: ConceptAlbum[] = [
-  {
-    slug: 'endlessness',
-    title: 'Endlessness',
-    artist: 'Nala Sinephro',
-    year: '2024',
-    genre: 'Jazz',
-    note: 'A little space to get lost in.',
-    description:
-      'An expansive meeting of ambient electronics, harp and jazz. A record for slowing down, listening closely, and letting one discovery lead to another.',
-  },
-  {
-    slug: 'a-la-sala',
-    title: 'A LA SALA',
-    artist: 'Khruangbin',
-    year: '2024',
-    genre: 'Alternative',
-    note: 'Open windows. Unhurried grooves.',
-    description:
-      'Warm, spacious instrumentals from the Texas trio. Keep it for a quiet morning, a long drive, or the moment your day needs a different rhythm.',
-  },
-  {
-    slug: 'cascade',
-    title: 'Cascade',
-    artist: 'Floating Points',
-    year: '2024',
-    genre: 'Electronic',
-    note: 'For when the room needs to move.',
-    description:
-      'Detailed electronics with a dance-floor pulse. A change of pace for the listening queue, full of texture and forward motion.',
-  },
-  {
-    slug: 'lives-outgrown',
-    title: 'Lives Outgrown',
-    artist: 'Beth Gibbons',
-    year: '2024',
-    genre: 'Alternative',
-    note: 'A voice that stays with you.',
-    description:
-      'Intimate songwriting and richly layered arrangements. The kind of record a friend recommends, and you want to remember to give your full attention.',
-  },
-  {
-    slug: 'waltz-for-debby',
-    title: 'Waltz for Debby',
-    artist: 'Bill Evans Trio',
-    year: '1961',
-    genre: 'Jazz',
-    note: 'Some conversations are timeless.',
-    description:
-      'A Village Vanguard classic, alive with the interplay of piano, bass and drums. Save a place for a record worth returning to.',
-  },
-  {
-    slug: 'in-rainbows',
-    title: 'In Rainbows',
-    artist: 'Radiohead',
-    year: '2007',
-    genre: 'Alternative',
-    note: 'A familiar record. A fresh listen.',
-    description:
-      'Restless rhythms, warmth and unexpected detail. Rediscovery belongs in a listening queue just as much as something entirely new.',
-  },
+  album('y9xwqjq7ru2vr', 'Still Outstanding', ['Ragga Twins'], 'ALBUM DE LA SEMAINE'),
+  album('fpoq100peqjph', 'Close to Home', ['Bill Laurance', 'Michael League']),
+  album('lw1tfb5eu9lud', 'trentemøller', ['Trentemøller']),
+  album('y2u9ofk640gnc', '(SILHOUETTE)', ['D.a.n.']),
+  album('nzxh5konmvw4j', 'Drukqs (Expanded Edition)', ['Aphex Twin', 'Richard D. James']),
+  album('gb7g64sfy8bwv', 'Beginningless', ['Anna Butterss', 'Raymond John', 'Ben Lumsdaine']),
+  album('ccwouqvud3hmp', 'The Interpretation Of Nightmares', ['Silvertomb']),
+  album(
+    'c76tuudwjd3q8',
+    'J.S. Bach: The Complete Works for Keyboard, Vol. 12: The Well-Tempered Clavier, Book II',
+    ['Benjamin Alard']
+  ),
+  album('nnfef6hysr1i4', 'Carnaval De Luz', ['U2']),
+  album('q7kyp0dgf7izw', 'Fantasy & Reveries', ['Brad Mehldau']),
 ]
 
-export const conceptId = (album: ConceptAlbum) => `qobuz-concept:${album.slug}`
-export const conceptCover = (album: ConceptAlbum) => `/qobuz-concept/${album.slug}.jpg`
+export const qobuzCatalog = conceptAlbums
+export const conceptId = (item: ConceptAlbum) => `qobuz-concept:${item.id}`
+export const conceptCover = (item: ConceptAlbum) => item.coverArt
 export const qobuzSearch = (artist: string, title: string) =>
   `https://play.qobuz.com/search?q=${encodeURIComponent(`${artist} ${title}`)}`
 
-export function toListenLaterItem(album: ConceptAlbum): NewListenLaterItem {
+/** Convert a concept card to the input accepted by listenLaterStorage.add. */
+export function toListenLaterItem(item: ConceptAlbum): NewListenLaterItem {
   return {
-    id: conceptId(album),
-    title: album.title,
-    artists: [album.artist],
-    itemType: 'album' as SearchType.album,
-    releaseDate: album.year,
-    coverArt: conceptCover(album),
-    // This is a search destination, not an asserted Qobuz album identity.
+    id: conceptId(item),
+    title: item.title,
+    artists: [...item.artists],
+    releaseDate: item.releaseDate,
+    itemType: item.itemType,
+    coverArt: item.coverArt,
+    sourceUrl: item.sourceUrl,
     externalLinks: [
       {
         platform: 'qobuz',
-        label: 'Search on Qobuz',
-        url: qobuzSearch(album.artist, album.title),
+        label: 'Qobuz',
+        url: item.sourceUrl,
         category: 'stream',
-        source: 'platform-search',
+        source: 'source-url',
       },
     ],
   }
 }
+
+export const toNewListenLaterItem = toListenLaterItem

@@ -1,495 +1,347 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
-  import Bookmark from '@lucide/svelte/icons/bookmark'
-  import Compass from '@lucide/svelte/icons/compass'
-  import Search from '@lucide/svelte/icons/search'
-  import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right'
-  import ArrowRight from '@lucide/svelte/icons/arrow-right'
-  import Check from '@lucide/svelte/icons/check'
-  import Plus from '@lucide/svelte/icons/plus'
-  import X from '@lucide/svelte/icons/x'
-  import Headphones from '@lucide/svelte/icons/headphones'
-  import Trash2 from '@lucide/svelte/icons/trash-2'
-  import CircleCheck from '@lucide/svelte/icons/circle-check'
-  import Info from '@lucide/svelte/icons/info'
-  import ListMusic from '@lucide/svelte/icons/list-music'
+  import { page } from '@inertiajs/svelte'
   import Disc3 from '@lucide/svelte/icons/disc-3'
+  import Check from '@lucide/svelte/icons/check'
+  import Trash2 from '@lucide/svelte/icons/trash-2'
+  import ExternalLink from '@lucide/svelte/icons/external-link'
   import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
   import type { ListenLaterItem } from '../../src/domain/music_item'
-  import {
-    conceptAlbums,
-    conceptId,
-    conceptCover,
-    qobuzSearch,
-    toListenLaterItem,
-    type ConceptAlbum,
-  } from '~/lib/qobuz_concept'
+  import { conceptId, qobuzCatalog, toNewListenLaterItem, type QobuzCatalogItem } from '~/lib/qobuz_concept'
 
-  let view = $state<'discover' | 'keeper'>('discover')
+  const sections = [
+    { id: 'all', label: 'Tout', icon: 'userLibrary' },
+    { id: 'listen-later', label: 'À écouter plus tard', icon: 'time' },
+    { id: 'playlists', label: 'Playlists', icon: 'playlist' },
+    { id: 'tracks', label: 'Titres', icon: 'track' },
+    { id: 'releases', label: 'Albums', icon: 'album' },
+    { id: 'artists', label: 'Artistes', icon: 'artist' },
+    { id: 'labels', label: 'Labels', icon: 'label-1' },
+    { id: 'awards', label: 'Récompenses', icon: 'award' },
+  ] as const
+  const drukqs = qobuzCatalog.find((album) => album.id === 'nzxh5konmvw4j')!
+  const tracks = [
+    ['Jynweythek', '02:23'], ['Vordhosbn', '04:51'], ['Kladfvgbung Mischk', '02:06'],
+    ['Omgyjya-Switch7', '04:52'], ['Strotha Tynhe', '02:12'],
+  ]
+  let path = $state((page.url || '/qobuz').split('?')[0])
   let query = $state('')
-  let genre = $state('All discoveries')
-  let filter = $state<'All saved' | 'To listen' | 'Listened'>('All saved')
+  let libraryQuery = $state('')
+  let sort = $state('date')
+  let layout = $state<'grid' | 'list'>('grid')
+  let listenedFilter = $state<'all' | 'pending' | 'listened'>('all')
   let items = $state<ListenLaterItem[]>([])
+  let loading = $state(true)
   let ready = $state(false)
-  let busy = $state<string[]>([])
-  let storageError = $state('')
+  let error = $state('')
   let message = $state('')
-  let selectedAlbum = $state<ConceptAlbum | null>(null)
-  let aboutDialog: HTMLDialogElement
-  let albumDialog: HTMLDialogElement
-  const featured = conceptAlbums[0]
-  const genres = ['All discoveries', 'Jazz', 'Alternative', 'Electronic']
-  const filters = ['All saved', 'To listen', 'Listened'] as const
-  const toListen = $derived(items.filter((item) => !item.hasBeenListened).length)
-  const normalizedQuery = $derived(query.trim().toLocaleLowerCase())
-  const albums = $derived(
-    conceptAlbums.filter(
-      (album) =>
-        (genre === 'All discoveries' || album.genre === genre) &&
-        `${album.title} ${album.artist}`.toLocaleLowerCase().includes(normalizedQuery)
-    )
-  )
-  const savedItems = $derived(
-    [...items]
-      .reverse()
-      .filter(
-        (item) =>
-          (filter === 'All saved' || item.hasBeenListened === (filter === 'Listened')) &&
-          `${item.title} ${item.artists.join(' ')}`.toLocaleLowerCase().includes(normalizedQuery)
-      )
-  )
-  const isSaved = (album: ConceptAlbum) => items.some((item) => item.id === conceptId(album))
+  let busy = $state<string[]>([])
+  let menuId = $state<string | null>(null)
+  let menuTrigger: HTMLButtonElement | undefined
+  let menuPosition = $state({ left: 8, top: 8 })
+  let retrying = $state(false)
 
-  async function loadLibrary() {
-    storageError = ''
-    try {
-      items = await listenLaterStorage.getAll()
-      ready = true
-    } catch {
-      ready = false
-      storageError = 'Your library could not be opened. Allow browser storage, then reload to try again.'
+  const isDiscover = $derived(path === '/qobuz/discover')
+  const albumId = $derived(path.startsWith('/qobuz/album/') ? decodeURIComponent(path.slice('/qobuz/album/'.length)) : '')
+  const album = $derived(qobuzCatalog.find((item) => item.id === albumId))
+  const isAlbum = $derived(path.startsWith('/qobuz/album/'))
+  const section = $derived(path.startsWith('/qobuz/user-library/') ? path.split('/')[3] : 'all')
+  const matches = (text: string, search: string) => text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
+  const discoveries = $derived(qobuzCatalog.filter((item) => matches(`${item.title} ${item.artists.join(' ')}`, query)))
+  type LibraryEntry =
+    | { kind: 'album'; title: string; artist: string; date: number }
+    | { kind: 'playlist'; title: string; artist: string; date: number }
+    | { kind: 'saved'; title: string; artist: string; date: number; item: ListenLaterItem }
+  const nativeAlbumSaved = $derived(items.some((item) => item.id === conceptId(drukqs)))
+  const counts = $derived({
+    all: 2 + items.length - (nativeAlbumSaved ? 1 : 0),
+    'listen-later': items.length,
+    playlists: 1,
+    tracks: items.filter((item) => item.itemType === 'track').length,
+    releases: 1 + items.filter((item) => item.itemType === 'album' && item.id !== conceptId(drukqs)).length,
+    artists: 2,
+    labels: 1,
+    awards: 0,
+  })
+  const visibleEntries = $derived.by(() => {
+    const result: LibraryEntry[] = []
+    if (section === 'all' || section === 'releases') result.push({ kind: 'album', title: drukqs.title, artist: drukqs.artists[0], date: 0 })
+    if (section === 'all' || section === 'playlists') result.push({ kind: 'playlist', title: 'An Introduction to Qobuz', artist: 'Qobuz UK', date: 0 })
+    for (const item of items) {
+      if (!['all', 'listen-later', 'tracks', 'releases'].includes(section)) continue
+      if (section !== 'listen-later' && item.id === conceptId(drukqs)) continue
+      if (section === 'tracks' && item.itemType !== 'track') continue
+      if (section === 'releases' && item.itemType !== 'album') continue
+      if (section === 'listen-later' && listenedFilter !== 'all' && item.hasBeenListened !== (listenedFilter === 'listened')) continue
+      result.push({ kind: 'saved', title: item.title, artist: (item.artists || []).join(' · '), date: new Date(item.addedAt).getTime() || 0, item })
     }
-  }
-
-  onMount(() => {
-    void loadLibrary()
+    return result.filter((item) => {
+      const searchableArtists = item.kind === 'album' ? drukqs.artists.join(' ') : item.artist
+      return matches(`${item.title} ${searchableArtists}`, libraryQuery)
+    })
+      .sort((a, b) => sort === 'title' ? a.title.localeCompare(b.title) : sort === 'artist' ? a.artist.localeCompare(b.artist) : b.date - a.date)
   })
 
-  function navigate(next: 'discover' | 'keeper') {
-    view = next
-    query = ''
-    message = ''
+  async function load() {
+    if (retrying) return
+    retrying = true
+    try { items = await listenLaterStorage.getAll(); ready = true; error = '' }
+    catch { ready = false; error = 'Impossible de charger votre liste locale. Les modifications sont désactivées.' }
+    finally { loading = false; retrying = false }
   }
-
-  async function save(album: ConceptAlbum) {
-    const id = conceptId(album)
-    if (!ready || isSaved(album) || busy.includes(id)) return
-    busy = [...busy, id]
-    storageError = ''
+  onMount(() => {
+    path = window.location.pathname
+    query = new URLSearchParams(window.location.search).get('q') || ''
+    const pop = () => { path = window.location.pathname; menuId = null; query = new URLSearchParams(window.location.search).get('q') || ''; libraryQuery = '' }
+    const dismissMenu = (event: Event) => { if (menuId && !(event.target instanceof Element && event.target.closest('.action-menu'))) closeMenu(false) }
+    window.addEventListener('popstate', pop)
+    window.addEventListener('resize', dismissMenu)
+    window.addEventListener('scroll', dismissMenu, true)
+    void load()
+    return () => { window.removeEventListener('popstate', pop); window.removeEventListener('resize', dismissMenu); window.removeEventListener('scroll', dismissMenu, true) }
+  })
+  function safeUrl(value?: string): string | undefined {
+    if (!value) return undefined
     try {
-      const stored = await listenLaterStorage.add(toListenLaterItem(album))
-      // Storage loads oldest first, so appending preserves its default order (ADR 0001).
-      items = [...items, stored]
-      message = `${album.title} saved to MusicKeeper. A good listen, waiting for you.`
-    } catch {
-      storageError = 'This album could not be saved. Your existing library has not been removed.'
-    } finally {
-      busy = busy.filter((value) => value !== id)
-    }
+      const url = new URL(value, 'https://local.invalid')
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+      return url.origin === 'https://local.invalid' ? `${url.pathname}${url.search}${url.hash}` : url.href
+    } catch { return undefined }
   }
-
-  async function toggleListened(item: ListenLaterItem) {
-    if (busy.includes(item.id)) return
-    busy = [...busy, item.id]
-    storageError = ''
+  function isBusy(id: string) { return busy.includes(id) }
+  function isSaved(item: QobuzCatalogItem) { return items.some((saved) => saved.id === conceptId(item)) }
+  async function save(item: QobuzCatalogItem) {
+    const id = conceptId(item)
+    if (!ready || isBusy(id) || isSaved(item)) return
+    busy = [...busy, id]; error = ''
+    try {
+      const saved = await listenLaterStorage.add(toNewListenLaterItem(item))
+      items = [...items, saved]
+      message = `« ${item.title} » ajouté à À écouter plus tard.`
+      if (menuId === item.id) closeMenu()
+    } catch { error = `Impossible d’ajouter « ${item.title} ». Votre liste n’a pas changé.` }
+    finally { busy = busy.filter((value) => value !== id) }
+  }
+  async function toggle(item: ListenLaterItem) {
+    if (!ready || isBusy(item.id)) return
+    busy = [...busy, item.id]; error = ''
     try {
       const updated = await listenLaterStorage.toggleListened(item.id)
-      if (updated) {
-        items = items.map((existing) => (existing.id === updated.id ? updated : existing))
-        message = `${updated.title} marked as ${updated.hasBeenListened ? 'listened' : 'unlistened'}.`
-      } else {
-        items = items.filter((existing) => existing.id !== item.id)
-        message = `${item.title} is no longer in your library.`
-      }
-    } catch {
-      storageError = 'The listening status could not be updated. Please try again.'
-    } finally {
-      busy = busy.filter((value) => value !== item.id)
-    }
+      if (!updated) { error = 'Cet élément n’existe plus. Rechargez la page pour actualiser la liste.'; return }
+      items = items.map((value) => value.id === item.id ? updated : value)
+      message = `« ${item.title} » : ${updated.hasBeenListened ? 'écouté' : 'à écouter'}.`
+    } catch { error = `Impossible de modifier « ${item.title} ». Votre liste n’a pas changé.` }
+    finally { busy = busy.filter((value) => value !== item.id) }
   }
-
   async function remove(item: ListenLaterItem) {
-    if (busy.includes(item.id)) return
-    busy = [...busy, item.id]
-    storageError = ''
-    try {
-      await listenLaterStorage.remove(item.id)
-      items = items.filter((existing) => existing.id !== item.id)
-      message = `${item.title} removed from MusicKeeper.`
-    } catch {
-      storageError = 'This album could not be removed. Please try again.'
-    } finally {
-      busy = busy.filter((value) => value !== item.id)
-    }
+    if (!ready || isBusy(item.id)) return
+    busy = [...busy, item.id]; error = ''
+    try { await listenLaterStorage.remove(item.id); items = items.filter((value) => value.id !== item.id); message = `« ${item.title} » retiré de la liste.` }
+    catch { error = `Impossible de retirer « ${item.title} ». Votre liste n’a pas changé.` }
+    finally { busy = busy.filter((value) => value !== item.id) }
   }
-
-  async function explore(album: ConceptAlbum) {
-    selectedAlbum = album
-    await tick()
-    albumDialog.showModal()
+  function openMenu(event: MouseEvent, id: string) {
+    event.stopPropagation()
+    const button = event.currentTarget as HTMLButtonElement
+    if (menuId === id) { closeMenu(false); return }
+    const rect = button.getBoundingClientRect()
+    menuPosition = { left: Math.max(8, Math.min(rect.right - 242, window.innerWidth - 250)), top: rect.bottom }
+    menuTrigger = button; menuId = id
+    void tick().then(() => {
+      if (menuId !== id) return
+      const menu = document.querySelector<HTMLElement>('.action-menu')
+      if (!menu) return
+      const bottom = window.innerHeight - 80
+      menuPosition = { ...menuPosition, top: Math.max(8, Math.min(rect.bottom, bottom - menu.offsetHeight)) }
+      menu.querySelector<HTMLElement>('button:not(:disabled), a')?.focus({ preventScroll: true })
+    })
   }
-
-  function useFallbackCover(event: Event) {
-    const image = event.currentTarget as HTMLImageElement
-    image.onerror = null
-    image.src = '/blank-album.svg'
+  function closeMenu(restore = true) { menuId = null; if (restore) void tick().then(() => menuTrigger?.focus()) }
+  function menuKey(event: KeyboardEvent) {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+    const choices = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('button:not(:disabled), a'))
+    if (!choices.length) return
+    event.preventDefault()
+    const index = choices.indexOf(document.activeElement as HTMLElement)
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : event.key === 'ArrowDown' ? (index + 1) % choices.length : (index - 1 + choices.length) % choices.length
+    choices[next].focus()
   }
+  function keydown(event: KeyboardEvent) { if (event.key === 'Escape' && menuId) { event.preventDefault(); closeMenu() } }
 </script>
 
-<svelte:head>
-  <title>Qobuz × MusicKeeper — An independent concept</title>
-  <meta name="robots" content="noindex, nofollow" />
-</svelte:head>
+<svelte:head><title>Qobuz · MusicKeeper</title><meta name="description" content="Concept indépendant Qobuz et liste d’écoute locale MusicKeeper." /></svelte:head>
+<svelte:window onkeydown={keydown} onclick={() => { if (menuId) closeMenu(false) }} />
+{#snippet nativeIcon(name: string, size = 20)}
+  <svg class="native-icon" width={size} height={size} aria-hidden="true"><use href={`/qobuz-concept/icons.svg#qobuz-icon-${name}`} /></svg>
+{/snippet}
 
-<div class="concept">
-  <a class="skip-link" href="#concept-content">Skip to content</a>
-  <aside class="sidebar" aria-label="Application navigation">
-    <a class="wordmark" href="/qobuz" aria-label="Qobuz concept home">
-      <svg viewBox="0 0 36 40" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="none" stroke="currentColor" stroke-width="5" /><circle cx="17" cy="17" r="4" fill="currentColor" /><path d="m23 28 8 9" stroke="currentColor" stroke-width="5" /></svg>
-      qobuz<span class="concept-tag">CONCEPT</span>
-    </a>
-    <div class="nav-label">YOUR LISTENING SPACE</div>
-    <nav class="main-nav" aria-label="Main">
-      <button class:active={view === 'discover'} aria-current={view === 'discover' ? 'page' : undefined} onclick={() => navigate('discover')}><Compass size={20} /> Discover <span class="nav-dot"></span></button>
-      <button aria-label="MusicKeeper" class:active={view === 'keeper'} aria-current={view === 'keeper' ? 'page' : undefined} onclick={() => navigate('keeper')}><Bookmark size={20} /> <span>MusicKeeper</span> <span class="nav-count">{items.length}</span></button>
-    </nav>
-    <div class="sidebar-note">
-      <div class="keeper-symbol"><Bookmark size={20} /></div>
-      <p>Less scrolling.<br /><strong>More listening.</strong></p>
-      <span>A little space for the music you don't want to forget.</span>
-      <button onclick={() => aboutDialog.showModal()}>Meet the idea <ArrowRight size={14} /></button>
-    </div>
-    <div class="sidebar-bottom">
-      <button class="about-button" onclick={() => aboutDialog.showModal()}><Info size={17} /> About this concept</button>
-      <a href="/library/listen-later" class="native-link">Open MusicKeeper <ArrowUpRight size={15} /></a>
-      <span class="independent"><span></span> Independent concept</span>
-    </div>
-  </aside>
 
-  <div class="workspace">
-    <header class="topbar">
-      <div class="breadcrumb">Your music <span>/</span> <strong>{view === 'discover' ? 'Discover' : 'MusicKeeper'}</strong></div>
-      <label class="search-field"><Search size={18} /><input aria-label="Search albums and artists" type="search" placeholder="Search albums and artists" bind:value={query} /><span class="search-hint">Explore</span></label>
-      <button class="profile" onclick={() => aboutDialog.showModal()} aria-label="About the independent demo">mk<span></span></button>
-    </header>
-
-    <main id="concept-content" tabindex="-1">
-      <div class="page-heading">
-        <div><p class="eyebrow">{view === 'discover' ? 'HUMAN CURIOSITY. GREAT MUSIC.' : 'A LITTLE LESS “WHAT WAS THAT ALBUM?”'}</p><h1>{view === 'discover' ? 'A world worth listening to.' : 'Your next great listen.'}</h1></div>
-        <span class="edition">QOBUZ <span>×</span> MUSICKEEPER <span class="edition-line"></span> A PRODUCT EXPLORATION</span>
+{#snippet menu(item: QobuzCatalogItem)}
+  <div class="menu-wrap">
+    <button class="icon-button menu-trigger" aria-label={`Plus d’options pour ${item.title}`} aria-haspopup="menu" aria-expanded={menuId === item.id} onclick={(event) => openMenu(event, item.id)}>{@render nativeIcon('more', 21)}</button>
+    {#if menuId === item.id}
+      <div class="action-menu" role="menu" tabindex="-1" style:left={`${menuPosition.left}px`} style:top={`${menuPosition.top}px`} onkeydown={menuKey} onclick={(event) => event.stopPropagation()}>
+        <button role="menuitem" disabled title="Lecture indisponible dans ce concept">{@render nativeIcon('addToQueue', 17)} Ajouter à la file d’attente</button>
+        <button role="menuitem" disabled title="Lecture indisponible dans ce concept">{@render nativeIcon('playNext', 17)} Lire ensuite</button>
+        <div class="menu-rule"></div>
+        <button role="menuitem" disabled={!ready || isBusy(conceptId(item)) || isSaved(item)} onclick={() => save(item)}>{@render nativeIcon('time', 17)} {isSaved(item) ? 'Ajouté à écouter plus tard' : 'Ajouter à écouter plus tard'}</button>
+        <button role="menuitem" disabled title="Fonction Qobuz indisponible dans ce concept">{@render nativeIcon('share', 17)} Partager</button>
+        <button role="menuitem" disabled title="Compte Qobuz non connecté">{@render nativeIcon('addToPlaylist', 17)} Ajouter aux playlists</button>
+        <button role="menuitem" disabled title="Navigation vers le label indisponible dans ce concept">{@render nativeIcon('label-1', 17)} Voir le label</button>
+        <a role="menuitem" href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={17} /> Voir sur Qobuz</a>
       </div>
+    {/if}
+  </div>
+{/snippet}
 
-      {#if storageError}
-        <div class="error-banner" role="alert"><p>{storageError}</p>{#if !ready}<button onclick={() => window.location.reload()}>Reload to try again</button>{/if}</div>
-      {/if}
-      <div class="announcement" role="status" aria-live="polite">{message}</div>
+{#snippet catalogCard(item: QobuzCatalogItem)}
+  <article class="music-card" aria-label={`${item.title} par ${item.artists.join(', ')}`}>
+    <div class="cover-wrap"><a href={`/qobuz/album/${item.id}`} aria-label={`Voir ${item.title}`}><img src={item.coverArt} alt="" loading="lazy" /></a>{#if item.note}<span class="badge">◉ {item.note}</span>{/if}<div class="cover-actions"><button class="cover-play" disabled title="Lecture indisponible dans ce concept" aria-label="Lecture indisponible">{@render nativeIcon('play-arrow', 20)}</button><button class="icon-button" disabled title="Compte Qobuz non connecté" aria-label="Favoris indisponibles">{@render nativeIcon('favorite', 20)}</button><div class="cover-menu">{@render menu(item)}</div></div></div>
+    <div class="card-text"><a class="card-title" href={`/qobuz/album/${item.id}`}>{item.title}</a><p>{#if item.id === drukqs.id}<span class="explicit">E</span> {#if !isDiscover}Album · Aphex Twin · …{:else}{item.artists.join(' · ')}{/if}{:else}{item.artists.join(' · ')}{/if}</p></div>
+  </article>
+{/snippet}
 
-      {#if view === 'discover'}
-        <section class="hero" aria-labelledby="hero-title">
-          <div class="hero-content">
-            <span class="hero-kicker"><span></span> INTRODUCING MUSICKEEPER</span>
-            <h2 id="hero-title">Great finds deserve<br />a <em>second listen.</em></h2>
-            <p>For the albums that catch your ear.<br />Save them now. Give them your time later.</p>
-            <button class="primary-button" disabled={!ready || isSaved(featured) || busy.includes(conceptId(featured))} onclick={() => save(featured)}>{#if isSaved(featured)}<Check size={17} /> Album kept{:else}<Bookmark size={17} /> Keep this album{/if}</button>
-            <span class="hero-footnote">Your curiosity. Kept in one place.</span>
-          </div>
-          <div class="hero-art">
-            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
-            <div class="vinyl"><div></div></div>
-            <button class="featured-cover" onclick={() => explore(featured)} aria-label="Explore featured album Endlessness"><img src={conceptCover(featured)} alt="Endlessness album artwork" width="600" height="600" fetchpriority="high" /></button>
-            <div class="floating-note"><span class="floating-icon"><Bookmark size={17} /></span><div>A discovery today.<br /><strong>A favourite tomorrow.</strong></div></div>
-            <div class="hero-caption"><span class="tiny-line"></span> ON OUR RADAR <strong>Nala Sinephro · Endlessness</strong></div>
+<div class="app">
+  <a class="skip" href="#main">Aller au contenu</a>
+  <header class="topbar">
+    <a class="wordmark" href="/qobuz/discover" aria-label="Qobuz, découvrir">&#xe929;</a>
+    <nav class="topnav" aria-label="Navigation principale">
+      <a class:active={isDiscover} href="/qobuz/discover" aria-label="Découvrir">{@render nativeIcon(isDiscover ? 'discoverActive' : 'discover', 19)} <span>Découvrir</span></a>
+      <a href="https://www.qobuz.com/fr-fr/magazine" target="_blank" rel="noopener noreferrer" aria-label="Magazine">{@render nativeIcon('booklet', 19)} <span>Magazine</span></a>
+      <a class:active={!isDiscover && !isAlbum} href="/qobuz/user-library" aria-label="Bibliothèque">{@render nativeIcon(!isDiscover && !isAlbum ? 'userLibraryActive' : 'userLibrary', 19)} <span>Bibliothèque</span></a>
+    </nav>
+    <form class="global-search" action="/qobuz/discover" method="get"><label class="sr-only" for="global-search">Rechercher dans les nouveautés</label>{@render nativeIcon('search', 18)}<input id="global-search" name="q" type="search" placeholder="Rechercher" bind:value={query} /><button type="submit" aria-label="Lancer la recherche">{@render nativeIcon('search', 16)}</button></form>
+    <button class="avatar" disabled title="Compte indisponible dans ce concept" aria-label="Compte de démonstration indisponible">D</button>
+  </header>
+  <div class="disclosure">Concept indépendant et non officiel · liste enregistrée uniquement sur cet appareil · aucune lecture ni connexion au compte</div>
+  {#if error}<div class="error" role="alert">{error} {#if !ready}<button onclick={() => window.location.reload()}>Recharger la page</button>{/if}</div>{/if}
+  <div class="sr-only" role="status" aria-live="polite">{message}</div>
+  {#if message}<div class="toast">{message}<button aria-label="Fermer" onclick={() => message = ''}>×</button></div>{/if}
+
+  {#if isDiscover}
+    <main id="main" tabindex="-1" class="discover">
+      <div class="discover-title"><h1>Découvrir</h1><button class="icon-button" disabled title="Filtres Qobuz indisponibles dans cette sélection" aria-label="Filtres indisponibles">{@render nativeIcon('filter', 20)}</button></div>
+      <div class="discover-heading"><div><h2>Nouveautés</h2><p>Sélectionnées par Qobuz.</p></div><button disabled title="Cette sélection statique contient dix albums">Voir tout ›</button></div>
+      {#if discoveries.length}<div class="discover-grid">{#each discoveries as item (item.id)}{@render catalogCard(item)}{/each}</div>{:else}<p class="empty">Aucun album trouvé. Essayez une autre recherche.</p>{/if}
+    </main>
+  {:else if isAlbum}
+    <main id="main" tabindex="-1" class="album-page">
+      {#if album}
+        <section class="album-hero" class:drukqs={album.id === drukqs.id}>
+          <img src={album.coverArt} alt="" />
+          <div class="album-info"><p>{album.id === drukqs.id ? 'Electronique' : 'Album'}</p><h1>{album.title}</h1><strong>{album.artists.join(' · ')}</strong>
+            {#if album.id === drukqs.id}<p class="release">Parution chez <b>Warp Records</b> · 13 novembre 2026 · 35 Titres · 01h 59m 12s</p><p class="description">En 2001, Aphex Twin oublie son lecteur MP3, qui contenait 180 morceaux inédits, dans un avion pour l’Écosse. C’est ainsi un double album…</p>{:else}<p class="release">Extrait de la sélection Découvrir. Consultez Qobuz pour les informations complètes.</p>{/if}
+            <div class="hero-actions"><button class="play" disabled title="Lecture indisponible dans ce concept" aria-label="Lecture indisponible">{@render nativeIcon('play-arrow', 20)}</button><button class="icon-button" disabled title="Favoris Qobuz indisponibles" aria-label="Ajouter aux favoris indisponible">{@render nativeIcon('favorite', 22)}</button><button class="icon-button" disabled title="Radio indisponible dans ce concept" aria-label="Radio indisponible">{@render nativeIcon('radio', 22)}</button><button class="icon-button" disabled title="Informations Qobuz indisponibles dans ce concept" aria-label="Informations indisponibles">{@render nativeIcon('info', 22)}</button><button class="icon-button" disabled title="Achats Qobuz indisponibles dans ce concept" aria-label="Achats indisponibles">{@render nativeIcon('purchase', 22)}</button>{@render menu(album)}<a href={album.sourceUrl} target="_blank" rel="noopener noreferrer">Voir sur Qobuz <ExternalLink size={15} /></a></div>
           </div>
         </section>
-
-        <section class="discover-section" aria-labelledby="selection-title">
-          <div class="section-heading"><div><p class="eyebrow">FOLLOW YOUR CURIOSITY</p><h2 id="selection-title">Find your next <em>“you need to hear this.”</em></h2></div><span class="selection-note">A sample editorial selection <span>↙</span></span></div>
-          <div class="selection-toolbar"><div class="chips" aria-label="Filter discoveries by genre">{#each genres as value}<button class:chosen={genre === value} aria-pressed={genre === value} onclick={() => (genre = value)}>{value}</button>{/each}</div><span class="result-count">{albums.length} discoveries</span></div>
-          <div class="album-grid">
-            {#each albums as album}
-              {@const saved = isSaved(album)}
-              <article class="album-card" aria-label={`${album.title} by ${album.artist}`}>
-                <button class="cover-button" onclick={() => explore(album)} aria-label={`Explore ${album.title}`}><img src={conceptCover(album)} alt={`${album.title} album artwork`} width="600" height="600" loading="lazy" /><span class="cover-overlay">A closer listen <ArrowUpRight size={18} /></span></button>
-                <div class="album-meta"><span>{album.genre}</span><span>{album.year}</span></div>
-                <div class="album-title-row"><div><h3>{album.title}</h3><p>{album.artist}</p></div><button class="save-button" class:saved disabled={!ready || saved || busy.includes(conceptId(album))} aria-label={saved ? `Saved ${album.title}` : `Save ${album.title} for later`} onclick={() => save(album)}>{#if saved}<Check size={19} />{:else}<Plus size={20} />{/if}</button></div>
-                <p class="album-note">{album.note}</p>
-              </article>
+        {#if album.id === drukqs.id}<div class="album-content"><section class="tracklist"><p>◉ &nbsp;16-Bit<br />&nbsp;&nbsp;&nbsp;&nbsp;44.1 kHz - Stéréo</p><div class="track-heading"><span># &nbsp;&nbsp; TITRE</span><span>DURÉE</span></div>{#each tracks as track, index}<div class="track"><span>{index + 1}</span><div><strong>{track[0]}</strong><p>Aphex Twin</p></div><span>{track[1]}</span></div>{/each}<p class="hint">Extrait de la liste des titres. La lecture n’est pas disponible dans ce concept.</p></section><aside class="label"><h2>Label</h2><strong>Warp Records</strong></aside></div>{:else}<div class="album-content"><p class="hint">La liste des titres n’est pas disponible dans cette sélection statique.</p></div>{/if}
+      {:else}<div class="empty"><h1>Album indisponible</h1><p>Cet album ne fait pas partie de la sélection de démonstration.</p><a href="/qobuz/discover">Retour à Découvrir</a></div>{/if}
+    </main>
+  {:else}
+    <main id="main" tabindex="-1" class="library-layout">
+      <aside class="sidebar"><h1>Bibliothèque</h1><nav aria-label="Sections de la bibliothèque">{#each sections as entry}<a class:active={section === entry.id} href={`/qobuz/user-library/${entry.id}`}>{@render nativeIcon(entry.icon, 19)}<span>{entry.label}</span><small>{counts[entry.id]}</small></a>{/each}</nav><div class="sidebar-utilities"><button disabled title="Navigation Qobuz indisponible dans ce concept" aria-label="Réduire la barre latérale indisponible">{@render nativeIcon('historyLeft', 20)}</button><button disabled title="Paramètres Qobuz indisponibles dans ce concept" aria-label="Paramètres indisponibles">{@render nativeIcon('settings', 20)}</button><button disabled title="Création de playlist indisponible dans ce concept" aria-label="Créer une playlist indisponible">{@render nativeIcon('add', 20)}</button></div></aside>
+      <section class="library-main" aria-label="Contenu de la bibliothèque">
+        <div class="toolbar">
+          <label class="library-search">{@render nativeIcon('search', 20)}<span class="sr-only">Rechercher dans votre bibliothèque</span><input type="search" placeholder="Rechercher dans votre bibliothèque" bind:value={libraryQuery} /></label>
+          <div class="account-filters" aria-label="Filtres de compte indisponibles">
+            <button disabled title="Achats Qobuz indisponibles sans compte" aria-label="Filtrer les achats indisponible">{@render nativeIcon('purchase', 18)}</button>
+            <button disabled title="Favoris Qobuz indisponibles sans compte" aria-label="Filtrer les favoris indisponible">{@render nativeIcon('favorite', 18)}</button>
+            <button disabled title="Abonnements Qobuz indisponibles sans compte" aria-label="Filtrer les abonnements indisponible">{@render nativeIcon('following', 18)}</button>
+          </div>
+          <div class="view-buttons" aria-label="Affichage"><button class:selected={layout === 'list'} aria-label="Affichage en liste" aria-pressed={layout === 'list'} onclick={() => layout = 'list'}>{@render nativeIcon('viewList', 21)}</button><button class:selected={layout === 'grid'} aria-label="Affichage en grille" aria-pressed={layout === 'grid'} onclick={() => layout = 'grid'}>{@render nativeIcon(layout === 'grid' ? 'viewGridFilled' : 'viewGrid', 20)}</button></div>
+          <label class="sort"><span class="sr-only">Trier la bibliothèque</span><select bind:value={sort}><option value="date">Date d’ajout ↓</option><option value="title">Titre A–Z</option><option value="artist">Artiste A–Z</option></select></label><button class="icon-button filter" disabled title="Filtres Qobuz indisponibles dans ce concept" aria-label="Filtres indisponibles">{@render nativeIcon('filter', 20)}</button>
+        </div>
+        {#if section === 'listen-later'}<div class="list-heading"><div><h2>À écouter plus tard</h2><p>Votre sélection locale · {items.length} {items.length === 1 ? 'élément' : 'éléments'}</p></div><div class="filter-buttons" aria-label="État d’écoute"><button class:selected={listenedFilter === 'all'} aria-pressed={listenedFilter === 'all'} onclick={() => listenedFilter = 'all'}>Tout</button><button class:selected={listenedFilter === 'pending'} aria-pressed={listenedFilter === 'pending'} onclick={() => listenedFilter = 'pending'}>À écouter</button><button class:selected={listenedFilter === 'listened'} aria-pressed={listenedFilter === 'listened'} onclick={() => listenedFilter = 'listened'}>Écouté</button></div></div>{/if}
+        {#if loading}<p class="empty">Chargement de votre liste…</p>{:else}
+          <div class:row-layout={layout === 'list'} class="library-grid">
+            {#each visibleEntries as entry}
+              {#if entry.kind === 'album'}{@render catalogCard(drukqs)}
+              {:else if entry.kind === 'playlist'}<article class="music-card"><div class="playlist-cover"><img src="/qobuz-concept/introduction.jpg" alt="" /></div><div class="card-text"><strong class="card-title">An Introduction to Qobuz</strong><p>Playlist · Par Qobuz UK</p></div></article>
+              {:else}
+              {@const item = entry.item}
+              {@const cover = safeUrl(item.coverArt)}
+              {@const link = safeUrl(item.sourceUrl) || safeUrl(item.externalLinks?.find((value) => safeUrl(value.url))?.url)}
+              <article class="music-card saved-card" aria-label={`${item.title} par ${(item.artists || []).join(', ')}`}><div class="cover-wrap">{#if cover}<img src={cover} alt="" loading="lazy" />{:else}<div class="blank"><Disc3 size={34} /></div>{/if}</div><div class="card-text"><strong class="card-title">{item.title}</strong><p>{item.itemType === 'track' ? 'Titre' : 'Album'} · {(item.artists || []).join(' · ')}</p><p>{item.hasBeenListened ? 'Écouté' : 'À écouter'}</p><div class="saved-actions"><button disabled={!ready || isBusy(item.id)} onclick={() => toggle(item)} aria-label={`Marquer ${item.title} ${item.hasBeenListened ? 'à écouter' : 'écouté'}`}><Check size={15} /> {item.hasBeenListened ? 'À écouter' : 'Écouté'}</button><button disabled={!ready || isBusy(item.id)} onclick={() => remove(item)} aria-label={`Retirer ${item.title} de À écouter plus tard`}><Trash2 size={15} /></button>{#if link}<a href={link} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${item.title} dans un nouvel onglet`}><ExternalLink size={15} /></a>{/if}</div></div></article>
+              {/if}
             {/each}
           </div>
-          {#if albums.length === 0}<div class="empty-state"><Search size={30} /><h3>No albums found.</h3><p>Try another artist, album or genre.</p><button onclick={() => { query = ''; genre = 'All discoveries' }}>Clear search and filters <ArrowRight size={16} /></button></div>{/if}
-        </section>
-
-        <section class="idea-banner" aria-labelledby="idea-title"><div class="idea-icon"><ListMusic size={28} /></div><div><span class="eyebrow">NOT ANOTHER PLAYLIST. A PROMISE TO LISTEN.</span><h2 id="idea-title">Discovery is only the beginning.</h2><p>Make a little room for what comes next. MusicKeeper remembers, so you can just listen.</p></div><button onclick={() => navigate('keeper')}>Your listening queue <ArrowRight size={18} /></button></section>
-      {:else}
-        <section class="library-summary" aria-label="Your library at a glance"><div class="summary-symbol"><Bookmark size={28} /></div><div><h2>A good listen, waiting for you.</h2><p>The discoveries you kept. The records you made time for.</p></div><div class="summary-stat"><strong>{toListen}</strong><span>to listen</span></div><div class="summary-stat"><strong>{items.length - toListen}</strong><span>listened</span></div></section>
-        <div class="keeper-heading"><div class="chips" aria-label="Filter your library">{#each filters as value}<button class:chosen={filter === value} aria-pressed={filter === value} onclick={() => (filter = value)}>{value}</button>{/each}</div><a href="/library/listen-later">Open full MusicKeeper library <ArrowUpRight size={15} /></a></div>
-        <div class="saved-list">
-          {#each savedItems as item}
-            <article class="saved-row" aria-label={`${item.title} by ${item.artists.join(', ')}`}>
-              <img src={item.coverArt || '/blank-album.svg'} alt="" width="88" height="88" onerror={useFallbackCover} />
-              <div class="saved-info"><span class="saved-type">{item.itemType} <span>·</span> {item.releaseDate?.slice(0, 4) || 'Saved discovery'}</span><h3>{item.title}</h3><p>{item.artists.join(', ')}</p></div>
-              <span class="status-label" class:listened={item.hasBeenListened}>{#if item.hasBeenListened}<CircleCheck size={14} /> Listened{:else}<span class="status-dot"></span> To listen{/if}</span>
-              <div class="saved-actions"><button class="listen-toggle" disabled={busy.includes(item.id)} aria-label={`Mark ${item.title} as ${item.hasBeenListened ? 'unlistened' : 'listened'}`} onclick={() => toggleListened(item)}>{#if item.hasBeenListened}<Check size={18} /><span>Listened</span>{:else}<Headphones size={18} /><span>Mark listened</span>{/if}</button><a class="icon-button" href={qobuzSearch(item.artists.join(' '), item.title)} target="_blank" rel="noopener noreferrer" aria-label={`Search for ${item.title} on Qobuz`}><ArrowUpRight size={19} /></a><button class="icon-button remove-button" disabled={busy.includes(item.id)} onclick={() => remove(item)} aria-label={`Remove ${item.title}`}><Trash2 size={17} /></button></div>
-            </article>
-          {/each}
-        </div>
-        {#if !ready && !storageError}<div class="empty-state"><p>Opening your listening library…</p></div>{:else if ready && savedItems.length === 0}<div class="empty-state"><Bookmark size={36} /><h2>{items.length === 0 ? 'Your next discovery belongs here.' : 'No albums in this view.'}</h2><p>{items.length === 0 ? 'Save an album that catches your ear. It will be here when you have a moment.' : 'Try another filter or clear your search to find your saved music.'}</p><button onclick={() => { if (items.length === 0) navigate('discover'); else { query = ''; filter = 'All saved' } }}>{items.length === 0 ? 'Find something worth keeping' : 'Show all saved albums'} <ArrowRight size={16} /></button></div>{/if}
-        <p class="storage-note"><Bookmark size={14} /> This is your real MusicKeeper library, stored in this browser. No account. No sync. Just your music.</p>
-      {/if}
-      <footer class="page-footer"><span>Made for the love of listening.</span><span>Independent product concept <span>·</span> Not affiliated with Qobuz</span><button onclick={() => aboutDialog.showModal()}>The thinking behind it <ArrowUpRight size={13} /></button></footer>
+          {#if section === 'artists' || section === 'labels'}<div class="empty"><p>La consultation des {section === 'artists' ? 'artistes' : 'labels'} de la bibliothèque Qobuz n’est pas disponible dans ce concept local.</p></div>
+          {:else if !visibleEntries.length}<div class="empty"><p>{section === 'listen-later' ? 'Votre liste À écouter plus tard est vide ou ne correspond pas aux filtres.' : 'Aucun élément à afficher.'}</p><a href="/qobuz/discover">Découvrir des albums</a></div>{/if}
+        {/if}
+      </section>
     </main>
-
-    <div class="listening-dock"><div class="dock-icon"><Disc3 size={27} /></div><div class="dock-copy"><strong>Good music. Better remembered.</strong><span>{ready ? `${toListen} ${toListen === 1 ? 'discovery' : 'discoveries'} waiting for your next quiet moment.` : 'A home for your next great listen.'}</span></div><button onclick={() => navigate(view === 'discover' ? 'keeper' : 'discover')}>{view === 'discover' ? 'Open MusicKeeper' : 'Keep discovering'} <ArrowRight size={17} /></button><span class="dock-brand">MUSICKEEPER <span>×</span> QOBUZ</span></div>
-  </div>
+  {/if}
+  <footer class="player" aria-label="Lecteur de démonstration">
+    <input class="player-seek" type="range" min="0" max="100" value="0" disabled title="Lecture indisponible dans ce concept" aria-label="Position de lecture indisponible" />
+    <div class="player-track"><div class="player-placeholder">{@render nativeIcon('track', 22)}</div><div><strong>Aucune lecture</strong><p>Lecteur indisponible dans ce concept</p></div><button disabled title="Aucun titre en cours" aria-label="Options du titre indisponibles">{@render nativeIcon('more', 20)}</button></div>
+    <div class="player-time" aria-label="Aucune lecture en cours"><span>--:--</span><span>--:--</span></div>
+    <div class="player-controls"><button disabled title="Lecture indisponible dans ce concept" aria-label="Lecture aléatoire indisponible">{@render nativeIcon('shuffle', 19)}</button><button disabled title="Lecture indisponible dans ce concept" aria-label="Titre précédent indisponible">{@render nativeIcon('skipPrevious', 21)}</button><button disabled title="Lecture indisponible dans ce concept" aria-label="Lecture indisponible">{@render nativeIcon('play-arrow', 26)}</button><button disabled title="Lecture indisponible dans ce concept" aria-label="Titre suivant indisponible">{@render nativeIcon('skipNext', 21)}</button><button disabled title="Lecture indisponible dans ce concept" aria-label="Répétition indisponible">{@render nativeIcon('repeat', 19)}</button></div>
+    <div class="player-output"><button disabled title="Lecture indisponible dans ce concept" aria-label="Volume indisponible">{@render nativeIcon('volumeUp', 20)}</button><div class="volume-line"></div><button disabled title="Lecture indisponible dans ce concept" aria-label="Sortie audio indisponible">{@render nativeIcon('audioOutput', 20)}</button><button disabled title="Lecture indisponible dans ce concept" aria-label="Appareils indisponibles">{@render nativeIcon('devices', 20)}</button><button disabled title="Lecture indisponible dans ce concept" aria-label="File d’attente indisponible">{@render nativeIcon('playqueue', 20)}</button></div>
+  </footer>
 </div>
 
-<dialog class="concept-dialog" bind:this={aboutDialog} aria-labelledby="about-title">
-  <button class="dialog-close" aria-label="Close dialog" onclick={() => aboutDialog.close()}><X size={21} /></button>
-  <span class="dialog-eyebrow">AN INDEPENDENT PRODUCT EXPLORATION</span>
-  <div class="dialog-brand"><Bookmark size={28} /> MusicKeeper <span>×</span> Qobuz</div>
-  <h2 id="about-title">From discovery<br />to a deeper listen.</h2>
-  <p>Music is easy to discover. Finding the time to really listen is harder. This concept brings MusicKeeper's simple listen-later library into a Qobuz-inspired discovery experience.</p>
-  <div class="about-grid"><div><strong>What works</strong><p>Save albums, return later, mark them listened and remove them. The same IndexedDB library powers the full MusicKeeper app.</p></div><div><strong>What's a concept</strong><p>A fixed sample selection, not Qobuz's live catalog. No streaming or Qobuz account connection.</p></div></div>
-  <p class="about-disclosure">Independent concept, not affiliated with or endorsed by Qobuz. Inspired by Qobuz's public focus on human curation. Album artwork: sample thumbnails via Apple iTunes; all rights remain with their respective owners. Library data stays in this browser and is not synced; clearing site data removes it.</p>
-  <div class="about-links"><a href="https://community.qobuz.com/press-en/qobuz-unveils-its-new-discover-page" target="_blank" rel="noopener noreferrer">Qobuz's discovery philosophy <ArrowUpRight size={14} /></a><a href="/library/listen-later">Explore MusicKeeper <ArrowRight size={14} /></a></div>
-</dialog>
-
-<dialog class="concept-dialog album-dialog" bind:this={albumDialog} aria-labelledby="album-dialog-title">
-  <button class="dialog-close" aria-label="Close album details" onclick={() => albumDialog.close()}><X size={21} /></button>
-  {#if selectedAlbum}
-    <img class="detail-cover" src={conceptCover(selectedAlbum)} alt={`${selectedAlbum.title} album artwork`} width="600" height="600" />
-    <span class="dialog-eyebrow">SAMPLE SELECTION · {selectedAlbum.genre} · {selectedAlbum.year}</span>
-    <h2 id="album-dialog-title">{selectedAlbum.title}</h2><p class="detail-artist">{selectedAlbum.artist}</p><p>{selectedAlbum.description}</p>
-    <div class="detail-actions"><button class="primary-button" disabled={!ready || isSaved(selectedAlbum) || busy.includes(conceptId(selectedAlbum))} onclick={() => selectedAlbum && save(selectedAlbum)}>{#if isSaved(selectedAlbum)}<Check size={17} /> Saved to MusicKeeper{:else}<Bookmark size={17} /> Save for later{/if}</button><a href={qobuzSearch(selectedAlbum.artist, selectedAlbum.title)} target="_blank" rel="noopener noreferrer">Search on Qobuz <ArrowUpRight size={17} /></a></div>
-    <p class="detail-disclaimer">Opens Qobuz search in a new tab. No playback in this concept.</p>
-    {#if storageError}<p role="alert" class="dialog-error">{storageError}</p>{/if}
-  {/if}
-</dialog>
-
 <style>
-  .concept { --ink: #202823; --muted: #697169; --paper: #f8f9f5; --green: #176b4e; --line: #e3e7df; color: var(--ink); background: var(--paper); min-height: 100vh; font-family: 'Arial', 'Helvetica Neue', sans-serif; font-size: 14px; line-height: 1.5; }
-  .concept :global(*), .concept-dialog, .concept-dialog :global(*) { box-sizing: border-box; }
-  .concept :global(button), .concept-dialog :global(button) { cursor: pointer; font: inherit; }
-  .concept :global(button:disabled), .concept-dialog :global(button:disabled) { cursor: default; }
-  .concept :global(a) { text-decoration: none; color: inherit; }
-  .concept :global(button:focus-visible), .concept :global(a:focus-visible), .concept :global(input:focus-visible), .concept-dialog :global(button:focus-visible), .concept-dialog :global(a:focus-visible) { outline: 3px solid #a56b21; outline-offset: 4px; }
-  .concept :global(svg), .concept-dialog :global(svg) { flex-shrink: 0; }
-  .skip-link { position: fixed; left: 12px; top: -100px; padding: 12px 20px; background: white; z-index: 50; }
-  .skip-link:focus { top: 12px; }
-  .sidebar { position: fixed; inset: 0 auto 0 0; width: 228px; background: #fff; border-right: 1px solid var(--line); padding: 35px 22px 24px; display: flex; flex-direction: column; z-index: 10; }
-  .wordmark { display: flex; align-items: center; gap: 5px; font-size: 34px; font-weight: 700; letter-spacing: -2px; position: relative; width: fit-content; margin-left: 8px; margin-bottom: 62px; }
-  .wordmark svg { width: 31px; height: 36px; }
-  .concept-tag { position: absolute; right: -10px; top: 43px; font-size: 8px; font-weight: 600; letter-spacing: 2px; color: var(--muted); }
-  .nav-label { color: #7c837c; font-size: 9px; font-weight: 700; letter-spacing: 1.7px; padding-left: 15px; margin-bottom: 15px; }
-  .main-nav { display: flex; flex-direction: column; gap: 8px; }
-  .main-nav button { border: 0; background: none; display: flex; align-items: center; text-align: left; gap: 13px; padding: 13px 14px; border-radius: 7px; color: #626a63; font-weight: 600; }
-  .main-nav button.active { background: #edf3ec; color: #245f42; }
-  .main-nav button:hover { background: #f0f3ed; }
-  .nav-dot { margin-left: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
-  .nav-count { margin-left: auto; border: 1px solid #dce5d8; color: #496749; border-radius: 5px; font-size: 10px; min-width: 20px; text-align: center; padding: 1px 4px; }
-  .sidebar-note { border-top: 1px solid var(--line); margin: 30px 13px 0; padding-top: 25px; }
-  .keeper-symbol { color: #6c8667; margin-bottom: 15px; }
-  .sidebar-note p { font-family: Georgia, serif; font-size: 22px; line-height: 1.35; margin: 0 0 12px; }
-  .sidebar-note strong { font-weight: 400; font-style: italic; }
-  .sidebar-note > span { color: #7c827a; font-size: 11px; display: block; line-height: 1.8; }
-  .sidebar-note button { border: 0; background: none; color: #3e654a; font-size: 11px; display: flex; align-items: center; gap: 12px; padding: 16px 0; }
-  .sidebar-bottom { margin-top: auto; padding: 35px 11px 0; display: flex; flex-direction: column; gap: 18px; }
-  .about-button, .native-link { display: flex; align-items: center; gap: 10px; font-size: 11px !important; color: #687267 !important; background: none; border: 0; padding: 0; }
-  .native-link { font-size: 10px !important; }
-  .independent { display: flex; gap: 7px; align-items: center; color: #7f857c; font-size: 9px; margin-top: 4px; }
-  .independent > span { width: 5px; height: 5px; background: #90a67a; border-radius: 50%; }
-  .workspace { margin-left: 228px; padding-bottom: 82px; }
-  .topbar { height: 85px; padding: 0 44px; display: flex; gap: 24px; align-items: center; border-bottom: 1px solid var(--line); background: #fbfcf9; }
-  .breadcrumb { color: #7d837b; font-size: 11px; display: flex; align-items: center; gap: 14px; white-space: nowrap; }
-  .breadcrumb strong { color: #414c41; font-weight: 500; }
-  .breadcrumb > span { color: #b4bbae; }
-  .search-field { display: flex; gap: 10px; align-items: center; margin-left: auto; width: 345px; border: 1px solid #e0e5dc; background: #fff; padding: 10px 12px; border-radius: 6px; color: #838c7f; }
-  .search-field input { width: 100%; min-width: 0; color: var(--ink); border: 0; background: transparent; outline-offset: 4px; font: inherit; font-size: 11px; }
-  .search-hint { font-size: 8px; border-left: 1px solid var(--line); padding-left: 9px; }
-  .profile { position: relative; border: 1px solid #d3dbcc; border-radius: 50%; background: #e7ecdf; width: 32px; height: 32px; color: #4d6342; font-family: Georgia, serif !important; font-size: 13px !important; }
-  .profile > span { position: absolute; width: 7px; height: 7px; background: #567e42; border: 2px solid white; border-radius: 50%; right: -1px; bottom: 0; }
-  main { max-width: 1560px; margin: 0 auto; padding: 36px 44px 0; outline: none; }
-  .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 25px; margin-bottom: 27px; }
-  .eyebrow { color: #6c7a66; font-size: 9px; font-weight: 600; letter-spacing: 1.8px; margin: 0 0 7px; }
-  h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: clamp(24px, 2.4vw, 35px); letter-spacing: -1px; line-height: 1.2; margin: 0; }
-  .edition { display: flex; align-items: center; gap: 8px; font-size: 7px; color: #788171; letter-spacing: 1px; white-space: nowrap; padding-bottom: 4px; }
-  .edition > span { color: #9aa58f; }
-  .edition-line { height: 1px; width: 18px; background: #c7cfbe; margin: 0 5px; }
-  .announcement:empty { display: none; }
-  .announcement { background: #eaf2e6; color: #295c35; border: 1px solid #d0dfc8; padding: 11px 15px; margin-bottom: 18px; border-radius: 6px; font-size: 12px; }
-  .error-banner { padding: 13px 17px; border: 1px solid #d5ada2; background: #fff0eb; color: #7b3426; margin-bottom: 18px; display: flex; gap: 16px; justify-content: space-between; align-items: center; }
-  .error-banner p { margin: 0; }
-  .error-banner button { background: none; border: 1px solid currentColor; border-radius: 4px; padding: 5px 10px; white-space: nowrap; }
-  .hero { background: #193f38; min-height: 375px; border-radius: 9px; overflow: hidden; position: relative; display: grid; grid-template-columns: 1.05fr 1fr; color: #faf6e9; }
-  .hero::before { content: ''; position: absolute; inset: 0; opacity: .2; background: radial-gradient(ellipse at 70% 30%, #789372 0, transparent 70%); pointer-events: none; }
-  .hero-content { position: relative; z-index: 2; padding: 38px 0 31px 38px; }
-  .hero-kicker { display: flex; gap: 8px; align-items: center; font-size: 8px; letter-spacing: 1.8px; color: #cbdbc0; }
-  .hero-kicker > span { border: 1px solid #b0ca9f; width: 5px; height: 5px; border-radius: 50%; }
-  .hero h2 { font-family: Georgia, serif; font-size: clamp(32px, 3.6vw, 53px); line-height: 1.08; letter-spacing: -1.8px; font-weight: 400; margin: 22px 0 16px; }
-  .hero h2 em { color: #dcdbb6; font-weight: 400; }
-  .hero-content > p { font-size: 11px; line-height: 1.9; color: #d5dfd1; margin: 0 0 22px; }
-  .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 12px 18px; background: #e7e9c5; color: #243d2e; font-size: 11px !important; font-weight: 600 !important; border: 0; border-radius: 4px; min-height: 42px; }
-  .primary-button:hover:not(:disabled) { background: #f0f2d6; }
-  .primary-button:disabled { background: #c8d2b5; }
-  .hero-footnote { display: block; font-size: 8px; letter-spacing: .4px; color: #c3d0bd; margin-top: 13px; }
-  .hero-art { position: relative; min-width: 0; display: flex; align-items: center; justify-content: center; }
-  .orbit { position: absolute; border: 1px solid #77947d35; border-radius: 50%; width: 480px; height: 480px; right: -100px; top: -65px; transform: rotate(-25deg); }
-  .orbit-two { width: 610px; height: 610px; right: -170px; top: -130px; }
-  .orbit-three { width: 740px; height: 740px; right: -240px; top: -195px; }
-  .featured-cover { display: block; position: relative; z-index: 2; width: 235px; aspect-ratio: 1; border: 0; padding: 0; background: #afc2a6; box-shadow: -9px 15px 35px #001b2070; transform: rotate(-9deg) translate(-20px, -7px); transition: transform .3s; }
-  .featured-cover:hover { transform: rotate(-5deg) translate(-20px, -10px); }
-  .featured-cover img { width: 100%; height: 100%; object-fit: cover; }
-  .vinyl { position: absolute; width: 225px; height: 225px; border-radius: 50%; transform: translate(67px, -8px); background: repeating-radial-gradient(circle at center, #171e1c 0 1px, #2a332d 2px 3px, #17251e 4px 5px); box-shadow: 8px 10px 20px #0c241e60; display: grid; place-items: center; }
-  .vinyl > div { border-radius: 50%; width: 74px; height: 74px; background: #b6b888; box-shadow: inset 0 0 0 33px #c3bf88; border: 2px solid #b4b481; }
-  .floating-note { position: absolute; z-index: 3; bottom: 64px; right: 18px; display: flex; align-items: center; gap: 10px; background: #f8f7eefa; border: 1px solid #fff8; border-radius: 5px; box-shadow: 0 8px 16px #0f271a30; color: #7b8170; font-size: 9px; padding: 12px 17px 12px 12px; transform: rotate(4deg); }
-  .floating-note strong { color: #344b33; font-weight: 500; }
-  .floating-icon { background: #e7eddf; padding: 7px; border-radius: 4px; color: #4d7143; }
-  .hero-caption { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); white-space: nowrap; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font-size: 7px; letter-spacing: 1px; color: #b8c9b4; }
-  .hero-caption strong { font-size: 9px; color: #d6e0ca; font-weight: 400; letter-spacing: .3px; }
-  .tiny-line { width: 16px; height: 1px; background: #b3c39e; }
-  .discover-section { margin-top: 34px; }
-  .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-  .section-heading h2 { font-family: Georgia, serif; font-size: clamp(20px, 2vw, 28px); font-weight: 400; letter-spacing: -.6px; line-height: 1.25; margin: 0; }
-  .section-heading h2 em { color: #677e5d; }
-  .selection-note { font-size: 9px; color: #7d8676; white-space: nowrap; }
-  .selection-note span { font-size: 22px; display: inline-block; margin-left: 8px; }
-  .selection-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 22px; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chips button { border: 1px solid #dde3d7; background: #fff; border-radius: 5px; padding: 7px 13px; font-size: 10px; min-height: 34px; color: #68725f; }
-  .chips button.chosen { background: #293e2f; border-color: #293e2f; color: #fff; }
-  .chips button:hover:not(.chosen) { border-color: #809276; background: #f1f4ec; }
-  .result-count { font-size: 9px; color: #7a8471; white-space: nowrap; }
-  .album-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 19px; }
-  .album-card { min-width: 0; }
-  .cover-button { display: block; width: 100%; aspect-ratio: 1; border: 0; border-radius: 5px; background: #e4e9dc; padding: 0; overflow: hidden; position: relative; }
-  .cover-button img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
-  .cover-button:hover img { transform: scale(1.04); }
-  .cover-overlay { position: absolute; inset: auto 0 0; padding: 12px 8px; background: linear-gradient(transparent, #142719d9); color: white; font-size: 10px; display: flex; align-items: center; justify-content: space-between; opacity: 0; transition: opacity .2s; }
-  .cover-button:hover .cover-overlay, .cover-button:focus-visible .cover-overlay { opacity: 1; }
-  .album-meta { display: flex; justify-content: space-between; gap: 6px; color: #7b8573; font-size: 8px; margin: 12px 0 5px; }
-  .album-meta > span:first-child { text-transform: uppercase; letter-spacing: .9px; }
-  .album-title-row { display: flex; align-items: start; gap: 4px; justify-content: space-between; }
-  .album-title-row > div { min-width: 0; }
-  .album-title-row h3 { font-size: 12px; font-weight: 600; letter-spacing: -.2px; line-height: 1.4; margin: 0 0 3px; overflow-wrap: anywhere; }
-  .album-title-row p { font-size: 10px; color: #6e7765; margin: 0; }
-  .save-button { display: flex; align-items: center; justify-content: center; border: 1px solid #dce3d5; border-radius: 50%; background: #fff; width: 30px; height: 30px; flex-shrink: 0; color: #596e4c; }
-  .save-button:hover:not(:disabled) { color: #164d31; background: #e8f0df; }
-  .save-button.saved { color: #386545; background: #e7efdf; border-color: #d5e2c8; }
-  .album-note { color: #858c7d; font-family: Georgia, serif; font-style: italic; font-size: 10px; margin: 10px 0 0; line-height: 1.5; }
-  .idea-banner { display: flex; gap: 20px; align-items: center; margin-top: 34px; padding: 25px; border: 1px solid #dce4d2; border-radius: 7px; background: #edf1e7; }
-  .idea-icon { display: flex; align-items: center; justify-content: center; border: 1px solid #d5dec9; background: #e6ecdd; color: #5c754c; width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; }
-  .idea-banner .eyebrow { font-size: 7px; letter-spacing: 1.4px; }
-  .idea-banner h2 { font-family: Georgia, serif; font-size: 22px; font-weight: 400; line-height: 1.3; margin: 5px 0; letter-spacing: -.5px; }
-  .idea-banner p { color: #768069; font-size: 10px; margin: 0; }
-  .idea-banner > button { margin-left: auto; display: flex; align-items: center; gap: 12px; background: none; border: 0; font-size: 10px; color: #4f6944; white-space: nowrap; }
-  .page-footer { margin: 28px 0 22px; display: flex; justify-content: space-between; gap: 15px; color: #808974; font-size: 8px; }
-  .page-footer > span > span { margin: 0 6px; }
-  .page-footer button { border: 0; padding: 0; background: none; font-size: 8px; display: flex; align-items: center; gap: 4px; color: #687b5d; }
-  .listening-dock { position: fixed; bottom: 0; left: 228px; right: 0; z-index: 8; display: flex; align-items: center; gap: 15px; min-height: 76px; padding: 14px 44px; background: #fffffff5; backdrop-filter: blur(12px); border-top: 1px solid #dce3d4; }
-  .dock-icon { display: grid; place-items: center; color: #5a724e; background: #eef2e8; border-radius: 5px; width: 43px; height: 43px; flex-shrink: 0; }
-  .dock-copy { display: flex; flex-direction: column; gap: 4px; }
-  .dock-copy strong { font-size: 11px; font-weight: 500; }
-  .dock-copy > span { color: #79866e; font-size: 9px; }
-  .listening-dock > button { margin-left: auto; border: 1px solid #dce3d5; background: white; border-radius: 4px; padding: 10px 13px; display: flex; align-items: center; gap: 15px; font-size: 10px; color: #3d5937; }
-  .dock-brand { font-size: 7px; letter-spacing: 1px; color: #7d886e; border-left: 1px solid var(--line); padding: 10px 0 10px 22px; margin-left: 9px; white-space: nowrap; }
-  .dock-brand > span { color: #abb69c; margin: 0 5px; }
-  .library-summary { display: flex; gap: 22px; align-items: center; border: 1px solid #d7e0cf; border-radius: 8px; padding: 28px; background: #edf2e7; }
-  .summary-symbol { width: 58px; height: 58px; border-radius: 50%; background: #dfe8d5; color: #4e6c40; display: grid; place-items: center; flex-shrink: 0; }
-  .library-summary h2 { font-family: Georgia, serif; font-weight: 400; font-size: 27px; margin: 0 0 5px; letter-spacing: -.5px; }
-  .library-summary p { color: #727f68; font-size: 11px; margin: 0; }
-  .summary-stat { display: flex; flex-direction: column; align-items: center; padding-left: 25px; border-left: 1px solid #d3ddc8; min-width: 70px; }
-  .summary-stat:first-of-type { margin-left: auto; }
-  .library-summary > div:nth-child(3) { margin-left: auto; }
-  .summary-stat strong { font-family: Georgia, serif; font-weight: 400; font-size: 30px; }
-  .summary-stat > span { font-size: 10px; color: #75866a; white-space: nowrap; }
-  .keeper-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 28px 0 18px; }
-  .keeper-heading a { font-size: 10px; color: #627955; display: inline-flex; align-items: center; gap: 6px; }
-  .saved-list { display: flex; flex-direction: column; }
-  .saved-row { border-top: 1px solid var(--line); padding: 19px 0; display: flex; align-items: center; gap: 21px; }
-  .saved-row:last-child { border-bottom: 1px solid var(--line); }
-  .saved-row > img { width: 78px; height: 78px; border-radius: 4px; object-fit: cover; background: #e7ecdf; }
-  .saved-info { min-width: 0; }
-  .saved-type { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #7b8a71; }
-  .saved-type > span { padding: 0 4px; }
-  .saved-info h3 { font-size: 15px; font-weight: 600; margin: 4px 0; overflow-wrap: anywhere; }
-  .saved-info p { font-size: 11px; color: #78836d; margin: 0; }
-  .status-label { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; font-size: 9px; color: #7b7856; white-space: nowrap; padding: 5px 9px; background: #f0efdf; border-radius: 4px; }
-  .status-label.listened { background: #e7efdf; color: #4a6f3b; }
-  .status-dot { width: 4px; height: 4px; background: #9c9869; border-radius: 50%; }
-  .saved-actions { display: flex; align-items: center; gap: 9px; }
-  .listen-toggle { display: flex; align-items: center; gap: 7px; border: 1px solid #dce4d3; background: #fff; padding: 8px 11px; border-radius: 4px; color: #586d4a; font-size: 10px; min-height: 38px; }
-  .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 38px; color: #718462; background: none; border: 0; border-radius: 4px; }
-  .icon-button:hover { background: #eaf0e2; }
-  .remove-button:hover { color: #965647; background: #f5eae5; }
-  .storage-note { color: #7b876f; font-size: 10px; display: flex; align-items: center; gap: 8px; margin: 24px 0; }
-  .empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 50px 15px; gap: 12px; color: #658053; }
-  .empty-state h2, .empty-state h3 { font-family: Georgia, serif; font-size: 26px; font-weight: 400; color: #384b30; margin: 0; }
-  .empty-state p { color: #7e8a71; font-size: 12px; max-width: 380px; margin: 0; }
-  .empty-state button { display: flex; align-items: center; gap: 12px; border: 1px solid #cfdcc2; background: #edf2e5; color: #3a6030; padding: 10px 17px; border-radius: 4px; margin-top: 6px; font-size: 11px; }
-  .concept-dialog { width: min(600px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 40px; border: 1px solid #d9e1d2; border-radius: 10px; background: #fafbf6; color: #35432f; font: 13px/1.8 Arial, sans-serif; box-shadow: 0 30px 100px #0b231c55; }
-  .concept-dialog::backdrop { background: #152b27a6; backdrop-filter: blur(4px); }
-  .dialog-close { position: absolute; top: 14px; right: 14px; border: 0; padding: 7px; background: #e9eee1; border-radius: 50%; color: #5c714e; display: grid; place-items: center; }
-  .dialog-eyebrow { display: block; font-size: 8px; letter-spacing: 1.8px; color: #718363; padding-right: 10px; }
-  .dialog-brand { display: flex; gap: 9px; align-items: center; margin-top: 22px; font-size: 17px; }
-  .dialog-brand > span { color: #98a98a; padding: 0 6px; }
-  .concept-dialog h2 { font-family: Georgia, serif; font-size: 42px; letter-spacing: -1px; line-height: 1.15; font-weight: 400; margin: 24px 0 18px; }
-  .concept-dialog p { color: #6d7c61; margin: 0 0 18px; }
-  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 20px; border-top: 1px solid #dce4d4; margin-top: 22px; }
-  .about-grid strong { font-size: 12px; font-weight: 600; }
-  .about-grid p { font-size: 11px; margin-top: 8px; }
-  .about-disclosure { font-size: 10px; border-top: 1px solid #dce4d4; padding-top: 18px; }
-  .about-links { display: flex; flex-wrap: wrap; gap: 12px 24px; }
-  .about-links a, .detail-actions a { color: #3c6d3c; display: inline-flex; align-items: center; gap: 6px; font-size: 10px; text-decoration: none; }
-  .detail-cover { width: 210px; height: 210px; object-fit: cover; display: block; border-radius: 4px; margin-bottom: 25px; box-shadow: 0 10px 30px #3f553522; }
-  .album-dialog h2 { font-size: 35px; margin-bottom: 5px; }
-  .album-dialog .detail-artist { color: #365b31; margin-bottom: 18px; }
-  .detail-actions { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin: 25px 0 12px; }
-  .album-dialog .detail-disclaimer { font-size: 9px; margin: 0; }
-  .album-dialog .dialog-error { color: #923b2a; font-size: 11px; margin-top: 12px; }
-  @media (min-width: 1550px) { .hero { min-height: 440px; } .hero-content { padding: 50px; } .featured-cover { width: 290px; } .vinyl { width: 280px; height: 280px; transform: translate(90px, -8px); } .hero-art .floating-note { right: 45px; bottom: 75px; } .hero h2 { font-size: 62px; } .album-title-row h3 { font-size: 14px; } }
-  @media (max-width: 1250px) { .edition { display: none; } .album-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 27px 22px; } .featured-cover { width: 205px; } .vinyl { width: 200px; height: 200px; transform: translate(40px, -10px); } .floating-note { right: 5px; font-size: 8px; padding: 10px; bottom: 62px; } .hero h2 { font-size: 41px; } .dock-brand { display: none; } .idea-banner { flex-wrap: wrap; } .idea-banner > button { margin-left: 76px; } .album-title-row h3 { font-size: 14px; } .album-title-row p { font-size: 11px; } .album-meta { font-size: 9px; } .album-note { font-size: 12px; } .save-button { width: 36px; height: 36px; } .library-summary { flex-wrap: wrap; } .library-summary > div:nth-child(3) { margin-left: 80px; } .status-label { display: none; } .saved-actions { margin-left: auto; } }
-  @media (max-width: 1000px) { .sidebar { width: 190px; padding-left: 14px; padding-right: 14px; } .workspace { margin-left: 190px; } .listening-dock { left: 190px; padding: 14px 25px; } .topbar { padding: 0 25px; } main { padding: 30px 25px 0; } .breadcrumb { display: none; } .search-field { width: 100%; } .hero-content { padding-left: 25px; } .hero h2 { font-size: 36px; } .hero-art { margin-left: -15px; } .featured-cover { width: 165px; transform: rotate(-9deg) translate(-3px, -7px); } .featured-cover:hover { transform: rotate(-5deg) translate(-3px, -10px); } .vinyl { width: 160px; height: 160px; transform: translate(29px, -7px); } .floating-note { bottom: 80px; right: 1px; } .hero-caption { white-space: normal; width: 100%; } .selection-note { display: none; } .page-footer { flex-wrap: wrap; } .summary-stat { min-width: 64px; } .keeper-heading { align-items: start; flex-direction: column; } .listen-toggle > span { display: none; } .saved-row { gap: 12px; } .saved-actions { gap: 3px; } }
-  @media (max-width: 720px) { .sidebar { position: sticky; top: 0; width: 100%; height: auto; padding: 12px 18px; flex-direction: row; justify-content: space-between; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); gap: 12px; } .wordmark { margin: 0 0 6px; font-size: 25px; gap: 3px; } .wordmark svg { width: 23px; height: 28px; } .concept-tag { font-size: 5px; top: 32px; right: 0; letter-spacing: 1.5px; } .main-nav { flex-direction: row; gap: 4px; } .main-nav button { padding: 10px; font-size: 11px; gap: 6px; min-height: 43px; } .main-nav :global(svg) { width: 16px; height: 16px; } .nav-label, .sidebar-note, .sidebar-bottom, .nav-dot { display: none; } .nav-count { font-size: 8px; min-width: 16px; } .workspace { margin-left: 0; padding-bottom: 85px; } .topbar { height: 63px; padding: 0 20px; gap: 14px; } .search-field { padding: 9px 12px; } .search-hint { display: none; } .profile { flex-shrink: 0; } main { padding: 25px 20px 0; } .page-heading { margin-bottom: 22px; } .eyebrow { font-size: 8px; letter-spacing: 1.5px; } h1 { font-size: 29px; } .hero { grid-template-columns: 1fr 1fr; min-height: 335px; } .hero-content { padding: 28px 0 25px 24px; } .hero h2 { font-size: 33px; letter-spacing: -1px; } .hero-kicker { font-size: 7px; letter-spacing: 1px; } .hero-content > p { font-size: 10px; } .hero-footnote { font-size: 7px; } .featured-cover { width: 180px; } .vinyl { width: 180px; height: 180px; transform: translate(38px, -7px); } .floating-note { right: 8px; bottom: 59px; } .hero-caption { bottom: 19px; font-size: 6px; } .hero-caption strong { font-size: 7px; } .section-heading h2 { font-size: 25px; } .album-grid { gap: 24px 16px; } .album-title-row h3 { font-size: 12px; } .save-button { width: 30px; height: 30px; } .album-note { font-size: 11px; } .listening-dock { left: 0; padding: 12px 20px; gap: 10px; min-height: 78px; } .dock-copy strong { font-size: 10px; } .dock-copy > span { font-size: 8px; max-width: 185px; } .dock-icon { width: 35px; height: 35px; } .listening-dock > button { padding: 10px; gap: 7px; font-size: 9px; } .page-footer { font-size: 8px; } .library-summary h2 { font-size: 25px; } .summary-stat { padding-left: 20px; } }
-  @media (max-width: 480px) { .sidebar { padding: 10px 14px; gap: 4px; } .main-nav button { font-size: 10px; padding: 9px 8px; } .main-nav button :global(svg) { width: 15px; } .wordmark { font-size: 23px; } .wordmark svg { width: 22px; } .concept-tag { top: 30px; } .topbar { padding: 0 16px; } main { padding: 24px 16px 0; } h1 { font-size: 27px; } .hero { display: flex; flex-direction: column; min-height: 0; } .hero-content { padding: 28px 25px 20px; } .hero h2 { font-size: 42px; margin-top: 20px; } .hero-content > p { font-size: 12px; } .hero-art { height: 230px; margin: 0; } .featured-cover { width: 183px; transform: rotate(-9deg) translate(-20px, -13px); } .featured-cover:hover { transform: rotate(-5deg) translate(-20px, -17px); } .vinyl { width: 180px; height: 180px; transform: translate(50px, -13px); } .floating-note { right: 22px; bottom: 39px; font-size: 9px; } .hero-caption { bottom: 14px; } .hero-caption strong { font-size: 8px; } .orbit { top: -150px; } .orbit-two { top: -215px; } .orbit-three { top: -280px; } .hero-footnote { font-size: 8px; } .section-heading h2 { font-size: 26px; } .section-heading h2 em { display: block; } .selection-toolbar { align-items: start; } .chips { gap: 5px; } .chips button { padding: 8px 10px; font-size: 9px; min-height: 36px; } .result-count { display: none; } .album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 15px; } .album-title-row h3 { font-size: 13px; } .album-title-row p { font-size: 11px; } .album-note { font-size: 11px; } .save-button { width: 32px; height: 32px; } .idea-banner { padding: 22px; gap: 14px; } .idea-icon { width: 42px; height: 42px; } .idea-banner > div:nth-child(2) { flex: 1; min-width: 170px; } .idea-banner h2 { font-size: 23px; } .idea-banner p { font-size: 11px; } .idea-banner > button { margin-left: 0; margin-top: 7px; font-size: 11px; } .page-footer { flex-direction: column; gap: 9px; margin-bottom: 22px; } .listening-dock { padding: 12px 16px; } .dock-icon { display: none; } .dock-copy { flex: 1; min-width: 0; } .dock-copy strong { font-size: 10px; } .dock-copy > span { font-size: 8px; max-width: 170px; } .listening-dock > button { font-size: 9px; padding: 10px; gap: 7px; flex-shrink: 0; } .library-summary { padding: 23px; gap: 16px; } .summary-symbol { display: none; } .library-summary > div:nth-child(2) { width: 100%; } .library-summary > div:nth-child(3) { margin-left: 0; } .summary-stat { padding-left: 0; padding-right: 24px; border-left: 0; border-right: 1px solid #d3ddc8; align-items: start; } .saved-row { gap: 11px; flex-wrap: wrap; } .saved-row > img { width: 60px; height: 60px; } .saved-info { width: calc(100% - 80px); } .saved-info h3 { font-size: 14px; } .saved-actions { margin-left: 71px; gap: 12px; } .listen-toggle > span { display: inline; } .saved-actions .icon-button { width: 40px; height: 40px; } .storage-note { font-size: 9px; align-items: start; } .concept-dialog { padding: 32px 25px; } .concept-dialog h2 { font-size: 35px; } .dialog-brand { font-size: 16px; } .about-grid { grid-template-columns: 1fr; gap: 0; } .empty-state h2 { font-size: 24px; } }
-  @media (prefers-reduced-motion: reduce) { .featured-cover, .cover-button img, .cover-overlay { transition: none; } }
-  /* Keep small secondary copy above WCAG AA contrast on every light surface. */
-  .concept { --muted: #59664f; }
-  .nav-label,
-  .sidebar-note > span,
-  .independent,
-  .breadcrumb,
-  .search-hint,
-  .eyebrow,
-  .edition,
-  .selection-note,
-  .result-count,
-  .album-meta,
-  .album-title-row p,
-  .album-note,
-  .idea-banner p,
-  .page-footer,
-  .page-footer button,
-  .library-summary p,
-  .summary-stat > span,
-  .empty-state p,
-  .storage-note,
-  .dock-copy > span,
-  .dock-brand,
-  .saved-type,
-  .saved-info p,
-  .floating-note { color: var(--muted); }
-  .search-field input::placeholder { color: var(--muted); opacity: 1; }
-  .status-label { color: #645e3e; }
-  .concept-dialog p,
-  .dialog-eyebrow { color: #59664f; }
+  @font-face { font-family: Qobuz; src: url('/qobuz-concept/fonts/QobuzSans-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: Qobuz; src: url('/qobuz-concept/fonts/QobuzSans-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+  @font-face { font-family: Qobuz; src: url('/qobuz-concept/fonts/QobuzSans-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+  @font-face { font-family: QobuzIcons; src: url('/qobuz-concept/fonts/QobuzIcons.woff2') format('woff2'); font-weight: 400; font-display: block; }
+  .app { min-height: 100dvh; padding-bottom: 72px; background: #121212; color: #f5f5f5; font: 500 14px/1.4 Qobuz, sans-serif; }
+  .app * { box-sizing: border-box; }
+  .app a { color: inherit; text-decoration: none; }
+  .app button, .app input, .app select { font: inherit; }
+  .app button { cursor: pointer; }
+  .app button:disabled { cursor: not-allowed; opacity: .5; }
+  .app :is(a, button, input, select):focus-visible { outline: 2px solid #f4c66b; outline-offset: 3px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .skip { position: fixed; z-index: 100; top: -70px; left: 8px; padding: 10px; background: #333; }.skip:focus { top: 8px; }
+  .topbar { height: 56px; display: flex; align-items: center; gap: 24px; padding: 0 24px; background: #181818; border-bottom: 1px solid #292929; }
+  .wordmark { font-family: QobuzIcons; font-size: 27px; font-weight: 400; line-height: 1; margin-right: 2px; }
+  .topnav { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .topnav a { height: 39px; display: inline-flex; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid transparent; border-radius: 5px; }
+  .topnav a.active { background: #252525; border-color: #363636; }
+  .global-search, .library-search { display: flex; align-items: center; gap: 10px; background: #242424; color: #a9a9a9; border-radius: 24px; padding: 0 16px; height: 40px; }
+  .global-search { margin-left: auto; width: min(30vw, 370px); }.global-search input, .library-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #fff; }.global-search input::placeholder, .library-search input::placeholder { color: #aaa; }
+  .global-search button { display: inline-flex; align-items: center; justify-content: center; flex: none; border: 0; padding: 4px; color: #ccc; background: transparent; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #373739; color: #fff; flex: none; }.avatar:disabled { opacity: 1 !important; }
+  .disclosure { position: fixed; z-index: 3; bottom: 73px; right: 8px; color: #aaa; background: #181818; font-size: 10px; padding: 2px 5px; }
+  .error { position: relative; z-index: 4; padding: 10px 24px; color: #fff; background: #742a25; }.error button { background: transparent; color: #fff; border: 1px solid #fff; border-radius: 3px; padding: 4px 8px; }
+  .toast { position: fixed; z-index: 15; right: 24px; bottom: 90px; background: #333; padding: 12px 16px; border-radius: 4px; box-shadow: 0 4px 18px #0008; }.toast button { color: white; border: 0; background: transparent; margin-left: 14px; }
+  .discover { padding: 38px 24px 45px; }.discover h1 { font-size: 48px; line-height: 1.15; margin: 0 0 34px; }.discover-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }.discover-heading h2 { font-size: 23px; margin: 0 0 8px; }.discover-heading p { color: #b5b5b5; margin: 0; }.discover-heading > span { color: #bbb; }
+  .discover-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 28px; }.music-card { min-width: 0; }.cover-wrap { position: relative; width: 100%; aspect-ratio: 1; background: #252525; border-radius: 4px; }.cover-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 4px; }.cover-wrap > a { display: block; width: 100%; height: 100%; }.cover-menu { position: absolute; right: 4px; bottom: 4px; }.menu-trigger { background: #222d !important; border-radius: 50%; }.badge { position: absolute; left: 0; bottom: 24px; background: #ec7900; color: #121212; font-size: 10px; font-weight: 700; padding: 4px 6px; }.card-text { min-width: 0; margin-top: 8px; }.card-title { display: block; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.card-text p { color: #bcbcbc; margin: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.card-text small { color: #aaa; }
+  .menu-wrap { position: relative; }.icon-button { display: inline-flex; justify-content: center; align-items: center; width: 40px; height: 40px; background: transparent; color: #fff; border: 0; }.action-menu { position: absolute; z-index: 20; top: 100%; right: 0; width: 242px; padding: 8px 0; border-radius: 4px; background: #303032; box-shadow: 0 8px 24px #0009; }.action-menu button, .action-menu a { width: 100%; min-height: 38px; padding: 8px 16px; display: flex; align-items: center; gap: 14px; text-align: left; color: #eee; background: transparent; border: 0; }.action-menu button:hover:not(:disabled), .action-menu a:hover { background: #444; }.menu-rule { height: 1px; background: #555; margin: 4px 0; }
+  .library-layout { display: flex; min-height: calc(100dvh - 128px); }.sidebar { width: 216px; flex: 0 0 216px; padding: 22px 12px; }.sidebar h1 { font-size: 23px; margin: 0 12px 34px; }.sidebar nav { display: grid; gap: 3px; }.sidebar a { display: flex; gap: 10px; align-items: center; min-height: 39px; padding: 0 12px; border-radius: 5px; white-space: nowrap; }.sidebar a.active { background: #252525; }.sidebar a span { overflow: hidden; text-overflow: ellipsis; }.sidebar small { margin-left: auto; color: #bdbdbd; }
+  .library-main { min-width: 0; flex: 1; padding: 16px 24px 50px 16px; }.toolbar { min-height: 61px; display: flex; align-items: flex-start; gap: 18px; border-bottom: 1px solid #292929; margin-bottom: 24px; }.library-search { width: min(380px, 42%); flex-shrink: 1; border: 1px solid #363636; }.view-buttons { display: flex; margin-left: auto; gap: 4px; }.view-buttons button { border: 0; color: #aaa; background: transparent; width: 34px; height: 40px; }.view-buttons button.selected { color: #f6c875; }.sort select { background: #252525; color: #fff; border: 1px solid #383838; border-radius: 4px; padding: 10px 32px 10px 12px; max-width: 200px; }.filters-disabled { border-radius: 50%; background: #252525; flex: none; }.library-grid { display: grid; grid-template-columns: repeat(auto-fill, 178px); gap: 28px; }.playlist-cover { aspect-ratio: 1; display: grid; place-items: center; border-radius: 4px; background: radial-gradient(circle at 50% 30%, #9a7038, #392817); overflow: hidden; }.playlist-cover img { width: 90%; }.blank { height: 100%; display: grid; place-items: center; color: #999; }.list-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 24px; }.list-heading h2 { margin: 0 0 4px; font-size: 22px; }.list-heading p { color: #aaa; margin: 0; }.filter-buttons { display: flex; gap: 6px; flex-wrap: wrap; }.filter-buttons button { border: 1px solid #555; color: #fff; background: #242424; padding: 7px 12px; border-radius: 20px; }.filter-buttons button.selected { background: #eee; color: #151515; border-color: #eee; }.saved-actions { display: flex; gap: 5px; margin-top: 8px; }.saved-actions button, .saved-actions a { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 5px 7px; background: #292929; border: 1px solid #4a4a4a; border-radius: 4px; color: #fff; font-size: 12px; }.row-layout { display: flex; flex-direction: column; gap: 10px; }.row-layout .music-card { display: flex; gap: 14px; align-items: center; }.row-layout .cover-wrap, .row-layout .playlist-cover { width: 64px; height: 64px; flex: none; }.row-layout .card-text { margin: 0; }.row-layout .cover-menu { right: -4px; bottom: -4px; }.empty { color: #aaa; padding: 40px 0; }.empty a { color: #f3ca78; text-decoration: underline; }
+  .album-hero { display: flex; gap: 32px; padding: 40px 24px; background: linear-gradient(#50403a, #302521); }.album-hero.drukqs { background: linear-gradient(#704322, #3d2516); }.album-hero > img { width: 242px; height: 242px; object-fit: cover; border-radius: 4px; flex: none; }.album-info { min-width: 0; }.album-info > p { color: #ddd; margin: 0 0 6px; }.album-info h1 { font-size: 34px; line-height: 1.15; margin: 0 0 5px; }.album-info strong { font-size: 17px; }.album-info .release { margin-top: 16px; }.album-info .description { max-width: 840px; }.hero-actions { display: flex; align-items: center; gap: 18px; margin-top: 16px; }.hero-actions a { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }.play { width: 52px; height: 52px; background: white; color: #111; border: 0; border-radius: 50%; }.album-content { display: flex; gap: 24px; padding: 24px; }.tracklist { flex: 1; min-width: 0; }.tracklist > p { margin: 0 0 28px; }.track-heading { display: flex; justify-content: space-between; color: #aaa; font-size: 11px; margin: 0 40px 10px 20px; }.track { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 12px; min-height: 64px; padding: 8px 40px 8px 20px; border-bottom: 1px solid #2d2d2d; }.track p { color: #aaa; margin: 0; }.label { border-left: 1px solid #292929; padding-left: 20px; width: 26%; }.label h2 { font-size: 20px; margin: 0 0 20px; }.hint { color: #aaa; }
+  .player { height: 72px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; gap: 12px; background: #141414; border-top: 3px solid #333; }.player-track { display: flex; align-items: center; gap: 14px; min-width: 0; }.player-placeholder { height: 69px; width: 69px; background: #292929; color: #888; display: grid; place-items: center; flex: none; }.player-track p { color: #aaa; margin: 2px 0 0; font-size: 12px; }.player-controls { display: flex; align-items: center; justify-content: center; gap: 18px; }.player-controls button { border: 0; background: transparent; color: #eee; padding: 4px; }.volume { display: flex; justify-content: end; align-items: center; gap: 10px; color: #888; padding-right: 24px; }.volume span { display: block; width: 94px; height: 3px; background: #555; }
+  @media (max-width: 800px) { .topbar { gap: 10px; padding: 0 12px; }.topnav { gap: 0; }.topnav a { padding: 0 8px; }.topnav a span { display: none; }.global-search { width: auto; flex: 1; }.wordmark { font-size: 23px; }.sidebar { width: 180px; flex-basis: 180px; }.library-main { padding-right: 14px; }.discover-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }.volume { display: none; }.player { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .library-layout { display: block; }.sidebar { width: 100%; padding: 16px 12px 8px; }.sidebar h1 { margin: 0 0 12px; }.sidebar nav { display: flex; overflow-x: auto; gap: 4px; }.sidebar a { flex: none; padding: 0 10px; }.sidebar small { margin-left: 2px; }.library-main { padding: 12px; }.toolbar { gap: 6px; flex-wrap: wrap; padding-bottom: 12px; }.library-search { width: 100%; flex: 1 0 100%; }.view-buttons { margin-left: 0; }.sort { margin-left: auto; }.library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }.discover { padding: 26px 12px; }.discover h1 { font-size: 38px; }.discover-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }.album-hero { padding: 20px 12px; gap: 16px; flex-direction: column; }.album-hero > img { width: min(60vw, 242px); height: auto; aspect-ratio: 1; }.album-info h1 { font-size: 27px; }.album-content { padding: 16px 12px; }.label { display: none; }.player-track p { display: none; }.player-track strong { font-size: 12px; }.player-controls { gap: 5px; }.player-controls button { padding: 2px; }.disclosure { font-size: 9px; max-width: 90%; } }
+  .native-icon { display: block; flex: none; fill: currentColor; }
+  .sidebar { width: 208px; flex-basis: 208px; position: relative; }
+  .sidebar h1 { font-size: 22px; font-weight: 700; color: #fff; }
+  .discover h1, .discover-heading h2, .album-info h1 { font-weight: 700; }
+  .library-main { padding-left: 24px; }
+  .sidebar-utilities { position: absolute; bottom: 12px; left: 12px; display: flex; gap: 10px; }
+  .sidebar-utilities button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; color: #fff; background: #292929; }
+  .account-filters { display: flex; gap: 12px; align-items: center; }
+  .account-filters button { width: 52px; height: 30px; border: 0; border-radius: 20px; color: #333; background: #555; display: flex; align-items: center; padding: 3px; }
+  .account-filters button svg { width: 24px; height: 24px; padding: 3px; border-radius: 50%; background: #fff; }
+  .view-buttons { margin-left: auto; }
+  .discover-title { display: flex; justify-content: space-between; align-items: flex-start; }
+  .discover-title .icon-button { border-radius: 50%; background: #292929; }
+  .discover-heading > button { color: #bbb; border: 0; background: none; font: inherit; }
+  .cover-actions { position: absolute; bottom: 4px; left: 8px; right: 4px; display: flex; align-items: center; gap: 4px; opacity: 0; }
+  .music-card:hover .cover-actions, .music-card:focus-within .cover-actions { opacity: 1; }
+  .cover-actions .cover-menu { position: static; margin-left: auto; }
+  .cover-play { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: #fff; color: #121212; }
+  .explicit { display: inline-block; padding: 0 3px; border-radius: 2px; background: #aaa; color: #161616; font-size: 10px; line-height: 14px; }
+  .action-menu { position: fixed; right: auto; max-height: calc(100dvh - 88px); overflow-y: auto; }
+  .player { grid-template-columns: minmax(0, 1.3fr) 45px minmax(180px, 1fr) minmax(0, 1.2fr); }
+  .player-track > button, .player-output button { border: 0; background: transparent; color: #eee; padding: 5px; }
+  .player-track > button { margin-left: auto; }
+  .player-time { display: grid; color: #999; font-size: 12px; }
+  .player-output { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-right: 16px; }
+  .volume-line { width: 92px; height: 3px; background: #777; }
+  .player-seek { position: absolute; top: -5px; left: 0; width: 100%; height: 3px; margin: 0; accent-color: #777; }
+  @media (max-width: 800px) { .sidebar { width: 180px; flex-basis: 180px; }.library-main { padding-left: 16px; }.account-filters { gap: 3px; }.account-filters button { width: 35px; }.player { grid-template-columns: 1fr 1fr; }.player-time, .player-output { display: none; } }
+  @media (max-width: 560px) { .sidebar { width: 100%; }.sidebar h1 { margin: 0 0 12px; }.sidebar-utilities { display: none; }.library-main { padding: 12px; }.account-filters { display: none; }.cover-actions { opacity: 1; }.cover-actions > button { display: none; }.hero-actions { flex-wrap: wrap; gap: 8px; } }
 </style>
