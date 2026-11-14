@@ -228,7 +228,7 @@ test('saves from native menus, persists, searches, sorts, marks listened and rem
   const close = albumCard(page, closeToHome)
   await expect(still).toBeVisible()
   await still
-    .getByRole('button', { name: `Marquer ${stillOutstanding} écouté`, exact: true })
+    .getByRole('button', { name: `Marquer comme écouté : ${stillOutstanding}`, exact: true })
     .click()
   const filters = page.locator('[aria-label="État d’écoute"]')
   await filters.getByRole('button', { name: 'Écouté', exact: true }).click()
@@ -322,10 +322,10 @@ test('updates the collection directly from committed writes without a post-write
     }
   })
   await card
-    .getByRole('button', { name: `Marquer ${stillOutstanding} écouté`, exact: true })
+    .getByRole('button', { name: `Marquer comme écouté : ${stillOutstanding}`, exact: true })
     .click()
   await expect(
-    card.getByRole('button', { name: `Marquer ${stillOutstanding} à écouter`, exact: true })
+    card.getByRole('button', { name: `Remettre à écouter : ${stillOutstanding}`, exact: true })
   ).toBeVisible()
   await card
     .getByRole('button', {
@@ -444,4 +444,62 @@ test('retains secondary-artist search matches when a native album is also saved 
       .fill('Richard D. James')
     await expect(albumCard(page, title)).toHaveCount(1)
   }
+})
+
+test('distinguishes listening state from the next action and keeps both actions inside narrow cards', async ({
+  page,
+}) => {
+  await page.goto(discoverPath)
+  await saveAlbum(page, stillOutstanding)
+  await saveAlbum(page, closeToHome)
+  await openListenLater(page)
+  const still = albumCard(page, stillOutstanding)
+  const close = albumCard(page, closeToHome)
+  const state = still.locator('.card-text > p').last()
+  const markListened = still.getByRole('button', {
+    name: `Marquer comme écouté : ${stillOutstanding}`,
+    exact: true,
+  })
+  const putBack = still.getByRole('button', {
+    name: `Remettre à écouter : ${stillOutstanding}`,
+    exact: true,
+  })
+  await expect(state).toHaveText('À écouter')
+  await expect(markListened).toHaveText('Marquer comme écouté')
+  await markListened.click()
+  await expect(state).toHaveText('Écouté')
+  await expect(putBack).toHaveText('Remettre à écouter')
+  await page.reload()
+  await expect(state).toHaveText('Écouté')
+  const listenedItems = await storedItems(page)
+  expect(listenedItems.find((item) => item.title === stillOutstanding)?.hasBeenListened).toBe(true)
+
+  await page.setViewportSize({ width: 320, height: 900 })
+  await expect(putBack).toBeVisible()
+  await expect(
+    close.getByRole('button', { name: `Marquer comme écouté : ${closeToHome}`, exact: true })
+  ).toBeVisible()
+  for (const card of [still, close]) {
+    const containedActions = await card.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      return Array.from(element.querySelectorAll('.saved-actions > *'), (action) => {
+        const rectangle = action.getBoundingClientRect()
+        return rectangle.left >= bounds.left && rectangle.right <= bounds.right + 1
+      }).every(Boolean)
+    })
+    expect(containedActions).toBe(true)
+  }
+  const viewport = await page.evaluate(() => ({
+    width: window.innerWidth,
+    content: document.documentElement.scrollWidth,
+  }))
+  expect(viewport.content).toBeLessThanOrEqual(viewport.width)
+
+  await putBack.click()
+  await expect(state).toHaveText('À écouter')
+  await expect(markListened).toHaveText('Marquer comme écouté')
+  await page.reload()
+  await expect(state).toHaveText('À écouter')
+  const pendingItems = await storedItems(page)
+  expect(pendingItems.find((item) => item.title === stillOutstanding)?.hasBeenListened).toBe(false)
 })
