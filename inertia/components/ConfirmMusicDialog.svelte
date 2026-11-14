@@ -7,7 +7,7 @@
   import Skeleton from 'boneyard-js/svelte'
   import CoverArt from '~/components/CoverArt.svelte'
   import { AlertTriangle, Copy, RefreshCw, Loader2 } from '@lucide/svelte'
-  import { ListenLaterItem, MusicItem, SearchType } from '../../src/domain/music_item'
+  import { ListenLaterItem, MusicItem, MusicItemType, SearchType } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/domain/link'
 
   interface Props {
@@ -18,7 +18,7 @@
     linkMetadata: LinkMetadata | null
     source: 'musicbrainz' | 'link' | null
     existingItem: ListenLaterItem | null
-    onConfirm: (itemType: SearchType, title: string, artists: string[], albumName: string) => void
+    onConfirm: (itemType: MusicItemType, title: string, artists: string[], albumName: string) => void
     onCancel: () => void
     onViewExisting: () => void
     onRetry: () => void
@@ -44,7 +44,7 @@
     error?.includes('Unsupported platform') || error?.includes('unsupported')
   )
 
-  let selectedType = $state<SearchType>(SearchType.track)
+  let selectedType = $state<MusicItemType>(SearchType.track)
   let editableTitle = $state('')
   let editableArtists = $state('')
   let editableAlbumName = $state('')
@@ -64,6 +64,7 @@
   const types = [
     { value: SearchType.track, label: 'Track' },
     { value: SearchType.album, label: 'Album' },
+    { value: MusicItemType.playlist, label: 'Playlist' },
   ]
 
   // The error branch already carries `role="alert"`; announcing it twice would
@@ -222,7 +223,7 @@
                   placeholder="Artist(s), comma-separated"
                 />
               </div>
-              {#if selectedType !== SearchType.album}
+              {#if selectedType === SearchType.track}
                 <div class="space-y-1">
                   <label for="dup-album" class="text-sm font-medium">Album name</label>
                   <Input
@@ -234,7 +235,7 @@
               {/if}
               <p class="flex items-center gap-4 text-sm">
                 <span class="font-medium">Item Type:</span>
-                {selectedType === SearchType.album ? 'Album' : 'Track'}
+                {types.find((type) => type.value === selectedType)?.label ?? selectedType}
               </p>
             </div>
           </div>
@@ -270,7 +271,7 @@
             placeholder="Artist(s), comma-separated"
           />
         </div>
-        {#if selectedType !== SearchType.album}
+        {#if selectedType === SearchType.track}
           <div class="space-y-1">
             <label for="edit-album" class="text-sm font-medium">Album</label>
             <Input
