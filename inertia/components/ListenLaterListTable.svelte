@@ -53,6 +53,7 @@
     { value: 'all', label: 'All' },
     { value: 'track', label: 'Tracks' },
     { value: 'album', label: 'Albums' },
+    { value: 'playlist', label: 'Playlists' },
   ]
 
   type MobileSort = 'artists_desc' | 'artists_asc' | 'added_desc' | 'added_asc'

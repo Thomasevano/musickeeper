@@ -3,6 +3,14 @@ export enum SearchType {
   track = 'track',
 }
 
+// Search remains limited to albums and tracks; persisted items can also be playlists.
+export const MusicItemType = {
+  ...SearchType,
+  playlist: 'playlist',
+} as const
+
+export type MusicItemType = (typeof MusicItemType)[keyof typeof MusicItemType]
+
 export type LinkCategory = 'stream' | 'buy'
 
 export interface ExternalLink {
@@ -20,7 +28,7 @@ interface MusicItemProperties {
   length?: number
   artists: string[]
   albumName?: string
-  itemType: SearchType
+  itemType: MusicItemType
   coverArt?: string
 }
 
@@ -31,7 +39,7 @@ export class MusicItem {
   public length?: number
   public artists: string[]
   public albumName?: string
-  public itemType: SearchType
+  public itemType: MusicItemType
   coverArt?: string
   public constructor(props: MusicItemProperties) {
     this.id = props.id

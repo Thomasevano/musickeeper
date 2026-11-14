@@ -14,7 +14,7 @@
   import Input from '~/lib/components/ui/input/input.svelte'
   import { trackQualifyingActivity } from '~/lib/analytics'
   import { ListenLaterItem, MusicItem, SearchType, musicItemName, findDuplicate } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
+  import type { ExternalLink, MusicItemType } from '../../src/domain/music_item'
   import type { LinkMetadata } from '../../src/domain/link'
   import {
     listenLaterStorage,
@@ -318,13 +318,15 @@
 
   async function fetchExternalLinks(
     mbid: string,
-    itemType: SearchType,
+    itemType: MusicItemType,
     sourceUrl?: string
   ): Promise<ExternalLink[]> {
+    // The link resolver only accepts albums and tracks, not playlists.
+    if (itemType !== SearchType.album && itemType !== SearchType.track) return []
     try {
       const params = new URLSearchParams({
         mbid,
-        type: itemType === SearchType.album ? 'album' : 'track',
+        type: itemType,
         locale: navigator.language || 'fr-FR',
       })
       if (sourceUrl) params.set('sourceUrl', sourceUrl)
@@ -342,14 +344,20 @@
   }
 
   async function handleConfirmDialogConfirm(
-    itemType: SearchType,
+    itemType: MusicItemType,
     title: string,
     artists: string[],
     albumName: string
   ) {
     if (!pendingMusicItem) return
 
-    const externalLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
+    const sourceLinks =
+      (pendingMusicItem as MusicItem & { externalLinks?: ExternalLink[] }).externalLinks ?? []
+    const fetchedLinks = await fetchExternalLinks(pendingMusicItem.id, itemType, linkUrl || undefined)
+    const externalLinks = [
+      ...sourceLinks,
+      ...fetchedLinks.filter((link) => !sourceLinks.some((source) => source.url === link.url)),
+    ]
 
     try {
       const stored = await listenLaterStorage.add({
@@ -421,7 +429,7 @@
         <div class="mb-4 space-y-2 md:mb-0">
           <h2 class="text-2xl font-semibold">Listen Later</h2>
           <p class="text-muted-foreground text-sm">
-            Tracks and albums you want to listen to.
+            Tracks, albums and playlists you want to listen to.
           </p>
         </div>
       </div>

@@ -24,6 +24,7 @@ export default defineConfig({
 declare module '@adonisjs/inertia/types' {
   export interface InertiaPages {
     'home': {}
+    'qobuz': {}
     'listen-later': { title: string }
     'errors/not_found': {}
     'errors/server_error': {}

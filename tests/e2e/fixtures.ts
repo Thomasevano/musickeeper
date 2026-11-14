@@ -36,7 +36,7 @@ export interface ListenLaterItemSeed {
   title: string
   releaseDate?: string
   artists: string[]
-  itemType: 'track' | 'album'
+  itemType: 'track' | 'album' | 'playlist'
   hasBeenListened: boolean
   addedAt: number
   externalLinks?: {
