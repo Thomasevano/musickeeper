@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte'
   import type { NewListenLaterItem } from '../../../src/infrastructure/storage/listen_later_storage'
-  import { normalizeSearchResults } from '../../lib/qobuz_search'
+  import { buildMusicBrainzQuery, normalizeSearchResults, rankSearchResults } from '../../lib/qobuz_search'
 
   type Category = 'all' | 'albums' | 'tracks' | 'artists' | 'playlists'
   type Kind = 'album' | 'track'
@@ -73,14 +73,15 @@
           let timedOut = false
           const timer = setTimeout(() => { timedOut = true; request.abort() }, 12000)
           try {
-            const params = new URLSearchParams({ type: kind, [artist ? 'artist' : 'q']: term })
+            const params = new URLSearchParams({ type: kind, [artist ? 'artist' : 'q']: artist ? term : buildMusicBrainzQuery(term) })
             const response = await fetch(`/library/listen-later?${params}`, { signal: request.signal, headers: { Accept: 'application/json' } })
-            if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`)
+            if (!response.ok) throw new Error('Impossible de charger les résultats.')
             if (!response.headers.get('content-type')?.toLowerCase().includes('application/json')) throw new Error('Réponse non JSON')
             const data: unknown = await response.json()
             if (!data || typeof data !== 'object' || !Array.isArray((data as { serializedItems?: unknown }).serializedItems)) throw new Error('Réponse invalide')
             if (current === generation && !controller.signal.aborted) {
-              const items = normalizeSearchResults(data, kind)
+              const normalized = normalizeSearchResults(data, kind)
+              const items = artist ? normalized : rankSearchResults(normalized, term)
               if (kind === 'album') albums = items; else tracks = items
             }
           } catch (error) {

@@ -114,7 +114,9 @@ test('uses the existing MusicBrainz endpoint and adds both native search result 
   await expect(card).toBeVisible()
   await expect(resultCard(page, track.title)).toBeVisible()
   expect(requests.map((request) => request.type)).toEqual(['album', 'track'])
-  expect(requests.every((request) => request.query === 'Aphex Twin' && !request.artist)).toBe(true)
+  expect(
+    requests.every((request) => request.query === '"Aphex" AND "Twin"' && !request.artist)
+  ).toBe(true)
   expect(requests[1].at - requests[0].at).toBeGreaterThanOrEqual(900)
   await card.hover()
   await card.getByRole('button', { name: `Plus d’options : ${album.title}` }).click()
@@ -250,19 +252,22 @@ test('aborts superseded searches and does not show or save a late result from th
 }) => {
   const oldResponse = Promise.withResolvers<void>()
   const requests = await mockSearch(page, async (request) => {
-    if (request.query === 'First Query' && request.type === 'album') await oldResponse.promise
+    const first = request.query === '"First" AND "Query"'
+    if (first && request.type === 'album') await oldResponse.promise
     return {
       items: [
         {
           ...(request.type === 'album' ? album : track),
-          title: `${request.query} ${request.type}`,
+          title: `${first ? 'First Query' : 'Second Query'} ${request.type}`,
         },
       ],
     }
   })
   await page.goto(laterPath)
   await search(page, 'First Query')
-  await expect.poll(() => requests.some((request) => request.query === 'First Query')).toBe(true)
+  await expect
+    .poll(() => requests.some((request) => request.query === '"First" AND "Query"'))
+    .toBe(true)
   await search(page, 'Second Query')
   await expect(resultCard(page, 'Second Query album')).toBeVisible()
   oldResponse.resolve()
@@ -278,25 +283,30 @@ test('aborts superseded searches and does not show or save a late result from th
   expect(requests).toHaveLength(count)
 })
 
-test('retains successful albums on a track failure and retries only the failed category', async ({
-  page,
-}) => {
-  let fail = true
-  const requests = await mockSearch(page, (request) =>
-    request.type === 'track' && fail
-      ? { status: 503, body: 'Unavailable', contentType: 'text/plain' }
-      : {}
-  )
-  await page.goto('/qobuz/search/all?q=Aphex+Twin')
-  await expect(page.getByRole('alert')).toContainText('Titres')
-  await expect(resultCard(page, album.title)).toBeVisible()
-  fail = false
-  await page.getByRole('button', { name: 'Réessayer', exact: true }).click()
-  await expect(resultCard(page, track.title)).toBeVisible()
-  await expect(page.getByRole('alert')).toHaveCount(0)
-  expect(requests.filter((request) => request.type === 'album')).toHaveLength(1)
-  expect(requests.filter((request) => request.type === 'track')).toHaveLength(2)
-})
+for (const status of [500, 503]) {
+  test(`retains successful albums on a ${status} track failure and retries only the failed category`, async ({
+    page,
+  }) => {
+    let fail = true
+    const requests = await mockSearch(page, (request) =>
+      request.type === 'track' && fail
+        ? { status, body: 'Unavailable', contentType: 'text/plain' }
+        : {}
+    )
+    await page.goto('/qobuz/search/all?q=Aphex+Twin')
+    await expect(page.getByRole('alert')).toContainText('Titres')
+    await expect(page.getByRole('alert')).not.toContainText(String(status))
+    await expect(page.getByText('Aucun résultat', { exact: false })).toHaveCount(0)
+    await expect(resultCard(page, album.title)).toBeVisible()
+    expect(requests.filter((request) => request.type === 'track')).toHaveLength(1)
+    fail = false
+    await page.getByRole('button', { name: 'Réessayer', exact: true }).click()
+    await expect(resultCard(page, track.title)).toBeVisible()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    expect(requests.filter((request) => request.type === 'album')).toHaveLength(1)
+    expect(requests.filter((request) => request.type === 'track')).toHaveLength(2)
+  })
+}
 
 test('handles non-JSON search failure and honest empty and unavailable playlist states', async ({
   page,
@@ -318,6 +328,88 @@ test('handles non-JSON search failure and honest empty and unavailable playlist 
   expect(requests).toHaveLength(count)
 })
 
+for (const query of ['Welcome Eminem', 'Eminem Welcome']) {
+  test(`ranks and directly saves combined-query results for ${query}`, async ({ page }) => {
+    const welcomeAlbum = {
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'WELCOME',
+      artists: ['IDK'],
+      itemType: 'album',
+    }
+    const detroit = {
+      id: '44444444-4444-4444-8444-444444444444',
+      title: 'Welcome To Detroit',
+      artists: ['Trick Trick', 'Eminem'],
+      itemType: 'track',
+    }
+    const welcomeTrack = {
+      id: '55555555-5555-4555-8555-555555555555',
+      title: 'WELCOME',
+      artists: ['IDK', 'Eminem', 'J Dilla'],
+      itemType: 'track',
+    }
+    const requests = await mockSearch(page, ({ type }) => ({
+      items: type === 'album' ? [welcomeAlbum] : [detroit, welcomeTrack],
+    }))
+    await page.goto(laterPath)
+    await search(page, query)
+    expect(new URL(page.url()).searchParams.get('q')).toBe(query)
+    const albumCard = page.getByRole('article', { name: 'WELCOME par IDK', exact: true })
+    const trackCard = page.getByRole('article', {
+      name: 'WELCOME par IDK, Eminem, J Dilla',
+      exact: true,
+    })
+    await expect(albumCard).toBeVisible()
+    await expect(trackCard).toBeVisible()
+    const trackSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Titres', exact: true }),
+    })
+    await expect
+      .poll(() =>
+        trackSection
+          .getByRole('article')
+          .evaluateAll((cards) => cards.map((card) => card.getAttribute('aria-label')))
+      )
+      .toEqual(['WELCOME par IDK, Eminem, J Dilla', 'Welcome To Detroit par Trick Trick, Eminem'])
+    const albumsHref = await page
+      .getByRole('link', { name: 'Voir tous les albums' })
+      .getAttribute('href')
+    expect(new URL(albumsHref!, page.url()).searchParams.get('q')).toBe(query)
+    const compiled = query
+      .split(' ')
+      .map((word) => `"${word}"`)
+      .join(' AND ')
+    expect(
+      requests.map(({ type, query: value, artist }) => ({ type, query: value, artist }))
+    ).toEqual([
+      { type: 'album', query: compiled, artist: false },
+      { type: 'track', query: compiled, artist: false },
+    ])
+    await albumCard.getByRole('button', { name: 'Écouter plus tard : WELCOME' }).click()
+    await waitForSave(page, 'WELCOME')
+    await trackCard.getByRole('button', { name: 'Écouter plus tard : WELCOME' }).click()
+    await expect
+      .poll(async () => {
+        const savedItems = await readSaved(page)
+        return savedItems.length
+      })
+      .toBe(2)
+    const saved = await readSaved(page)
+    expect(saved.find((item) => item.id === welcomeAlbum.id)).toMatchObject({
+      id: welcomeAlbum.id,
+      title: 'WELCOME',
+      artists: ['IDK'],
+      itemType: 'album',
+    })
+    expect(saved.find((item) => item.id === welcomeTrack.id)).toMatchObject({
+      id: welcomeTrack.id,
+      title: 'WELCOME',
+      artists: ['IDK', 'Eminem', 'J Dilla'],
+      itemType: 'track',
+    })
+  })
+}
+
 test('uses the supported artist-only backend scope and preserves it across native category navigation', async ({
   page,
 }) => {
@@ -327,10 +419,15 @@ test('uses the supported artist-only backend scope and preserves it across nativ
   await page.getByRole('checkbox', { name: 'Artiste Principal', exact: true }).check()
   await expect(page).toHaveURL(/field=artist/)
   await expect.poll(() => requests.filter((request) => request.artist).length).toBe(2)
+  expect(requests.filter((request) => request.artist).map((request) => request.query)).toEqual([
+    'Aphex Twin',
+    'Aphex Twin',
+  ])
   await page.getByRole('link', { name: 'Voir tous les albums', exact: true }).click()
   await expect(page).toHaveURL(/\/qobuz\/search\/albums\?.*field=artist/)
   await expect(resultCard(page, album.title)).toBeVisible()
   expect(requests.at(-1)?.artist).toBe(true)
+  expect(requests.at(-1)?.query).toBe('Aphex Twin')
 })
 
 test('keeps the new search and content filter accessible on desktop and narrow screens', async ({
