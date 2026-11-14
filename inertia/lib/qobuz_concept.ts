@@ -21,6 +21,26 @@ export interface ConceptAlbum {
 
 export type QobuzCatalogItem = ConceptAlbum
 
+/** Public playlist observed in Qobuz's library; saving changes only the local PoC. */
+export const introductionPlaylist: NewListenLaterItem = {
+  id: 'qobuz-concept:playlist:504746',
+  title: 'An Introduction to Qobuz',
+  artists: ['Qobuz UK'],
+  releaseDate: '',
+  itemType: 'playlist',
+  coverArt: '/qobuz-concept/introduction.jpg',
+  sourceUrl: 'https://play.qobuz.com/playlist/504746',
+  externalLinks: [
+    {
+      platform: 'qobuz',
+      label: 'Qobuz',
+      url: 'https://play.qobuz.com/playlist/504746',
+      category: 'stream',
+      source: 'source-url',
+    },
+  ],
+}
+
 function album(id: string, title: string, artists: string[], note = ''): ConceptAlbum {
   return {
     id,

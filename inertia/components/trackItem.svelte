@@ -18,10 +18,11 @@
   } = $props()
 
   async function fetchExternalLinks(item: MusicItem): Promise<ExternalLink[]> {
+    if (item.itemType !== SearchType.album && item.itemType !== SearchType.track) return []
     try {
       const params = new URLSearchParams({
         mbid: item.id,
-        type: item.itemType === SearchType.album ? 'album' : 'track',
+        type: item.itemType,
         locale: navigator.language || 'fr-FR',
       })
       if (item.artists?.length) params.set('artists', item.artists.join(','))
@@ -36,6 +37,8 @@
   }
 
   async function addToListenLater(item: MusicItem) {
+    const source = item as MusicItem & { sourceUrl?: string; externalLinks?: ExternalLink[] }
+    const canEnrich = item.itemType === SearchType.album || item.itemType === SearchType.track
     // Links resolve in the background: the item is saved and on screen first.
     try {
       const stored = await listenLaterStorage.add({
@@ -47,16 +50,17 @@
         albumName: item.albumName,
         itemType: item.itemType,
         coverArt: item.coverArt,
-        externalLinks: [],
+        sourceUrl: source.sourceUrl,
+        externalLinks: source.externalLinks ?? [],
       })
       trackQualifyingActivity('item_saved')
 
       // ponytail: appending assumes the store's oldest-first order, which puts a
       // new item last. If that default order ever changes, replace this with a
       // getAll().
-      listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: true }]
+      listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: canEnrich }]
       toast.success(`${musicItemName(item)} added to your list`)
-      void backfillExternalLinks(item)
+      if (canEnrich) void backfillExternalLinks(item)
     } catch (error) {
       console.error('Error adding item to listen later list:', error)
       toast.error(`Could not add ${musicItemName(item)}`)
@@ -67,7 +71,12 @@
   // already saved and on screen by then, so patch it in place when the links
   // land — and skip the write if the user removed it while we waited.
   async function backfillExternalLinks(item: MusicItem) {
-    let resolvedExternalLinks = await fetchExternalLinks(item)
+    const originalLinks = (item as MusicItem & { externalLinks?: ExternalLink[] }).externalLinks ?? []
+    const fetchedLinks = await fetchExternalLinks(item)
+    let resolvedExternalLinks = [
+      ...originalLinks,
+      ...fetchedLinks.filter((link) => !originalLinks.some((original) => original.url === link.url)),
+    ]
 
     if (resolvedExternalLinks.length) {
       try {
@@ -81,7 +90,7 @@
 
     listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
       existing.id === item.id
-        ? { ...existing, externalLinks: resolvedExternalLinks, externalLinksPending: false }
+        ? { ...existing, externalLinks: resolvedExternalLinks.length ? resolvedExternalLinks : existing.externalLinks, externalLinksPending: false }
         : existing
     )
   }
@@ -172,7 +181,7 @@
       <div class="flex flex-col justify-between text-left">
         <p class="px-4 py-2">Title: {item.title}</p>
         <p class="px-4 py-2">Artists: {item.artists.join(', ')}</p>
-        {#if type === 'track'}
+        {#if item.itemType === SearchType.track && item.albumName}
           <p class="px-4 py-2">Album: {item.albumName}</p>
         {/if}
         <p class="px-4 py-2">Release Date: {item.releaseDate}</p>

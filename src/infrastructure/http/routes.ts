@@ -21,6 +21,10 @@ router.get('/qobuz/discover', [HomeController, 'qobuz']).as('qobuz.discover')
 router.get('/qobuz/user-library', [HomeController, 'qobuz']).as('qobuz.library')
 router.get('/qobuz/user-library/:section', [HomeController, 'qobuz']).as('qobuz.library.section')
 router.get('/qobuz/album/:id', [HomeController, 'qobuz']).as('qobuz.album')
+router
+  .get('/qobuz/search/:category', [HomeController, 'qobuz'])
+  .where('category', /^(all|albums|tracks|artists|playlists)$/)
+  .as('qobuz.search')
 
 router.post('/api/link/metadata', [LinkController, 'metadata'])
 

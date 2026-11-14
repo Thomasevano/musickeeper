@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
-  import { page } from '@inertiajs/svelte'
+  import { page, router } from '@inertiajs/svelte'
   import Disc3 from '@lucide/svelte/icons/disc-3'
   import Check from '@lucide/svelte/icons/check'
   import Trash2 from '@lucide/svelte/icons/trash-2'
   import ExternalLink from '@lucide/svelte/icons/external-link'
-  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
+  import { listenLaterStorage, type NewListenLaterItem } from '../../src/infrastructure/storage/listen_later_storage'
   import type { ListenLaterItem } from '../../src/domain/music_item'
-  import { conceptId, qobuzCatalog, toNewListenLaterItem, type QobuzCatalogItem } from '~/lib/qobuz_concept'
+  import { conceptId, introductionPlaylist, qobuzCatalog, toNewListenLaterItem, type QobuzCatalogItem } from '~/lib/qobuz_concept'
+  import QobuzSearch from '$components/qobuz/QobuzSearch.svelte'
 
   const sections = [
     { id: 'all', label: 'Tout', icon: 'userLibrary' },
@@ -24,12 +25,15 @@
     ['Jynweythek', '02:23'], ['Vordhosbn', '04:51'], ['Kladfvgbung Mischk', '02:06'],
     ['Omgyjya-Switch7', '04:52'], ['Strotha Tynhe', '02:12'],
   ]
-  let path = $state((page.url || '/qobuz').split('?')[0])
+  const path = $derived((page.url || '/qobuz').split('?')[0])
   let query = $state('')
   let libraryQuery = $state('')
   let sort = $state('date')
   let layout = $state<'grid' | 'list'>('grid')
   let listenedFilter = $state<'all' | 'pending' | 'listened'>('all')
+  let typeFilter = $state<'all' | 'album' | 'playlist' | 'track'>('all')
+  let searchReturnHref = $state('/qobuz/discover')
+  let searchTimer: ReturnType<typeof setTimeout> | undefined
   let items = $state<ListenLaterItem[]>([])
   let loading = $state(true)
   let ready = $state(false)
@@ -42,6 +46,49 @@
   let retrying = $state(false)
 
   const isDiscover = $derived(path === '/qobuz/discover')
+  const isSearch = $derived(path.startsWith('/qobuz/search/'))
+  type SearchCategory = 'all' | 'albums' | 'tracks' | 'artists' | 'playlists'
+  const searchCategory = $derived(path.split('/')[3] as SearchCategory)
+  const routeParams = $derived(new URL(page.url || '/qobuz', 'https://local.invalid').searchParams)
+  const activeSearchQuery = $derived((routeParams.get('q') || '').trim())
+  const artistOnly = $derived(routeParams.get('field') === 'artist')
+  $effect(() => {
+    query = activeSearchQuery
+    const type = routeParams.get('type')
+    typeFilter = type === 'album' || type === 'track' || type === 'playlist' ? type : 'all'
+    const from = routeParams.get('from')
+    if (from) {
+      try {
+        const target = new URL(from, 'https://local.invalid')
+        if (target.origin === 'https://local.invalid' && (target.pathname === '/qobuz' || target.pathname.startsWith('/qobuz/')) && !target.pathname.startsWith('/qobuz/search/')) {
+          searchReturnHref = `${target.pathname}${target.search}`
+        }
+      } catch { /* Invalid return locations never leave the PoC. */ }
+    }
+    menuId = null
+    clearTimeout(searchTimer)
+  })
+  function visitSearch(value: string, artistMode = artistOnly) {
+    clearTimeout(searchTimer)
+    if (!isSearch) searchReturnHref = page.url.startsWith('/qobuz') ? page.url : '/qobuz/discover'
+    const params = new URLSearchParams({ q: value.trim(), from: searchReturnHref })
+    if (artistMode) params.set('field', 'artist')
+    const options = { url: `/qobuz/search/all?${params}`, preserveState: true, preserveScroll: false }
+    if (isSearch) router.replace(options)
+    else router.push(options)
+  }
+  function scheduleSearch(value: string) {
+    clearTimeout(searchTimer)
+    if (!isSearch && value.trim().length < 3) return
+    searchTimer = setTimeout(() => visitSearch(value), 600)
+  }
+  function filterByType(value: string) {
+    if (!['all', 'album', 'track', 'playlist'].includes(value)) return
+    const params = new URLSearchParams(routeParams)
+    if (value === 'all') params.delete('type')
+    else params.set('type', value)
+    router.replace({ url: `${path}${params.size ? `?${params}` : ''}`, preserveState: true, preserveScroll: true })
+  }
   const albumId = $derived(path.startsWith('/qobuz/album/') ? decodeURIComponent(path.slice('/qobuz/album/'.length)) : '')
   const album = $derived(qobuzCatalog.find((item) => item.id === albumId))
   const isAlbum = $derived(path.startsWith('/qobuz/album/'))
@@ -53,10 +100,12 @@
     | { kind: 'playlist'; title: string; artist: string; date: number }
     | { kind: 'saved'; title: string; artist: string; date: number; item: ListenLaterItem }
   const nativeAlbumSaved = $derived(items.some((item) => item.id === conceptId(drukqs)))
+  const nativePlaylistSaved = $derived(items.some((item) => item.id === introductionPlaylist.id))
+  const savedIds = $derived(new Set(items.map((item) => item.id)))
   const counts = $derived({
-    all: 2 + items.length - (nativeAlbumSaved ? 1 : 0),
+    all: 2 + items.length - (nativeAlbumSaved ? 1 : 0) - (nativePlaylistSaved ? 1 : 0),
     'listen-later': items.length,
-    playlists: 1,
+    playlists: 1 + items.filter((item) => item.itemType === 'playlist' && item.id !== introductionPlaylist.id).length,
     tracks: items.filter((item) => item.itemType === 'track').length,
     releases: 1 + items.filter((item) => item.itemType === 'album' && item.id !== conceptId(drukqs)).length,
     artists: 2,
@@ -66,12 +115,14 @@
   const visibleEntries = $derived.by(() => {
     const result: LibraryEntry[] = []
     if (section === 'all' || section === 'releases') result.push({ kind: 'album', title: drukqs.title, artist: drukqs.artists[0], date: 0 })
-    if (section === 'all' || section === 'playlists') result.push({ kind: 'playlist', title: 'An Introduction to Qobuz', artist: 'Qobuz UK', date: 0 })
+    if (section === 'all' || section === 'playlists') result.push({ kind: 'playlist', title: introductionPlaylist.title, artist: introductionPlaylist.artists[0], date: 0 })
     for (const item of items) {
-      if (!['all', 'listen-later', 'tracks', 'releases'].includes(section)) continue
-      if (section !== 'listen-later' && item.id === conceptId(drukqs)) continue
+      if (!['all', 'listen-later', 'tracks', 'releases', 'playlists'].includes(section)) continue
+      if (section !== 'listen-later' && (item.id === conceptId(drukqs) || item.id === introductionPlaylist.id)) continue
       if (section === 'tracks' && item.itemType !== 'track') continue
       if (section === 'releases' && item.itemType !== 'album') continue
+      if (section === 'playlists' && item.itemType !== 'playlist') continue
+      if (section === 'listen-later' && typeFilter !== 'all' && item.itemType !== typeFilter) continue
       if (section === 'listen-later' && listenedFilter !== 'all' && item.hasBeenListened !== (listenedFilter === 'listened')) continue
       result.push({ kind: 'saved', title: item.title, artist: (item.artists || []).join(' · '), date: new Date(item.addedAt).getTime() || 0, item })
     }
@@ -90,15 +141,13 @@
     finally { loading = false; retrying = false }
   }
   onMount(() => {
-    path = window.location.pathname
-    query = new URLSearchParams(window.location.search).get('q') || ''
-    const pop = () => { path = window.location.pathname; menuId = null; query = new URLSearchParams(window.location.search).get('q') || ''; libraryQuery = '' }
+    const pop = () => { clearTimeout(searchTimer); menuId = null; libraryQuery = '' }
     const dismissMenu = (event: Event) => { if (menuId && !(event.target instanceof Element && event.target.closest('.action-menu'))) closeMenu(false) }
     window.addEventListener('popstate', pop)
     window.addEventListener('resize', dismissMenu)
     window.addEventListener('scroll', dismissMenu, true)
     void load()
-    return () => { window.removeEventListener('popstate', pop); window.removeEventListener('resize', dismissMenu); window.removeEventListener('scroll', dismissMenu, true) }
+    return () => { clearTimeout(searchTimer); window.removeEventListener('popstate', pop); window.removeEventListener('resize', dismissMenu); window.removeEventListener('scroll', dismissMenu, true) }
   })
   function safeUrl(value?: string): string | undefined {
     if (!value) return undefined
@@ -110,17 +159,19 @@
   }
   function isBusy(id: string) { return busy.includes(id) }
   function isSaved(item: QobuzCatalogItem) { return items.some((saved) => saved.id === conceptId(item)) }
-  async function save(item: QobuzCatalogItem) {
-    const id = conceptId(item)
-    if (!ready || isBusy(id) || isSaved(item)) return
-    busy = [...busy, id]; error = ''
+  async function saveInput(item: NewListenLaterItem): Promise<boolean> {
+    if (!ready || isBusy(item.id) || savedIds.has(item.id)) return false
+    busy = [...busy, item.id]; error = ''
     try {
-      const saved = await listenLaterStorage.add(toNewListenLaterItem(item))
+      const saved = await listenLaterStorage.add(item)
       items = [...items, saved]
       message = `« ${item.title} » ajouté à À écouter plus tard.`
-      if (menuId === item.id) closeMenu()
-    } catch { error = `Impossible d’ajouter « ${item.title} ». Votre liste n’a pas changé.` }
-    finally { busy = busy.filter((value) => value !== id) }
+      return true
+    } catch { error = `Impossible d’ajouter « ${item.title} ». Votre liste n’a pas changé.`; return false }
+    finally { busy = busy.filter((value) => value !== item.id) }
+  }
+  async function save(item: QobuzCatalogItem) {
+    if (await saveInput(toNewListenLaterItem(item)) && menuId === item.id) closeMenu()
   }
   async function toggle(item: ListenLaterItem) {
     if (!ready || isBusy(item.id)) return
@@ -208,9 +259,17 @@
     <nav class="topnav" aria-label="Navigation principale">
       <a class:active={isDiscover} href="/qobuz/discover" aria-label="Découvrir">{@render nativeIcon(isDiscover ? 'discoverActive' : 'discover', 19)} <span>Découvrir</span></a>
       <a href="https://www.qobuz.com/fr-fr/magazine" target="_blank" rel="noopener noreferrer" aria-label="Magazine">{@render nativeIcon('booklet', 19)} <span>Magazine</span></a>
-      <a class:active={!isDiscover && !isAlbum} href="/qobuz/user-library" aria-label="Bibliothèque">{@render nativeIcon(!isDiscover && !isAlbum ? 'userLibraryActive' : 'userLibrary', 19)} <span>Bibliothèque</span></a>
+      <a class:active={!isDiscover && !isAlbum && !isSearch} href="/qobuz/user-library" aria-label="Bibliothèque">{@render nativeIcon(!isDiscover && !isAlbum && !isSearch ? 'userLibraryActive' : 'userLibrary', 19)} <span>Bibliothèque</span></a>
     </nav>
-    <form class="global-search" action="/qobuz/discover" method="get"><label class="sr-only" for="global-search">Rechercher dans les nouveautés</label>{@render nativeIcon('search', 18)}<input id="global-search" name="q" type="search" placeholder="Rechercher" bind:value={query} /><button type="submit" aria-label="Lancer la recherche">{@render nativeIcon('search', 16)}</button></form>
+    <form class="global-search" role="search" aria-label="Recherche musicale" action="/qobuz/search/all" method="get" onsubmit={(event) => { event.preventDefault(); visitSearch(query) }}>
+      <label class="sr-only" for="global-search">Recherche</label>
+      <button type="submit" aria-label="Lancer la recherche">{@render nativeIcon('search', 18)}</button>
+      <input id="global-search" name="q" type="search" placeholder="Rechercher" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="global-search-help" bind:value={query} oninput={(event) => scheduleSearch(event.currentTarget.value)} />
+      <span class="sr-only" id="global-search-help">Albums et titres MusicBrainz. Trois caractères minimum.</span>
+      {#if artistOnly}<input type="hidden" name="field" value="artist" />{/if}
+      <input type="hidden" name="from" value={isSearch ? searchReturnHref : page.url} />
+      {#if query}<button type="button" aria-label="Effacer la recherche" onclick={() => { query = ''; visitSearch(''); document.getElementById('global-search')?.focus() }}>{@render nativeIcon('close', 14)}</button>{/if}
+    </form>
     <button class="avatar" disabled title="Compte indisponible dans ce concept" aria-label="Compte de démonstration indisponible">D</button>
   </header>
   <div class="disclosure">Concept indépendant et non officiel · liste enregistrée uniquement sur cet appareil · aucune lecture ni connexion au compte</div>
@@ -218,7 +277,11 @@
   <div class="sr-only" role="status" aria-live="polite">{message}</div>
   {#if message}<div class="toast">{message}<button aria-label="Fermer" onclick={() => message = ''}>×</button></div>{/if}
 
-  {#if isDiscover}
+  {#if isSearch}
+    <main id="main" tabindex="-1" class="search-page">
+      <QobuzSearch query={activeSearchQuery} category={searchCategory} {artistOnly} returnHref={searchReturnHref} {savedIds} busyIds={busy} ready={ready && query.trim() === activeSearchQuery} onSave={saveInput} onArtistOnlyChange={(enabled) => visitSearch(activeSearchQuery, enabled)} />
+    </main>
+  {:else if isDiscover}
     <main id="main" tabindex="-1" class="discover">
       <div class="discover-title"><h1>Découvrir</h1><button class="icon-button" disabled title="Filtres Qobuz indisponibles dans cette sélection" aria-label="Filtres indisponibles">{@render nativeIcon('filter', 20)}</button></div>
       <div class="discover-heading"><div><h2>Nouveautés</h2><p>Sélectionnées par Qobuz.</p></div><button disabled title="Cette sélection statique contient dix albums">Voir tout ›</button></div>
@@ -251,17 +314,44 @@
           <div class="view-buttons" aria-label="Affichage"><button class:selected={layout === 'list'} aria-label="Affichage en liste" aria-pressed={layout === 'list'} onclick={() => layout = 'list'}>{@render nativeIcon('viewList', 21)}</button><button class:selected={layout === 'grid'} aria-label="Affichage en grille" aria-pressed={layout === 'grid'} onclick={() => layout = 'grid'}>{@render nativeIcon(layout === 'grid' ? 'viewGridFilled' : 'viewGrid', 20)}</button></div>
           <label class="sort"><span class="sr-only">Trier la bibliothèque</span><select bind:value={sort}><option value="date">Date d’ajout ↓</option><option value="title">Titre A–Z</option><option value="artist">Artiste A–Z</option></select></label><button class="icon-button filter" disabled title="Filtres Qobuz indisponibles dans ce concept" aria-label="Filtres indisponibles">{@render nativeIcon('filter', 20)}</button>
         </div>
-        {#if section === 'listen-later'}<div class="list-heading"><div><h2>À écouter plus tard</h2><p>Votre sélection locale · {items.length} {items.length === 1 ? 'élément' : 'éléments'}</p></div><div class="filter-buttons" aria-label="État d’écoute"><button class:selected={listenedFilter === 'all'} aria-pressed={listenedFilter === 'all'} onclick={() => listenedFilter = 'all'}>Tout</button><button class:selected={listenedFilter === 'pending'} aria-pressed={listenedFilter === 'pending'} onclick={() => listenedFilter = 'pending'}>À écouter</button><button class:selected={listenedFilter === 'listened'} aria-pressed={listenedFilter === 'listened'} onclick={() => listenedFilter = 'listened'}>Écouté</button></div></div>{/if}
+        {#if section === 'listen-later'}
+          <div class="list-heading">
+            <div><h2>À écouter plus tard</h2><p>Votre sélection locale · {visibleEntries.length}{visibleEntries.length !== items.length ? ` sur ${items.length}` : ''} {visibleEntries.length > 1 ? 'éléments' : 'élément'}</p></div>
+            <div class="list-filters">
+              <label class="sr-only" for="content-type">Type de contenu</label>
+              <select id="content-type" class="type-filter" bind:value={typeFilter} onchange={(event) => filterByType(event.currentTarget.value)}>
+                <option value="all">Tous les contenus</option>
+                <option value="album">Albums</option>
+                <option value="playlist">Playlists</option>
+                <option value="track">Chansons</option>
+              </select>
+              <div class="filter-buttons" aria-label="État d’écoute">
+                <button class:selected={listenedFilter === 'all'} aria-pressed={listenedFilter === 'all'} onclick={() => listenedFilter = 'all'}>Tout</button>
+                <button class:selected={listenedFilter === 'pending'} aria-pressed={listenedFilter === 'pending'} onclick={() => listenedFilter = 'pending'}>À écouter</button>
+                <button class:selected={listenedFilter === 'listened'} aria-pressed={listenedFilter === 'listened'} onclick={() => listenedFilter = 'listened'}>Écouté</button>
+              </div>
+            </div>
+          </div>
+        {/if}
         {#if loading}<p class="empty">Chargement de votre liste…</p>{:else}
           <div class:row-layout={layout === 'list'} class="library-grid">
             {#each visibleEntries as entry}
               {#if entry.kind === 'album'}{@render catalogCard(drukqs)}
-              {:else if entry.kind === 'playlist'}<article class="music-card"><div class="playlist-cover"><img src="/qobuz-concept/introduction.jpg" alt="" /></div><div class="card-text"><strong class="card-title">An Introduction to Qobuz</strong><p>Playlist · Par Qobuz UK</p></div></article>
+              {:else if entry.kind === 'playlist'}
+                <article class="music-card" aria-label={`${introductionPlaylist.title} par ${introductionPlaylist.artists.join(', ')}`}>
+                  <div class="playlist-cover">
+                    <img src={introductionPlaylist.coverArt} alt="" />
+                    <button class="playlist-save" disabled={!ready || isBusy(introductionPlaylist.id) || savedIds.has(introductionPlaylist.id)} aria-label={savedIds.has(introductionPlaylist.id) ? 'An Introduction to Qobuz est déjà dans À écouter plus tard' : 'Ajouter An Introduction to Qobuz à écouter plus tard'} onclick={() => saveInput(introductionPlaylist)}>
+                      {@render nativeIcon('time', 20)}
+                    </button>
+                  </div>
+                  <div class="card-text"><strong class="card-title">{introductionPlaylist.title}</strong><p>Playlist · Par Qobuz UK</p></div>
+                </article>
               {:else}
               {@const item = entry.item}
               {@const cover = safeUrl(item.coverArt)}
               {@const link = safeUrl(item.sourceUrl) || safeUrl(item.externalLinks?.find((value) => safeUrl(value.url))?.url)}
-              <article class="music-card saved-card" aria-label={`${item.title} par ${(item.artists || []).join(', ')}`}><div class="cover-wrap">{#if cover}<img src={cover} alt="" loading="lazy" />{:else}<div class="blank"><Disc3 size={34} /></div>{/if}</div><div class="card-text"><strong class="card-title">{item.title}</strong><p>{item.itemType === 'track' ? 'Titre' : 'Album'} · {(item.artists || []).join(' · ')}</p><p>{item.hasBeenListened ? 'Écouté' : 'À écouter'}</p><div class="saved-actions"><button disabled={!ready || isBusy(item.id)} onclick={() => toggle(item)} aria-label={`Marquer ${item.title} ${item.hasBeenListened ? 'à écouter' : 'écouté'}`}><Check size={15} /> {item.hasBeenListened ? 'À écouter' : 'Écouté'}</button><button disabled={!ready || isBusy(item.id)} onclick={() => remove(item)} aria-label={`Retirer ${item.title} de À écouter plus tard`}><Trash2 size={15} /></button>{#if link}<a href={link} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${item.title} dans un nouvel onglet`}><ExternalLink size={15} /></a>{/if}</div></div></article>
+              <article class="music-card saved-card" aria-label={`${item.title} par ${(item.artists || []).join(', ')}`}><div class="cover-wrap">{#if cover}<img src={cover} alt="" loading="lazy" />{:else}<div class="blank"><Disc3 size={34} /></div>{/if}</div><div class="card-text"><strong class="card-title">{item.title}</strong><p>{item.itemType === 'track' ? 'Titre' : item.itemType === 'playlist' ? 'Playlist' : 'Album'} · {(item.artists || []).join(' · ')}</p><p>{item.hasBeenListened ? 'Écouté' : 'À écouter'}</p><div class="saved-actions"><button disabled={!ready || isBusy(item.id)} onclick={() => toggle(item)} aria-label={`Marquer ${item.title} ${item.hasBeenListened ? 'à écouter' : 'écouté'}`}><Check size={15} /> {item.hasBeenListened ? 'À écouter' : 'Écouté'}</button><button disabled={!ready || isBusy(item.id)} onclick={() => remove(item)} aria-label={`Retirer ${item.title} de À écouter plus tard`}><Trash2 size={15} /></button>{#if link}<a href={link} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${item.title} dans un nouvel onglet`}><ExternalLink size={15} /></a>{/if}</div></div></article>
               {/if}
             {/each}
           </div>
@@ -344,4 +434,22 @@
   .player-seek { position: absolute; top: -5px; left: 0; width: 100%; height: 3px; margin: 0; accent-color: #777; }
   @media (max-width: 800px) { .sidebar { width: 180px; flex-basis: 180px; }.library-main { padding-left: 16px; }.account-filters { gap: 3px; }.account-filters button { width: 35px; }.player { grid-template-columns: 1fr 1fr; }.player-time, .player-output { display: none; } }
   @media (max-width: 560px) { .sidebar { width: 100%; }.sidebar h1 { margin: 0 0 12px; }.sidebar-utilities { display: none; }.library-main { padding: 12px; }.account-filters { display: none; }.cover-actions { opacity: 1; }.cover-actions > button { display: none; }.hero-actions { flex-wrap: wrap; gap: 8px; } }
+  .search-page { min-width: 0; }
+  .global-search input, .library-search input { font-size: 16px; }
+  .global-search input::-webkit-search-cancel-button { appearance: none; }
+  .global-search:focus-within, .library-search:focus-within { outline: 2px solid #ccc; outline-offset: 2px; }
+  .global-search { min-height: 44px; }
+  .global-search button { min-width: 44px; min-height: 44px; }
+  .list-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .type-filter { font: inherit; min-height: 44px; border: 1px solid #454545; border-radius: 6px; padding: 0 12px; background: #242424; color: #fff; max-width: 100%; }
+  .playlist-cover { position: relative; }
+  .playlist-save { position: absolute; right: 12px; bottom: 12px; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid #555; border-radius: 50%; background: #242424; color: #fff; }
+  .playlist-save:disabled { opacity: .55; }
+  @media (max-width: 560px) { .list-filters { width: 100%; gap: 8px; }.type-filter { min-height: 44px; flex: 1; } }
+  @media (max-width: 560px) {
+    .topbar { height: auto; min-height: 56px; flex-wrap: wrap; padding: 6px 12px; gap: 6px 10px; }
+    .global-search { order: 1; flex: 1 0 100%; width: 100%; min-width: 0; margin-left: 0; padding: 0 8px; gap: 8px; }
+    .global-search input { min-width: 120px; }
+    .avatar { margin-left: auto; }
+  }
 </style>

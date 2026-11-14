@@ -5,7 +5,17 @@
   import { trackQualifyingActivity } from '~/lib/analytics'
   type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
   let { item, describedBy }: { item: PendingListenLaterItem; describedBy: string } = $props()
-  const links = $derived(item.externalLinks ?? [])
+  const links = $derived.by(() => {
+    const links = item.externalLinks ?? []
+    if (!item.sourceUrl || links.some((link) => link.url === item.sourceUrl)) return links
+    try {
+      const url = new URL(item.sourceUrl)
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return links
+      return [...links, { platform: 'source', label: 'Original link', url: item.sourceUrl, category: 'stream' as const, source: 'source-url' as const }]
+    } catch {
+      return links
+    }
+  })
   const stream = $derived(links.filter((link) => link.category === 'stream').sort((a, b) => a.label.localeCompare(b.label)))
   const buy = $derived(links.filter((link) => link.category === 'buy').sort((a, b) => a.label.localeCompare(b.label)))
   const linkPresentation = {
@@ -22,15 +32,13 @@
   } as const
 </script>
 
-{#if item.externalLinksPending}
-  <span aria-hidden="true" class="text-muted-foreground text-sm">Fetching links…</span>
-{:else if links.length}
+{#if links.length}
   <div class="flex flex-wrap items-center gap-1">
     {#each [stream, buy] as group, groupIndex}
       {#if groupIndex === 1 && stream.length && buy.length}
         <span class="text-muted-foreground/40 mx-0.5">·</span>
       {/if}
-      {#each group as link (link.platform)}
+      {#each group as link (link.url)}
         {@const presentation = linkPresentation[link.category]}
         {@const Icon = presentation.icon}
         <a
@@ -50,4 +58,6 @@
       {/each}
     {/each}
   </div>
+{:else if item.externalLinksPending}
+  <span aria-hidden="true" class="text-muted-foreground text-sm">Fetching links…</span>
 {/if}
