@@ -1,5 +1,15 @@
 overrides:
-  strtok3: 8.0.1
+  # Security floors for transitive dependencies whose parents still resolve older releases.
+  '@babel/core@>=7.0.0 <7.29.6': ^7.29.6
+  '@babel/plugin-transform-modules-systemjs@>=7.0.0 <7.29.4': ^7.29.4
+  'axios@>=1.0.0 <1.20.0': ^1.20.0
+  'brace-expansion@>=2.0.0 <2.1.7': ^2.1.7
+  'fast-uri@>=3.0.0 <3.1.9': ^3.1.9
+  'follow-redirects@<1.16.2': ^1.16.2
+  'serialize-javascript@>=7.0.0 <7.1.3': ^7.1.3
+  # Patched majors for build tools using glob and the named Minimatch API.
+  'workbox-build>glob': ^14.0.2
+  'minimatch@>=10.0.0 <11.0.1': ^11.0.1
 
 allowBuilds:
   '@biomejs/biome': false
