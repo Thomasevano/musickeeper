@@ -861,7 +861,8 @@ test('both search fields point at the arrow-key hint', async ({ page }) => {
   await page.goto('/library/listen-later')
 
   // Nothing on screen says which key reaches the results.
-  const hint = 'Results appear below as you type. Press the down arrow key to reach them.'
+  const hint =
+    'Results appear after at least two characters in either field. Press the down arrow key to reach them.'
   await expect(page.getByLabel('Song or album title', { exact: true })).toHaveAccessibleDescription(
     hint
   )

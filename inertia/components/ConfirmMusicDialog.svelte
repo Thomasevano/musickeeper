@@ -134,7 +134,7 @@
     matchStatus = 'Searching MusicBrainz…'
     const params = new URLSearchParams({ type: draft.itemType })
     if (draft.title) params.set('q', draft.title)
-    if (draft.artists.length) params.set('artist', draft.artists.join(', '))
+    for (const artist of draft.artists) params.append('artists[]', artist)
     try {
       const response = await appFetch(`/library/listen-later?${params}`, { signal: controller.signal })
       if (!response.ok) throw new Error('Search failed')

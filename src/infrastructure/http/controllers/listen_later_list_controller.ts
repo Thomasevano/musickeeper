@@ -6,9 +6,10 @@ import { SearchType } from '#domain/music_item.js'
 
 const searchQueryValidator = vine.compile(
   vine.object({
-    q: vine.string().trim().minLength(3).optional(),
+    q: vine.string().trim().minLength(1).optional(),
     type: vine.enum(['album', 'track']).optional(),
-    artist: vine.string().trim().minLength(3).optional(),
+    artist: vine.string().trim().minLength(1).optional(),
+    artists: vine.array(vine.string().trim().minLength(1)).minLength(1).optional(),
   })
 )
 
@@ -19,13 +20,10 @@ export default class ListenLaterListController {
   async index({ inertia, request, response }: HttpContext) {
     const payload = await request.validateUsing(searchQueryValidator)
     const searchType = payload.type === 'album' ? SearchType.album : SearchType.track
+    const artist = payload.artists ?? payload.artist
 
-    if (payload.q || payload.artist) {
-      const serializedItems = await this.searchPort.searchItem(
-        payload.q ?? '',
-        searchType,
-        payload.artist
-      )
+    if (payload.q || artist) {
+      const serializedItems = await this.searchPort.searchItem(payload.q ?? '', searchType, artist)
       return response.status(200).header('Content-Type', 'application/json').send({
         serializedItems,
       })
