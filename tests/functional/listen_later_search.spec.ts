@@ -6,7 +6,99 @@ import { GetExternalLinksUseCase } from '#application/use-cases/get_external_lin
 import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
 import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
 
+async function withSearchStub(
+  run: (calls: [string, SearchType, string | undefined][]) => Promise<void>
+) {
+  const calls: [string, SearchType, string | undefined][] = []
+  app.container.swap(SearchPort, () => ({
+    async searchItem(q: string, type: SearchType, artist?: string) {
+      calls.push([q, type, artist])
+      return []
+    },
+  }))
+
+  try {
+    await run(calls)
+  } finally {
+    app.container.restore(SearchPort)
+  }
+}
+
 test.group('Listen later search', () => {
+  for (const { name, query, expected } of [
+    {
+      name: 'a title and short artist',
+      query: { q: 'With or Without You', artist: 'U2' },
+      expected: ['With or Without You', SearchType.track, 'U2'],
+    },
+    {
+      name: 'a short title and artist with an explicit type',
+      query: { q: 'Go', artist: 'The Chemical Brothers', type: 'album' },
+      expected: ['Go', SearchType.album, 'The Chemical Brothers'],
+    },
+    {
+      name: 'an artist only',
+      query: { artist: 'U2' },
+      expected: ['', SearchType.track, 'U2'],
+    },
+    {
+      name: 'a title only',
+      query: { q: 'Go' },
+      expected: ['Go', SearchType.track, undefined],
+    },
+    {
+      name: 'one-character title and artist',
+      query: { q: 'X', artist: 'Y', type: 'track' },
+      expected: ['X', SearchType.track, 'Y'],
+    },
+    {
+      name: 'trimmed title and artist',
+      query: { q: '  Go  ', artist: '  U2  ' },
+      expected: ['Go', SearchType.track, 'U2'],
+    },
+  ]) {
+    test(`searches with ${name}`, async ({ client, assert }) => {
+      await withSearchStub(async (calls) => {
+        const response = await client
+          .get('/library/listen-later')
+          .header('Accept', 'application/json')
+          .qs(query)
+
+        response.assertStatus(200)
+        response.assertBodyContains({ serializedItems: [] })
+        assert.deepEqual(calls, [expected])
+      })
+    })
+  }
+
+  for (const field of ['q', 'artist'] as const) {
+    for (const value of ['', '   ']) {
+      test(`rejects ${value ? 'whitespace-only' : 'blank'} ${field}`, async ({
+        client,
+        assert,
+      }) => {
+        await withSearchStub(async (calls) => {
+          const response = await client
+            .get('/library/listen-later')
+            .header('Accept', 'application/json')
+            .qs({ [field]: value })
+
+          response.assertStatus(422)
+          assert.deepEqual(calls, [])
+        })
+      })
+    }
+  }
+
+  test('renders the initial page without searching', async ({ client, assert }) => {
+    await withSearchStub(async (calls) => {
+      const response = await client.get('/library/listen-later')
+
+      response.assertStatus(200)
+      assert.deepEqual(calls, [])
+    })
+  })
+
   test('rejects an unsupported search type before searching', async ({ client }) => {
     const response = await client
       .get('/library/listen-later')
