@@ -2,7 +2,6 @@
   import { tick, untrack } from 'svelte'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
   import { Select } from '$lib/components/ui/select/index.js'
-  import { Badge } from '$lib/components/ui/badge/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
   import CoverArt from '~/components/CoverArt.svelte'
@@ -142,10 +141,10 @@
       const result = await response.json()
       if (controller.signal.aborted || matchController !== controller) return
       candidates = result.serializedItems.filter((candidate: MusicItem) => candidate.itemType === selectedType)
-      matchStatus = candidates.length ? 'Choose a candidate to review corrections.' : 'No MusicBrainz matches found. Your metadata is unchanged.'
+      matchStatus = candidates.length ? 'Choose a match to review.' : 'No MusicBrainz matches found. You can edit the details or save without a match.'
     } catch {
       if (controller.signal.aborted || matchController !== controller) return
-      matchStatus = 'MusicBrainz search failed. Your metadata is unchanged. You can retry or save without matching.'
+      matchStatus = 'MusicBrainz search failed. Retry or save without a match.'
     } finally {
       if (matchController === controller) isMatching = false
     }
@@ -200,7 +199,7 @@
   >
     <Dialog.Header class="min-w-0 pe-12 text-start">
       <Dialog.Title>{isLoading ? 'Processing Link' : error && !draft ? 'Error' : duplicate ? 'Duplicate Found' : 'Add to Listen Later'}</Dialog.Title>
-      <Dialog.Description>Review platform metadata. MusicBrainz matching is optional.</Dialog.Description>
+      <Dialog.Description>Check the title and artist before saving.</Dialog.Description>
     </Dialog.Header>
     <p class="sr-only" role="status">{isLoading || error ? '' : duplicate ? 'Duplicate found. An item with the same title and the same artists is already in your list.' : draft ? 'Music information ready. Review before adding.' : ''}</p>
     {#if isLoading}
@@ -221,9 +220,13 @@
           <p>Existing item in your list: {duplicate.title} — {duplicate.artists.join(', ')}</p>
         </div>
       {/if}
-      <div class="flex items-center gap-4">
+      <div class="flex min-w-0 items-center gap-4">
         <CoverArt src={draft?.coverArt} alt={'Cover of ' + (draft?.title ?? '')} size="sm" class="confirmation-cover shrink-0" />
-        <Badge variant="outline">{musicBrainzId ? 'MusicBrainz Match' : 'From Link'}</Badge>
+        <div class="min-w-0">
+          <p class="font-semibold">{draft.title}</p>
+          <p class="text-sm text-muted-foreground">{draft.artists.join(', ')}</p>
+          {#if musicBrainzId}<p class="mt-1 text-xs text-muted-foreground">MusicBrainz match</p>{/if}
+        </div>
       </div>
       <fieldset disabled={isSaving} class="min-w-0 space-y-3 [&_button]:min-h-11">
         <div class="space-y-1"><label for="edit-title" class="text-sm font-medium">Title</label>
@@ -258,10 +261,10 @@
               <option value={SearchType.track}>Track</option><option value={SearchType.album}>Album</option>
             </Select></div>
         {/if}
-        <section aria-labelledby="matching-heading" class="space-y-3 rounded-lg border bg-muted/30 p-3 sm:p-4">
+        <section aria-labelledby="matching-heading" class="space-y-3 border-t pt-4">
           <div class="space-y-1">
             <h3 id="matching-heading" class="font-semibold">Match with MusicBrainz <span class="text-sm font-normal text-muted-foreground">(optional)</span></h3>
-            <p class="text-sm text-muted-foreground">Find the right recording to fill in or correct its details. Nothing changes until you apply.</p>
+            <p class="text-sm text-muted-foreground">Review a match before applying its details.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <Button
@@ -279,16 +282,16 @@
           </div>
           <p role="status" aria-busy={isMatching} class="text-sm text-muted-foreground">{matchStatus}</p>
           {#if candidates.length}
-            <ul aria-label="MusicBrainz candidates" class="max-h-64 space-y-2 overflow-y-auto overscroll-contain p-1">
+            <ul aria-label="MusicBrainz candidates" class="max-h-64 divide-y overflow-y-auto overscroll-contain border-y">
               {#each candidates as candidate (candidate.id)}
                 <li>
-                  <Button variant="outline" class={['h-auto min-h-11 w-full justify-start gap-3 whitespace-normal p-3 text-left md:h-auto', selectedCandidate?.id === candidate.id ? 'border-primary bg-muted ring-1 ring-primary' : ''].join(' ')} onclick={() => { selectedCandidate = candidate; useCandidateCover = false }} aria-pressed={selectedCandidate?.id === candidate.id}>
+                  <Button variant="ghost" class={['h-auto min-h-11 w-full justify-start gap-3 whitespace-normal rounded-none border-l-2 p-3 text-left focus-visible:ring-inset md:h-auto', selectedCandidate?.id === candidate.id ? 'border-primary bg-muted' : 'border-transparent'].join(' ')} onclick={() => { selectedCandidate = candidate; useCandidateCover = false }} aria-pressed={selectedCandidate?.id === candidate.id}>
                     <CoverArt src={candidate.coverArt} alt="" size="sm" class="shrink-0" />
                     <span class="min-w-0 flex-1 space-y-1">
                       <span class="block font-semibold">{candidate.title}</span>
                       <span class="block text-sm">{candidate.artists.join(', ') || 'Unknown artist'}</span>
                       <span class="block text-xs text-muted-foreground">{candidate.albumName || 'Unknown album'} · {candidate.releaseDate || 'Unknown date'}</span>
-                      <span class="block text-xs font-medium">{selectedCandidate?.id === candidate.id ? 'Selected for review' : 'Review this match'}</span>
+                      <span class="block min-h-4 text-xs font-medium">{selectedCandidate?.id === candidate.id ? 'Selected for review' : ''}</span>
                     </span>
                   </Button>
                 </li>
@@ -297,12 +300,9 @@
           {/if}
           {#if proposed}
             <section aria-label="Proposed corrections" class="space-y-4 border-t pt-4">
-              <div class="space-y-1">
-                <h4 class="font-semibold">Review changes</h4>
-                <p class="text-sm text-muted-foreground">Only the differences are shown. Your item is not changed yet.</p>
-              </div>
+              <h4 class="font-semibold">Review changes</h4>
               {#if corrections.length || artistsChanged}
-                <dl class="space-y-3">
+                <dl class="divide-y">
                   {#if artistsChanged}
                     <div class="py-3 first:pt-0 last:pb-0">
                       <dt class="mb-2 text-sm font-semibold">Artists</dt>
@@ -321,7 +321,7 @@
                     </div>
                   {/if}
                   {#each corrections as [label, current, next]}
-                    <div class="rounded-md border bg-background p-3">
+                    <div class="py-3 first:pt-0 last:pb-0">
                       <dt class="mb-2 text-sm font-semibold">{label}</dt>
                       <dd class="grid min-w-0 gap-3 sm:grid-cols-2">
                         <div><span class="mb-1 block text-xs text-muted-foreground">Current</span><span class="text-sm">{current || 'Not available'}</span></div>
@@ -331,12 +331,11 @@
                   {/each}
                 </dl>
               {:else}
-                <p class="text-sm">The text details already match. Applying will link this item to MusicBrainz.</p>
+                <p class="text-sm">The details match. Apply to link this item to MusicBrainz.</p>
               {/if}
               {#if selectedCandidate?.coverArt && selectedCandidate.coverArt !== draft.coverArt}
                 <fieldset class="space-y-2">
                   <legend class="mb-2 text-sm font-semibold">Cover artwork</legend>
-                  <p class="text-sm text-muted-foreground">Choose which cover to use when applying this match.</p>
                   <div class="grid grid-cols-2 gap-3">
                     {#if draft.coverArt}
                       <label class="flex min-w-0 cursor-pointer flex-col gap-2 rounded-md border bg-background p-3">
@@ -351,7 +350,7 @@
                   </div>
                 </fieldset>
               {/if}
-              <p class="text-xs text-muted-foreground">Your source link and item type stay unchanged. An existing platform album is kept.</p>
+              <p class="text-xs text-muted-foreground">Keeps your source link and item type. Uses the original platform album when available.</p>
               <Button onclick={applyCorrections}>Apply corrections</Button>
             </section>
           {/if}

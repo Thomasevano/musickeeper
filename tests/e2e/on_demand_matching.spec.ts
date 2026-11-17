@@ -154,6 +154,44 @@ test('a comma in one credit is distinct from two credits in preview and duplicat
   )
 })
 
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1280, height: 900 },
+]) {
+  test(`selecting matches keeps candidate rows stable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.route('**/library/listen-later?**', (route) =>
+      route.fulfill({ json: { serializedItems: candidates } })
+    )
+    await paste(page)
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
+    const firstMatch = dialog.getByRole('button', { name: /Corrected title/ })
+    const secondMatch = dialog.getByRole('button', { name: /Other recording/ })
+    await expect(secondMatch).toBeVisible()
+    const rows = dialog.getByRole('list', { name: 'MusicBrainz candidates' }).getByRole('listitem')
+    const initialGeometry = await rows.evaluateAll((items) =>
+      items.map((item) => ({
+        height: item.getBoundingClientRect().height,
+        top: (item as HTMLElement).offsetTop,
+      }))
+    )
+
+    for (const match of [firstMatch, secondMatch, firstMatch]) {
+      await match.click()
+      await expect(match).toHaveAttribute('aria-pressed', 'true')
+      expect(
+        await rows.evaluateAll((items) =>
+          items.map((item) => ({
+            height: item.getBoundingClientRect().height,
+            top: (item as HTMLElement).offsetTop,
+          }))
+        )
+      ).toEqual(initialGeometry)
+    }
+  })
+}
+
 test('a chosen MusicBrainz cover changes only on Apply and survives reload', async ({ page }) => {
   await page.route('**/library/listen-later?**', (route) =>
     route.fulfill({ json: { serializedItems: candidates } })
@@ -541,12 +579,11 @@ test('keyboard cancelling a pending search returns focus to enabled matching act
 })
 
 for (const { outcome, status, message } of [
-  { outcome: 'success', status: 200, message: 'Choose a candidate to review corrections.' },
+  { outcome: 'success', status: 200, message: 'Choose a match to review.' },
   {
     outcome: 'failure',
     status: 503,
-    message:
-      'MusicBrainz search failed. Your metadata is unchanged. You can retry or save without matching.',
+    message: 'MusicBrainz search failed. Retry or save without a match.',
   },
 ]) {
   test(`keyboard focus survives matching ${outcome} and busy activation cannot duplicate requests`, async ({
