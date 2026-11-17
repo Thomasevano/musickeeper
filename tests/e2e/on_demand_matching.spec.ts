@@ -108,13 +108,15 @@ test('candidate selection previews corrections; only Apply changes the draft; as
   })
 })
 
-test('a comma in one credit is distinct from two credits in preview and duplicate detection', async ({
+test('a comma in one credit is distinct from two credits when searching, reviewing and saving', async ({
   page,
 }) => {
   const candidate = { ...candidates[0], title: platformItem.title }
-  await page.route('**/library/listen-later?**', (route) =>
-    route.fulfill({ json: { serializedItems: [candidate] } })
-  )
+  const searchCredits: string[][] = []
+  await page.route('**/library/listen-later?**', (route) => {
+    searchCredits.push(new URL(route.request().url()).searchParams.getAll('artists[]'))
+    return route.fulfill({ json: { serializedItems: [candidate] } })
+  })
   await page.goto('/library/listen-later')
   await seedListenLaterItems(page, [
     listenLaterSeed({
@@ -139,6 +141,9 @@ test('a comma in one credit is distinct from two credits in preview and duplicat
   await expect(lists.nth(1).getByRole('listitem')).toHaveText(['Tyler, The Creator'])
   await dialog.getByRole('button', { name: 'Apply corrections' }).click()
   await expect(dialog.getByRole('heading', { name: 'Add to Listen Later' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
+  await expect(dialog.getByRole('button', { name: /Tyler, The Creator/ })).toBeVisible()
+  expect(searchCredits).toEqual([['Tyler', 'The Creator'], ['Tyler, The Creator']])
   await add.press('Enter')
   await expect(second).toBeFocused()
   await dialog.getByRole('button', { name: 'Remove artist 2' }).press('Enter')
@@ -510,7 +515,7 @@ test('current edits drive search; Apply rechecks Duplicate against reviewed meta
   const request = await requested
   const query = new URL(request.url()).searchParams
   expect(query.get('q')).toBe('Edited search title')
-  expect(query.get('artist')).toBe('Edited search artist')
+  expect(query.getAll('artists[]')).toEqual(['Edited search artist'])
   expect(query.get('type')).toBe('track')
   await dialog.getByRole('button', { name: /Corrected title/ }).click()
   await expect(dialog.getByRole('button', { name: 'Add to List' })).toBeVisible()

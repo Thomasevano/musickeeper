@@ -6,7 +6,152 @@ import { GetExternalLinksUseCase } from '#application/use-cases/get_external_lin
 import { MusicBrainzExternalLinksPort } from '#application/ports/musicbrainz_external_links.port.js'
 import { PlatformSearchPort } from '#application/ports/platform_search.port.js'
 
+async function withSearchStub(
+  run: (calls: Parameters<SearchPort['searchItem']>[]) => Promise<void>
+) {
+  const calls: Parameters<SearchPort['searchItem']>[] = []
+  app.container.swap(SearchPort, () => ({
+    async searchItem(...args: Parameters<SearchPort['searchItem']>) {
+      calls.push(args)
+      return []
+    },
+  }))
+
+  try {
+    await run(calls)
+  } finally {
+    app.container.restore(SearchPort)
+  }
+}
+
 test.group('Listen later search', () => {
+  for (const { name, query, expected } of [
+    {
+      name: 'a title and short artist',
+      query: { q: 'With or Without You', artist: 'U2' },
+      expected: ['With or Without You', SearchType.track, 'U2'],
+    },
+    {
+      name: 'a short title and artist with an explicit type',
+      query: { q: 'Go', artist: 'The Chemical Brothers', type: 'album' },
+      expected: ['Go', SearchType.album, 'The Chemical Brothers'],
+    },
+    {
+      name: 'an artist only',
+      query: { artist: 'U2' },
+      expected: ['', SearchType.track, 'U2'],
+    },
+    {
+      name: 'a title only',
+      query: { q: 'Go' },
+      expected: ['Go', SearchType.track, undefined],
+    },
+    {
+      name: 'one-character title and artist',
+      query: { q: 'X', artist: 'Y', type: 'track' },
+      expected: ['X', SearchType.track, 'Y'],
+    },
+    {
+      name: 'trimmed title and artist',
+      query: { q: '  Go  ', artist: '  U2  ' },
+      expected: ['Go', SearchType.track, 'U2'],
+    },
+  ]) {
+    test(`searches with ${name}`, async ({ client, assert }) => {
+      await withSearchStub(async (calls) => {
+        const response = await client
+          .get('/library/listen-later')
+          .header('Accept', 'application/json')
+          .qs(query)
+
+        response.assertStatus(200)
+        response.assertBodyContains({ serializedItems: [] })
+        assert.deepEqual(calls, [expected])
+      })
+    })
+  }
+
+  test('searches each artist row as a separate MusicBrainz clause, not a display credit', async ({
+    client,
+    assert,
+  }) => {
+    const requests: Array<[string, string | null]> = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      if (url.hostname !== 'musicbrainz.org') return originalFetch(input, init)
+
+      requests.push([url.pathname, url.searchParams.get('query')])
+      return Response.json(
+        url.pathname === '/ws/2/release/' ? { releases: [] } : { recordings: [] }
+      )
+    }
+
+    const title = 'A "quoted" song'
+    const twoCredits = new URLSearchParams({ q: title })
+    twoCredits.append('artists[]', '  Tyler  ')
+    twoCredits.append('artists[]', ' The Creator ')
+    const commaName = new URLSearchParams({ 'q': title, 'artists[]': 'Tyler, The Creator' })
+    const scalar = new URLSearchParams({ q: title, artist: 'Tyler, The Creator' })
+    const album = new URLSearchParams({
+      'type': 'album',
+      'artists[]': String.raw`A "quoted" \ name`,
+    })
+
+    try {
+      for (const query of [twoCredits, commaName, scalar, album, twoCredits]) {
+        const response = await client.get(`/library/listen-later?${query}`)
+        response.assertStatus(200)
+        response.assertBodyContains({ serializedItems: [] })
+      }
+
+      assert.deepEqual(requests, [
+        [
+          '/ws/2/recording/',
+          String.raw`recording:"A \"quoted\" song" AND artistname:"Tyler" AND artistname:"The Creator"`,
+        ],
+        [
+          '/ws/2/recording/',
+          String.raw`recording:"A \"quoted\" song" AND artistname:"Tyler, The Creator"`,
+        ],
+        [
+          '/ws/2/recording/',
+          String.raw`recording:"A \"quoted\" song" AND artist:"Tyler, The Creator"`,
+        ],
+        ['/ws/2/release/', String.raw`artistname:"A \"quoted\" \\ name"`],
+      ])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  for (const field of ['q', 'artist', 'artists[]'] as const) {
+    for (const value of ['', '   ']) {
+      test(`rejects ${value ? 'whitespace-only' : 'blank'} ${field}`, async ({
+        client,
+        assert,
+      }) => {
+        await withSearchStub(async (calls) => {
+          const response = await client
+            .get(`/library/listen-later?${new URLSearchParams({ [field]: value })}`)
+            .header('Accept', 'application/json')
+
+          response.assertStatus(422)
+          assert.deepEqual(calls, [])
+        })
+      })
+    }
+  }
+
+  test('renders the initial page without searching', async ({ client, assert }) => {
+    await withSearchStub(async (calls) => {
+      const response = await client.get('/library/listen-later')
+
+      response.assertStatus(200)
+      assert.deepEqual(calls, [])
+    })
+  })
+
   test('rejects an unsupported search type before searching', async ({ client }) => {
     const response = await client
       .get('/library/listen-later')

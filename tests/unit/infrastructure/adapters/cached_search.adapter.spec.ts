@@ -1,19 +1,23 @@
 import { test } from '@japa/runner'
 import { CachedSearchAdapter } from '#infrastructure/adapters/cached_search.adapter.js'
-import { SearchPort } from '#application/ports/search.port.js'
+import { SearchPort, type SearchArtistFilter } from '#application/ports/search.port.js'
 import { MusicItem, SearchType } from '#domain/music_item.js'
 
 class CountingSearchAdapter extends SearchPort {
-  public calls: Array<{ query: string; type: SearchType; artist?: string }> = []
+  public calls: Array<{ query: string; type: SearchType; artist?: SearchArtistFilter }> = []
 
-  async searchItem(query: string, type: SearchType, artist?: string): Promise<MusicItem[]> {
+  async searchItem(
+    query: string,
+    type: SearchType,
+    artist?: SearchArtistFilter
+  ): Promise<MusicItem[]> {
     this.calls.push({ query, type, artist })
     return [
       new MusicItem({
         id: `${query}-${this.calls.length}`,
         title: query,
         releaseDate: '2020-01-01',
-        artists: [artist ?? 'Someone'],
+        artists: typeof artist === 'string' ? [artist] : [...(artist ?? ['Someone'])],
         itemType: type,
       }),
     ]
@@ -76,16 +80,17 @@ test.group('CachedSearchAdapter', () => {
     assert.equal(inner.calls.length, 2)
   })
 
-  test('treats query, type and artist as distinct cache keys', async ({ assert }) => {
+  test('treats query, type and artist credits as distinct cache keys', async ({ assert }) => {
     const inner = new CountingSearchAdapter()
     const cached = new CachedSearchAdapter(inner, { ttlMs: 60_000, now: makeClock().now })
 
     await cached.searchItem('believer', SearchType.track)
     await cached.searchItem('believer', SearchType.album)
     await cached.searchItem('believer', SearchType.track, 'imagine dragons')
+    await cached.searchItem('believer', SearchType.track, ['imagine dragons'])
     await cached.searchItem('other', SearchType.track)
 
-    assert.equal(inner.calls.length, 4)
+    assert.equal(inner.calls.length, 5)
   })
 
   test('does not let a differently split query and artist collide', async ({ assert }) => {

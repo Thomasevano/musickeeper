@@ -1,4 +1,4 @@
-import { SearchPort } from '#application/ports/search.port.js'
+import { SearchPort, type SearchArtistFilter } from '#application/ports/search.port.js'
 import { MusicItem, type SearchType } from '#domain/music_item.js'
 
 export interface CachedSearchOptions {
@@ -48,7 +48,11 @@ export class CachedSearchAdapter extends SearchPort {
     this.#now = options.now ?? Date.now
   }
 
-  async searchItem(query: string, type: SearchType, artist?: string): Promise<MusicItem[]> {
+  async searchItem(
+    query: string,
+    type: SearchType,
+    artist?: SearchArtistFilter
+  ): Promise<MusicItem[]> {
     const key = JSON.stringify([type, query, artist ?? ''])
     const cached = this.#entries.get(key)
 

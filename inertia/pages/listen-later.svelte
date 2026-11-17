@@ -79,10 +79,11 @@
     controlHeights.default,
   ].join(' ')
 
-  const hasSearchTerm = $derived(debouncedSearch.current.trim().length >= 3)
-  const hasArtist = $derived(debouncedArtist.current.trim().length >= 3)
+  const minLiveSearchLength = 2
+  const hasSearchTerm = $derived(debouncedSearch.current.trim().length >= minLiveSearchLength)
+  const hasArtist = $derived(debouncedArtist.current.trim().length >= minLiveSearchLength)
   const isAboveThreshold = $derived(
-    searchTerm.trim().length >= 3 || artistName.trim().length >= 3
+    searchTerm.trim().length >= minLiveSearchLength || artistName.trim().length >= minLiveSearchLength
   )
 
   let searchAbortController: AbortController | null = null
@@ -98,19 +99,21 @@
         type: searchType,
       })
 
-      if (hasSearchTerm) {
-        params.set('q', debouncedSearch.current)
+      if (debouncedSearch.current.trim()) {
+        params.set('q', debouncedSearch.current.trim())
       }
 
-      if (hasArtist) {
-        params.set('artist', debouncedArtist.current)
+      if (debouncedArtist.current.trim()) {
+        params.set('artist', debouncedArtist.current.trim())
       }
 
       const response = await appFetch(`/library/listen-later?${params.toString()}`, {
         signal: controller.signal,
         headers: { Accept: 'application/json' },
       })
+      if (!response.ok) throw new Error('Search failed')
       const data = await response.json()
+      if (controller.signal.aborted || searchAbortController !== controller) return
       serializedItems = data.serializedItems
     } catch (error) {
       if ((error as Error).name === 'AbortError') return
@@ -163,8 +166,12 @@
     if (hasSearchTerm || hasArtist) {
       handleSearch()
     } else {
+      searchAbortController?.abort()
+      searchAbortController = null
+      isSearching = false
       serializedItems = []
     }
+    return () => searchAbortController?.abort()
   })
 
   // Clear the temporary highlight.
@@ -485,7 +492,7 @@
         <!-- The options carry tabindex="-1" until focused, so Tab never reaches them.
              Nothing on screen says which key does. -->
         <p id="search-hint" class="sr-only">
-          Results appear below as you type. Press the down arrow key to reach them.
+          Results appear after at least two characters in either field. Press the down arrow key to reach them.
         </p>
 
         <!-- Described, not labelled: the option is named by the four lines it
