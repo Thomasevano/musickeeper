@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0](https://github.com/Thomasevano/musickeeper/compare/v0.9.0...v0.10.0) (2026-11-17)
+
+
+### Features
+
+* **analytics:** measure meaningful daily usage ([173f780](https://github.com/Thomasevano/musickeeper/commit/173f78071e86edd908a539b3f8a85dd63c3638c2))
+* notify open tabs of frontend updates ([f2a0dc7](https://github.com/Thomasevano/musickeeper/commit/f2a0dc7439aab988f9b11a99d45965673e1737ca)), closes [#77](https://github.com/Thomasevano/musickeeper/issues/77)
+* wire error pages with Inertia and navigation ([d0c6ca8](https://github.com/Thomasevano/musickeeper/commit/d0c6ca803f38c44b4f077a14e188e74e7f92451e)), closes [#54](https://github.com/Thomasevano/musickeeper/issues/54)
+
+
+### Bug Fixes
+
+* **listen-later:** fit music dialogs on mobile ([dc6099e](https://github.com/Thomasevano/musickeeper/commit/dc6099ebdfe7987e6c16c32a778d4134a1828ff5))
+* **listen-later:** keep mobile actions reachable ([184c5b7](https://github.com/Thomasevano/musickeeper/commit/184c5b75821f3ddb3d876e7dcbb4cd11984d4396)), closes [#49](https://github.com/Thomasevano/musickeeper/issues/49)
+* **listen-later:** target visible highlighted item ([4aeb3ac](https://github.com/Thomasevano/musickeeper/commit/4aeb3ac0bb4ba42f4fc6d71980b624b8f1a28fd5))
+* **ui:** clarify reload button cursor ([02d8b0d](https://github.com/Thomasevano/musickeeper/commit/02d8b0d3ef158a23b111d8e0e971e8348e0888d5))
+* **updates:** preserve lifecycle transitions ([748dfd8](https://github.com/Thomasevano/musickeeper/commit/748dfd894edb8f0cfea15db2c5856cb4252fd112)), closes [#77](https://github.com/Thomasevano/musickeeper/issues/77)
+* **updates:** prevent edits during reload ([9156607](https://github.com/Thomasevano/musickeeper/commit/91566070c0f6a1a412294b8f29bd6ca746d9fa34))
+
 ## [0.9.0](https://github.com/Thomasevano/musickeeper/compare/v0.8.1...v0.9.0) (2026-08-13)
 
 
