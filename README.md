@@ -36,6 +36,8 @@ services:
       - MB_APP_CONTACT_EMAIL= # contact email for MusicBrainz
 ```
 
+Official release images keep production dependencies in a separate layer and normalize its timestamps, so Docker can reuse it when the installed package files stay unchanged.
+
 ### Use Locally
 
 ```bash

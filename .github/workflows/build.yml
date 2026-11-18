@@ -38,13 +38,16 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Build and push image by digest
         id: build
+        env:
+          # Keep identical release layers byte-for-byte stable across build dates.
+          SOURCE_DATE_EPOCH: '0'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true,rewrite-timestamp=true
           cache-from: type=gha,scope=musickeeper-${{ matrix.architecture }}
           cache-to: type=gha,mode=max,scope=musickeeper-${{ matrix.architecture }}
       - name: Export digest

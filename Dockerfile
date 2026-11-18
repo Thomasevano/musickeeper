@@ -19,7 +19,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM base AS production-deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
+# Node follows the package links directly; do not ship pnpm's workspace state.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile \
+    && rm -f node_modules/.modules.yaml node_modules/.pnpm-workspace-state-v1.json
 
 # Build stage
 FROM base AS build
