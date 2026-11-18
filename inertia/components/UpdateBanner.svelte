@@ -4,6 +4,11 @@
   import Button from '$lib/components/ui/button/button.svelte'
   import { appUpdate, prepareReload } from '$lib/app_update.svelte'
   import { hasUnsavedWork, createReloadBarrier } from '$lib/reload_guard'
+  import { library } from '$lib/listen_later.svelte'
+
+  const notice = $derived(library.access === 'outdated'
+    ? 'Your list was updated in another tab. Reload to make changes.'
+    : appUpdate.available ? 'A new version of MusicKeeper is ready.' : '')
 
   let confirming = $state(false)
   let busy = $state(false)
@@ -48,13 +53,13 @@
   }
 </script>
 
-<p role="status" class="sr-only">{appUpdate.available ? 'A new version of MusicKeeper is ready.' : ''}</p>
+<p role="status" class="sr-only">{notice}</p>
 
-{#if appUpdate.available}
+{#if notice}
   <section aria-label="Application update" class="border-y border-border bg-muted/50 px-4 py-3 md:px-12 lg:px-16">
     <div class="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-3">
       <div class="space-y-1 text-sm">
-        <p aria-hidden="true" class="font-medium">A new version of MusicKeeper is ready.</p>
+        <p aria-hidden="true" class="font-medium">{notice}</p>
         <p>Reload when you're ready. Your Listen Later List stays on this device.</p>
       </div>
       <Button bind:ref={reloadButton} variant="outline" class={busy ? 'cursor-wait' : 'cursor-pointer'} aria-disabled={busy} onclick={() => reload()}>

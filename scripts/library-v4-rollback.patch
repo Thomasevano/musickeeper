@@ -1,0 +1,211 @@
+diff --git a/inertia/components/data-table/data-table-links-cell.svelte b/inertia/components/data-table/data-table-links-cell.svelte
+--- a/inertia/components/data-table/data-table-links-cell.svelte
++++ b/inertia/components/data-table/data-table-links-cell.svelte
+@@ -30,7 +30,7 @@
+       {#if groupIndex === 1 && stream.length && buy.length}
+         <span class="text-muted-foreground/40 mx-0.5">·</span>
+       {/if}
+-      {#each group as link (link.platform)}
++      {#each group as link (link.url)}
+         {@const presentation = linkPresentation[link.category]}
+         {@const Icon = presentation.icon}
+         <a
+diff --git a/inertia/components/trackItem.svelte b/inertia/components/trackItem.svelte
+--- a/inertia/components/trackItem.svelte
++++ b/inertia/components/trackItem.svelte
+@@ -1,2 +1,3 @@
+ <script lang="ts">
++  import { nanoid } from 'nanoid'
+   import { Check, Plus } from '@lucide/svelte'
+@@ -41,7 +41,8 @@
+     // Links resolve in the background: the item is saved and on screen first.
+     try {
+       const stored = await trackWrite(() => listenLaterStorage.add({
+-        id: item.id,
++        id: nanoid(),
++        musicBrainzId: item.id,
+         title: item.title,
+         releaseDate: item.releaseDate,
+         length: item.length,
+@@ -59,6 +60,6 @@
+       listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: true }]
+       toast.success(`${musicItemName(item)} added to your list`)
+-      void backfillExternalLinks(item)
++      void backfillExternalLinks(item, stored.id)
+     } catch (error) {
+       console.error('Error adding item to listen later list:', error)
+       toast.error(`Could not add ${musicItemName(item)}`)
+@@ -68,13 +69,13 @@
+   // Link resolution hits third-party APIs and can take seconds. The item is
+   // already saved and on screen by then, so patch it in place when the links
+   // land — and skip the write if the user removed it while we waited.
+-  async function backfillExternalLinks(item: MusicItem) {
++  async function backfillExternalLinks(item: MusicItem, localId: string) {
+     let resolvedExternalLinks: ExternalLink[] = []
+     try {
+       resolvedExternalLinks = await trackWrite(async () => {
+         const links = await fetchExternalLinks(item)
+         if (links.length) {
+-          const updated = await listenLaterStorage.updateExternalLinks(item.id, links)
++          const updated = await listenLaterStorage.updateExternalLinks(localId, links)
+           return updated ? links : []
+         }
+         return links
+@@ -84,33 +85,36 @@
+     }
+ 
+     listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
+-      existing.id === item.id
++      existing.id === localId
+         ? { ...existing, externalLinks: resolvedExternalLinks, externalLinksPending: false }
+         : existing
+     )
+   }
+ 
+-  async function removeFromListenLater(item: MusicItem) {
++  async function removeFromListenLater(item: ListenLaterItem) {
+     try {
+       await trackWrite(() => listenLaterStorage.remove(item.id))
+       trackQualifyingActivity('item_removed')
+       listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== item.id)
+       toast.success(`${musicItemName(item)} removed from your list`)
+     } catch (error) {
+       console.error('Error removing item from listen later list:', error)
+       toast.error(`Could not remove ${musicItemName(item)}`)
+     }
+   }
+ 
++  // Only legacy rows without the v4 field used their primary key as a catalog ID.
++  const savedCopies = $derived(item ? listenLaterItems.filter((saved: ListenLaterItem) =>
++    (Object.hasOwn(saved, 'musicBrainzId') ? saved.musicBrainzId : saved.id) === item.id
++  ) : [])
++
+   function toggleListenLater(item: MusicItem) {
+-    if (listenLaterItems.some((i: ListenLaterItem) => i.id === item.id)) {
+-      removeFromListenLater(item)
++    if (savedCopies.length > 1) {
++      document.getElementById('listen-later-list-heading')?.focus()
++    } else if (savedCopies.length === 1) {
++      void removeFromListenLater(savedCopies[0])
+     } else {
+-      addToListenLater(item)
++      void addToListenLater(item)
+     }
+   }
+-
+-  let isInListenLaterList = $derived(
+-    listenLaterItems.some((i: ListenLaterItem) => i.id === item?.id)
+-  )
+ </script>
+@@ -160,5 +164,5 @@
+   <li
+     role="option"
+-    aria-selected={isInListenLaterList}
+-    aria-describedby={isInListenLaterList ? 'result-remove-hint' : 'result-add-hint'}
++    aria-selected={savedCopies.length > 0}
++    aria-describedby={savedCopies.length > 1 ? undefined : savedCopies.length ? 'result-remove-hint' : 'result-add-hint'}
+     class="cursor-pointer flex items-center p-2 rounded-sm hover:bg-accent hover:text-accent-foreground outline-none focus-visible:bg-accent focus-visible:text-accent-foreground"
+@@ -182,7 +186,10 @@
+         <p class="px-4 py-2">Release Date: {item.releaseDate}</p>
++        {#if savedCopies.length > 1}
++          <p class="px-4 font-medium">View {savedCopies.length} copies in your Listen Later List</p>
++        {/if}
+       </div>
+     </div>
+     <div class="ml-auto" aria-hidden="true">
+-      {#if isInListenLaterList}
++      {#if savedCopies.length > 0}
+         <Check class="size-4" />
+       {:else}
+diff --git a/inertia/pages/listen-later.svelte b/inertia/pages/listen-later.svelte
+--- a/inertia/pages/listen-later.svelte
++++ b/inertia/pages/listen-later.svelte
+@@ -1,2 +1,3 @@
+ <script lang="ts">
++  import { nanoid } from 'nanoid'
+   import * as Alert from '$lib/components/ui/alert/index.js'
+@@ -354,13 +354,17 @@
+     albumName: string
+   ) {
+     if (!pendingMusicItem) return
+     const musicItem = pendingMusicItem
++    const musicBrainzId = pendingSource === 'musicbrainz' ? musicItem.id : undefined
+ 
+     try {
+       const stored = await trackWrite(async () => {
+-        const externalLinks = await fetchExternalLinks(musicItem.id, itemType, linkUrl || undefined)
++        const externalLinks = musicBrainzId
++          ? await fetchExternalLinks(musicBrainzId, itemType, linkUrl || undefined)
++          : []
+         return listenLaterStorage.add({
+-          id: musicItem.id,
++          id: nanoid(),
++          musicBrainzId,
+           title,
+           releaseDate: musicItem.releaseDate,
+           length: musicItem.length,
+@@ -579,5 +583,6 @@
+     <div>
+       {#if listenLaterItems.length > 0}
++        <h2 id="listen-later-list-heading" tabindex="-1" class="mb-4 text-xl font-semibold">Listen Later List</h2>
+         <ListenLaterListTable
+           items={listenLaterItems}
+           onDelete={(item) => (deleteTarget = item)}
+diff --git a/src/domain/music_item.ts b/src/domain/music_item.ts
+--- a/src/domain/music_item.ts
++++ b/src/domain/music_item.ts
+@@ -55,19 +55,22 @@
+   hasBeenListened: boolean
+   addedAt: Date
+   sourceUrl?: string
+   externalLinks?: ExternalLink[]
++  musicBrainzId?: string
+ }
+ 
+ export class ListenLaterItem extends MusicItem {
+   public hasBeenListened: boolean
+   public addedAt: Date
+   public sourceUrl?: string
+   public externalLinks?: ExternalLink[]
++  public musicBrainzId?: string
+   public constructor(props: ListenLaterItemProperties) {
+     super(props)
+     this.hasBeenListened = props.hasBeenListened
+     this.addedAt = props.addedAt
+     this.sourceUrl = props.sourceUrl
+     this.externalLinks = props.externalLinks
++    this.musicBrainzId = props.musicBrainzId
+   }
+ }
+diff --git a/src/infrastructure/storage/listen_later_storage.ts b/src/infrastructure/storage/listen_later_storage.ts
+--- a/src/infrastructure/storage/listen_later_storage.ts
++++ b/src/infrastructure/storage/listen_later_storage.ts
+@@ -7,5 +7,6 @@
+ 
+ const DB_NAME = 'listenLaterDB'
+-const DB_VERSION = 3
++// Keep the version gate even when deploying the previous UI.
++const DB_VERSION = 4
+ const STORE_NAME = 'listenLaterList'
+ 
+@@ -53,6 +54,10 @@
+   const request = indexedDBInstance.open(DB_NAME, DB_VERSION)
+ 
+   request.onerror = () => reject(new Error(`Failed to open database: ${request.error?.message}`))
+-  request.onsuccess = () => resolve(request.result)
++  request.onsuccess = () => {
++    const database = request.result
++    database.onversionchange = () => database.close()
++    resolve(database)
++  }
+ 
+   request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+@@ -170,7 +175,8 @@
+     coverArt: input.coverArt,
+     hasBeenListened: false,
+     addedAt,
+     sourceUrl: input.sourceUrl,
+     externalLinks: (input.externalLinks ?? []).map((link) => ({ ...link })),
++    musicBrainzId: input.musicBrainzId,
+   }
+ 

@@ -6,7 +6,7 @@
   import CoverArt from '~/components/CoverArt.svelte'
   import Skeleton from 'boneyard-js/svelte'
   import { toast } from 'svelte-sonner'
-  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
+  import { listenLaterStorage } from '~/lib/listen_later.svelte'
   import { trackQualifyingActivity } from '~/lib/analytics'
   import { appFetch } from '~/lib/app_update.svelte'
   import { trackWrite } from '~/lib/reload_guard'

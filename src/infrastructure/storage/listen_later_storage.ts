@@ -22,6 +22,8 @@ export const DB_CONFIG = {
  */
 export type NewListenLaterItem = Omit<ListenLaterItemProperties, 'hasBeenListened' | 'addedAt'>
 
+export type LibraryAccess = 'available' | 'blocked' | 'outdated'
+
 export interface ListenLaterStorage {
   getAll(): Promise<ListenLaterItem[]>
   get(itemId: string | number): Promise<ListenLaterItem | null>
@@ -49,9 +51,10 @@ function sortListenLaterItems(items: ListenLaterItem[]): ListenLaterItem[] {
   })
 }
 
-function openDatabase(indexedDBInstance: IDBFactory): Promise<IDBDatabase> {
+function openDatabase(indexedDBInstance: IDBFactory, onBlocked: () => void): Promise<IDBDatabase> {
   const { promise, resolve, reject } = Promise.withResolvers<IDBDatabase>()
   const request = indexedDBInstance.open(DB_NAME, DB_VERSION)
+  request.onblocked = onBlocked
 
   request.onerror = () => reject(new Error(`Failed to open database: ${request.error?.message}`))
   request.onsuccess = () => resolve(request.result)
@@ -283,11 +286,28 @@ function updateItemExternalLinks(
  */
 export function createListenLaterStorage(
   indexedDBInstance?: IDBFactory,
-  now: () => Date = () => new Date()
+  now: () => Date = () => new Date(),
+  onAccess?: (access: LibraryAccess) => void
 ): ListenLaterStorage {
   let connection: Promise<IDBDatabase> | null = null
 
-  const db = () => (connection ??= openDatabase(indexedDBInstance ?? indexedDB))
+  const db = () =>
+    (connection ??= openDatabase(indexedDBInstance ?? indexedDB, () => onAccess?.('blocked')).then(
+      (database) => {
+        onAccess?.('available')
+        database.onversionchange = () => {
+          database.close()
+          // Keep the closed handle: this client cannot write to the new schema.
+          onAccess?.('outdated')
+        }
+        return database
+      },
+      (error) => {
+        onAccess?.('available')
+        connection = null
+        throw error
+      }
+    ))
 
   return {
     async getAll() {
@@ -315,6 +335,3 @@ export function createListenLaterStorage(
     },
   }
 }
-
-/** Shared instance: one connection for every caller in the browser. */
-export const listenLaterStorage = createListenLaterStorage()
