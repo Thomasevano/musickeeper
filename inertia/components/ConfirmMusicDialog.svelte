@@ -5,6 +5,7 @@
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
   import CoverArt from '~/components/CoverArt.svelte'
+  import { library } from '~/lib/listen_later.svelte'
   import { MusicItem, SearchType, findDuplicate } from '../../src/domain/music_item'
   import type { ListenLaterItem } from '../../src/domain/music_item'
   import { appFetch } from '~/lib/app_update.svelte'
@@ -164,7 +165,7 @@
   }
 
   function save() {
-    if (!draft || isSaving) return
+    if (!draft || isSaving || library.access === 'outdated') return
     cancelMatching()
     onConfirm(draft, musicBrainzId)
   }
@@ -357,11 +358,14 @@
         </section>
       </fieldset>
     {/if}
+    {#if library.access === 'outdated'}
+      <p role="alert" class="text-sm">This tab can no longer save to your list. Copy any edits you want to keep, then close this dialog and reload.</p>
+    {/if}
     <Dialog.Footer class="border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
       <Button variant="outline" onclick={onCancel} disabled={isSaving}>Cancel</Button>
       {#if error && !draft}<Button onclick={onRetry}>Retry</Button>{/if}
       {#if duplicate}<Button variant="secondary" onclick={() => viewExisting(duplicate)} disabled={isSaving}>View Existing</Button>{/if}
-      {#if draft}<Button onclick={save} disabled={isSaving || !draft?.title} aria-busy={isSaving}>{isSaving ? 'Saving…' : duplicate ? 'Add Anyway' : 'Add to List'}</Button>{/if}
+      {#if draft}<Button onclick={save} disabled={library.access === 'outdated' || isSaving || !draft?.title} aria-busy={isSaving}>{isSaving ? 'Saving…' : duplicate ? 'Add Anyway' : 'Add to List'}</Button>{/if}
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

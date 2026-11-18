@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { DB_CONFIG } from '../../src/infrastructure/storage/listen_later_storage.js'
 import {
   heldRoute,
   listenLaterSeed,
   mockMetadataResponse,
+  mockMetadataRoute,
+  searchResultsRoute,
   seedListenLaterItems,
   SPOTIFY_URL,
 } from './fixtures.js'
@@ -13,6 +16,153 @@ test.use({ serviceWorkers: 'block' })
 const banner = (page: Page) => page.getByRole('region', { name: 'Application update' })
 const reloadButton = (page: Page) => banner(page).getByRole('button')
 const changedVersion = '11111111111111111111111111111111'
+
+async function openLegacyLibrary(oldTab: Page) {
+  await oldTab.goto('/')
+  await oldTab.evaluate(
+    ({ name, storeName, item }) =>
+      new Promise<void>((resolve, reject) => {
+        // Model the deployed v3 tab: it keeps its connection open until the tab closes.
+        const request = indexedDB.open(name, 3)
+        request.onupgradeneeded = () => {
+          request.result
+            .createObjectStore(storeName, { keyPath: 'id', autoIncrement: true })
+            .add(item)
+        }
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          // Retain the connection for the lifetime of the old tab.
+          Reflect.set(window, 'legacyDatabase', request.result)
+          resolve()
+        }
+      }),
+    { ...DB_CONFIG, item: listenLaterSeed({ id: 'legacy-release', title: 'Discovery' }) }
+  )
+}
+
+for (const width of [390, 1280]) {
+  test(`blocked library upgrade preserves the paste field at ${width}px`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize({ width, height: 844 })
+    const oldTab = await context.newPage()
+    await openLegacyLibrary(oldTab)
+    await page.goto('/library/listen-later')
+    const notice = page.getByRole('alert').filter({ hasText: 'Another tab is blocking your list' })
+    await expect(notice).toContainText('close or reload them')
+    await expect(page.getByText('Add your first item by searching above')).toHaveCount(0)
+
+    const url = page.getByRole('textbox', { name: 'Music link URL' })
+    const add = page.getByRole('button', { name: 'Add', exact: true })
+    await url.fill(SPOTIFY_URL)
+    await expect(add).toBeDisabled()
+    const before = await url.boundingBox()
+    await oldTab.close()
+    await expect(
+      page.getByRole(width === 390 ? 'article' : 'row').filter({ hasText: 'Discovery' })
+    ).toBeVisible()
+    await expect(notice).toHaveCount(0)
+    await expect(add).toBeEnabled()
+    await expect(url).toHaveValue(SPOTIFY_URL)
+    await expect(url).toBeFocused()
+    expect(await url.boundingBox()).toEqual(before)
+  })
+
+  for (const label of ['Song or album title', 'Artist name']) {
+    test(`an upgrade preserves focus in ${label} at ${width}px`, async ({ page, context }) => {
+      await page.setViewportSize({ width, height: 844 })
+      await searchResultsRoute(page, [{ id: 'one', title: 'One', artists: ['U2'] }])
+      await page.goto('/library/listen-later')
+      const field = page.getByLabel(label, { exact: true })
+      const query = label === 'Artist name' ? 'U2' : 'One'
+      await field.fill(query)
+      await expect(page.getByRole('listbox').getByRole('option')).toBeVisible()
+
+      await upgradeFrom(await context.newPage())
+      await expect(banner(page)).toBeVisible()
+      await expect(field).toBeFocused()
+      await expect(field).not.toBeEditable()
+      await expect(field).toHaveAccessibleDescription(/reload to search again/i)
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.type('x')
+      await expect(field).toBeFocused()
+      await expect(field).toHaveValue(query)
+      await expect(page.getByRole('listbox')).toHaveCount(0)
+    })
+  }
+}
+
+async function upgradeFrom(nextTab: Page) {
+  await nextTab.goto('/')
+  await nextTab.evaluate(
+    ({ name, version }) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(name, version + 1)
+        request.onblocked = () => reject(new Error('Open library tab blocked the upgrade'))
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          request.result.close()
+          resolve()
+        }
+      }),
+    DB_CONFIG
+  )
+}
+
+test('an outdated tab keeps the draft, blocks writes and guards reload', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/library/listen-later')
+  await seedListenLaterItems(page, [listenLaterSeed({ id: 'saved', title: 'Discovery' })])
+  await mockMetadataRoute(page)
+  const url = page.getByRole('textbox', { name: 'Music link URL' })
+  const add = page.getByRole('button', { name: 'Add', exact: true })
+  await url.fill(SPOTIFY_URL)
+  await add.click()
+  const dialog = page.getByRole('dialog')
+  const title = dialog.getByRole('textbox', { name: 'Title', exact: true })
+  await title.fill('My unfinished edit')
+  await upgradeFrom(await context.newPage())
+  await expect(dialog.getByRole('alert')).toContainText('can no longer save')
+  await expect(title).toHaveValue('My unfinished edit')
+  await expect(dialog.getByRole('button', { name: 'Add to List' })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(banner(page)).toContainText('Reload to make changes')
+  await expect(add).toBeDisabled()
+  await expect(add).toBeFocused()
+  await add.press('Enter')
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: 'Discovery' })).toBeVisible()
+  await page.getByRole('button', { name: /Open menu for.*Discovery/ }).click()
+  await expect(page.getByRole('menuitem', { name: /Mark.*as listened/ })).toBeDisabled()
+  await expect(page.getByRole('menuitem', { name: /Delete/ })).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await reloadButton(page).click()
+  await dialog.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(url).toHaveValue(SPOTIFY_URL)
+  await expect(reloadButton(page)).toBeFocused()
+})
+
+test('a pending delete cannot run after another tab upgrades the list', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/library/listen-later')
+  await seedListenLaterItems(page, [listenLaterSeed({ id: 'saved', title: 'Discovery' })])
+  await page.getByRole('button', { name: /Open menu for.*Discovery/ }).click()
+  await page.getByRole('menuitem', { name: /Delete/ }).click()
+  const dialog = page.getByRole('dialog')
+  const confirm = dialog.getByRole('button', { name: /Confirm/ })
+  await expect(confirm).toBeEnabled()
+  await upgradeFrom(await context.newPage())
+  await expect(confirm).toBeDisabled()
+  await expect(dialog.getByRole('alert')).toContainText('can no longer delete')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('row').filter({ hasText: 'Discovery' })).toBeVisible()
+})
 
 async function detectUpdate(page: Page) {
   await page.route('**/app-version', (route) =>

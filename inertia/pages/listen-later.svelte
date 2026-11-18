@@ -4,7 +4,7 @@
   import { controlHeights } from '$lib/components/ui/control_heights.js'
   import { Select } from '$lib/components/ui/select/index.js'
   import { Separator } from '$lib/components/ui/separator/index.js'
-  import { Link2, Search, WifiOff } from '@lucide/svelte'
+  import { Link2, Search, TriangleAlert, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
   import { toast } from 'svelte-sonner'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
@@ -16,7 +16,7 @@
   import { appFetch } from '~/lib/app_update.svelte'
   import { registerUnsavedWork, trackWrite } from '~/lib/reload_guard'
   import { type ExternalLink, ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
-  import { listenLaterStorage } from '../../src/infrastructure/storage/listen_later_storage'
+  import { library, listenLaterStorage } from '~/lib/listen_later.svelte'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
   import { detectPlatform } from '../../src/shared/platform_registry'
 
@@ -28,8 +28,12 @@
   let artistName = $state('')
   let searchType = $state('track')
   let listenLaterItems = $state([]) as ListenLaterItem[]
+  let listStatus = $state<'loading' | 'loaded' | 'failed'>('loading')
+  const listReady = $derived(listStatus === 'loaded' && library.access === 'available')
   let isSearching = $state(false)
   let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
+  const searchReadOnly = $derived(library.access === 'outdated')
+  const searchDisabled = $derived(!searchReadOnly && (isOffline || !listReady))
 
   // Listen for online/offline events
   $effect(() => {
@@ -163,7 +167,7 @@
   }
 
   $effect(() => {
-    if (hasSearchTerm || hasArtist) {
+    if (listReady && (hasSearchTerm || hasArtist)) {
       handleSearch()
     } else {
       searchAbortController?.abort()
@@ -192,7 +196,9 @@
   async function loadListenLaterItems() {
     try {
       listenLaterItems = await listenLaterStorage.getAll()
+      listStatus = 'loaded'
     } catch (error) {
+      listStatus = 'failed'
       console.error('Error loading listen later list:', error)
       toast.error('Failed to load your list')
     }
@@ -246,7 +252,7 @@
     // A disabled button is unfocusable, so disabling this one mid-request
     // would blur it and leave the dialog with nowhere to put focus back on
     // close. It stays enabled and turns the second press into a no-op.
-    if (isProcessingLink) return
+    if (isProcessingLink || !listReady) return
 
     linkError = ''
 
@@ -393,7 +399,7 @@
         <WifiOff />
         <Alert.Title>You're currently offline</Alert.Title>
         <Alert.Description>
-          Your saved items are available, but search is disabled.
+          Search is disabled until you reconnect.
         </Alert.Description>
       </Alert.Root>
     {/if}
@@ -425,9 +431,10 @@
           aria-invalid={linkError ? 'true' : undefined}
         />
         <Button
-          class="w-full sm:w-auto"
+          class="w-full sm:w-auto aria-disabled:opacity-50"
           onclick={handlePasteLink}
-          disabled={!linkUrl.trim()}
+          disabled={!linkUrl.trim() || listStatus !== 'loaded'}
+          aria-disabled={library.access === 'outdated' || undefined}
           aria-busy={isProcessingLink}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
@@ -447,7 +454,7 @@
         id="search-type"
         class="w-full sm:w-[180px]"
         bind:value={searchType}
-        disabled={isOffline}
+        disabled={isOffline || !listReady}
       >
         {#each types as type (type.value)}
           <option value={type.value}>{type.label}</option>
@@ -465,9 +472,10 @@
             bind:this={titleInputEl}
             bind:value={searchTerm}
             placeholder={isOffline ? 'Search disabled while offline' : 'Search a song or album title...'}
-            disabled={isOffline}
+            disabled={searchDisabled}
+            readonly={searchReadOnly}
             role="combobox"
-            aria-expanded={!!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
+            aria-expanded={listReady && !!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
             aria-controls="search-results-list"
             aria-autocomplete="list"
             aria-describedby="search-hint"
@@ -482,7 +490,8 @@
             id="search-artist"
             bind:value={artistName}
             placeholder={isOffline ? 'Search disabled while offline' : 'Artist name (optional)...'}
-            disabled={isOffline}
+            disabled={searchDisabled}
+            readonly={searchReadOnly}
             aria-describedby="search-hint"
             onkeydown={handleInputKeydown}
             class={searchInputClasses}
@@ -492,7 +501,11 @@
         <!-- The options carry tabindex="-1" until focused, so Tab never reaches them.
              Nothing on screen says which key does. -->
         <p id="search-hint" class="sr-only">
-          Results appear after at least two characters in either field. Press the down arrow key to reach them.
+          {#if searchReadOnly}
+            Reload to search again. You can still copy your search text.
+          {:else}
+            Results appear after at least two characters in either field. Press the down arrow key to reach them.
+          {/if}
         </p>
 
         <!-- Described, not labelled: the option is named by the four lines it
@@ -504,7 +517,7 @@
         </p>
       </div>
 
-      {#if isAboveThreshold || isSearching}
+      {#if listReady && (isAboveThreshold || isSearching)}
         <!-- Named so the a11y suite can park `scrollable-region-focusable` on
              this node alone: its options leave the tab order by design, which
              is not true of any other scroll region in the app. -->
@@ -556,6 +569,16 @@
     <Separator class="my-6" />
 
     <div>
+      {#if library.access === 'blocked'}
+        <Alert.Root variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <Alert.Title>Another tab is blocking your list</Alert.Title>
+          <Alert.Description>
+            Finish any edits in your other MusicKeeper tabs, then close or reload them.
+            Your list will appear here automatically.
+          </Alert.Description>
+        </Alert.Root>
+      {/if}
       {#if listenLaterItems.length > 0}
         <h2 id="listen-later-list-heading" tabindex="-1" class="mb-4 text-xl font-semibold">Listen Later List</h2>
         <ListenLaterListTable
@@ -564,13 +587,17 @@
           onToggleListen={handleListen}
           {highlightedItemId}
         />
-      {:else}
+      {:else if listReady}
         <div class="flex flex-col items-center justify-center gap-4 h-64">
           <p class="text-muted-foreground text-sm text-pretty text-center">
             Add your first item by searching above or pasting a link from Spotify, YouTube, Apple
             Music, or SoundCloud.
           </p>
         </div>
+      {:else if listStatus === 'loading' && library.access !== 'blocked'}
+        <p class="text-muted-foreground text-sm" role="status">Loading your list…</p>
+      {:else if listStatus === 'failed'}
+        <p class="text-muted-foreground text-sm">Reload this page to try loading your list again.</p>
       {/if}
     </div>
   </div>
@@ -602,12 +629,16 @@
         {deleteTargetName} will be permanently removed from your listen later list.
       </Dialog.Description>
     </Dialog.Header>
+    {#if library.access === 'outdated'}
+      <p role="alert" class="text-sm">This tab can no longer delete items. Cancel and reload to make changes.</p>
+    {/if}
     <Dialog.Footer>
       <Button variant="outline" class="cursor-pointer" onclick={() => (deleteTarget = null)}
         >Cancel</Button
       >
       <Button
         variant="destructive"
+        disabled={!listReady}
         class="cursor-pointer"
         onclick={() => {
           if (deleteTarget) {

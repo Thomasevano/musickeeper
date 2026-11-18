@@ -25,11 +25,16 @@ export default [
   {
     files: ['inertia/**/*.ts'],
     rules: {
-      // The entrypoint pulls the app stylesheet out of `resources/`. That is an
-      // asset, not backend code, so it is exempt from the frontend import guard.
+      // Both exceptions are browser dependencies: the app stylesheet and its
+      // IndexedDB adapter. Keep server infrastructure out of the client bundle.
       '@adonisjs/no-backend-import-in-frontend': [
         'error',
-        { allowed: ['../resources/css/app.css'] },
+        {
+          allowed: [
+            '../resources/css/app.css',
+            '../../src/infrastructure/storage/listen_later_storage.js',
+          ],
+        },
       ],
     },
   },

@@ -196,6 +196,8 @@ jobs:
       options: --ipc=host
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # The rollback is built from the pinned previous release commit.
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -212,12 +214,37 @@ jobs:
           node -e "const v = require('@playwright/test/package.json').version; if (v !== '1.64.1') { console.error('Update the Playwright image to match locked version ' + v); process.exit(1) }"
       - name: Build test server
         run: pnpm run build
+      - name: Verify v4 library rollback
+        shell: bash
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:63136
+          PLAYWRIGHT_ROLLBACK_URL: http://127.0.0.1:63137
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          rollback="$(mktemp -d)/rollback"
+          bash scripts/prepare-library-rollback.sh "$rollback"
+          (cd "$rollback" && pnpm install --frozen-lockfile && pnpm build)
+          serve() {
+            cd "$1"
+            exec env NODE_ENV=production HOST=127.0.0.1 PORT="$2" \
+              APP_KEY=applicationtestappkey SESSION_DRIVER=memory LOG_LEVEL=info \
+              MB_APP_CONTACT_EMAIL=test@example.com node bin/server.js
+          }
+          serve build 63136 &
+          forward_pid=$!
+          serve "$rollback/build" 63137 &
+          rollback_pid=$!
+          trap 'kill "$forward_pid" "$rollback_pid" 2>/dev/null || true' EXIT
+          for url in "$PLAYWRIGHT_BASE_URL" "$PLAYWRIGHT_ROLLBACK_URL"; do
+            curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 "$url/app-version" >/dev/null
+          done
+          pnpm run test:e2e --grep @library-rollback
       - name: Run test-only error page
         run: pnpm run test:e2e --grep @test-only-route
         env:
           PLAYWRIGHT_BUILT_SERVER: 'true'
       - name: Run end-to-end tests against preview
-        run: pnpm run test:e2e --grep-invert @test-only-route
+        run: pnpm run test:e2e --grep-invert '@test-only-route|@library-rollback'
         env:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy.outputs.preview_url }}
       - name: Upload Playwright failure diagnostics
