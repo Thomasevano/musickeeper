@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/Thomasevano/musickeeper/compare/v0.10.0...v0.10.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **deps:** resolve Dependabot security alerts ([69eaf9f](https://github.com/Thomasevano/musickeeper/commit/69eaf9fbc8be2434dcc0b7991d073ed4d7dd1205))
+* **docker:** reuse production dependency layers ([7d7ddee](https://github.com/Thomasevano/musickeeper/commit/7d7ddee0d05ddaf99a2adfc6e377434d21d60fbd))
+
 ## [0.10.0](https://github.com/Thomasevano/musickeeper/compare/v0.9.0...v0.10.0) (2026-11-17)
 
 
