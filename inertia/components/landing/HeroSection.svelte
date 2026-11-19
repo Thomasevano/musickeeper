@@ -1,40 +1,28 @@
 <script lang="ts">
-  import { page } from '@inertiajs/svelte'
-  import { cn } from '$lib/utils'
-  import { buttonVariants, Button } from '$lib/components/ui/button'
-  import { Sparkles } from '@lucide/svelte'
-
-  const { appVersion } = page.props
+  import ArrowRight from '@lucide/svelte/icons/arrow-right'
+  import { Button } from '$lib/components/ui/button'
 </script>
 
-<section class="space-y-6 pb-6 pt-16 md:py-20 lg:py-28">
-  <div class="container flex max-w-5xl flex-col items-center gap-5 text-center">
-    <a
-      href={`https://github.com/Thomasevano/musickeeper/releases/tag/v${appVersion}`}
-      class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <Sparkles class="mr-1 size-3.5" aria-hidden="true" />
-      v{appVersion} &mdash; See what's new
-      <span aria-hidden="true">&rarr;</span>
-      <span class="sr-only">(opens in new tab)</span>
-    </a>
-
-    <h1
-      class="font-heading text-balance text-4xl font-bold leading-tight sm:text-5xl md:text-6xl lg:text-7xl"
-    >
-      Keep track of music recommendations
-    </h1>
-
-    <p class="text-muted-foreground max-w-2xl text-pretty leading-normal sm:text-xl sm:leading-8">
-      A simple app to keep track of music you want or have been recommended to listen to.
-    </p>
-    <div class="flex justify-center space-x-2 md:space-x-4">
-      <Button size="lg" href="/library/listen-later">
-        Get Started
-        <span class="ml-1" aria-hidden="true">&rarr;</span>
-      </Button>
-    </div>
+<section class="flex flex-col gap-[18px] pt-8 pb-7 xl:pt-12 xl:pb-8">
+  <h1
+    class="text-[40px] leading-[1.08] font-medium tracking-[-1.2px] xl:text-[64px] xl:leading-[1.06] xl:tracking-[-2.2px]"
+  >
+    Good music<br class="xl:hidden" />{' '}finds you.<br />
+    Keep it for later.
+  </h1>
+  <p class="text-muted-foreground text-base leading-[1.6] xl:text-[17px] xl:leading-normal">
+    <span class="xl:hidden">
+      Save a track or album. Find it in your list when you’re ready to listen.
+    </span>
+    <span class="hidden xl:inline">
+      Save the tracks and albums you mean to listen to.<br />
+      Paste a link or search, then come back when you’re ready.
+    </span>
+  </p>
+  <div class="flex flex-col items-start gap-[18px] xl:flex-row xl:items-center">
+    <Button href="/library/listen-later" class="h-[46px] gap-6 rounded-[7px] px-5 md:h-[46px]">
+      Start your list <ArrowRight aria-hidden="true" />
+    </Button>
+    <p class="text-muted-foreground text-[13px] leading-[18px]">No account. Just your music.</p>
   </div>
 </section>
