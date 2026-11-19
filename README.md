@@ -5,6 +5,9 @@
 
 MusicKeeper lets you keep the music you find outside your streaming platform. Paste a link to a track, album, or playlist and it resolves the same item across platforms via MusicBrainz, so you can save it to a listen-later list without losing it when a friend shares a Spotify link but you use Apple Music.
 
+Short YouTube share URLs (`https://youtu.be/...`) are recognized as YouTube Music
+destinations. Recognition preserves the original URL, including share parameters.
+
 **Live demo:** [musickeeper.app](https://musickeeper.app)
 
 **Stack:** Svelte + Inertia on AdonisJS (hexagonal architecture — domain/application/infrastructure layers), TypeScript, unit + functional + E2E tests (Playwright), self-hosted via Docker.
