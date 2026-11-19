@@ -88,7 +88,7 @@ test('cancelling a keyboard-requested reload retains unfinished input and restor
 })
 
 test('metadata detection respects the open addition dialog', async ({ page }) => {
-  await page.route('**/api/link/metadata', (route) =>
+  await page.route('**/api/platform-metadata', (route) =>
     route.fulfill({
       json: mockMetadataResponse,
       headers: { 'X-App-Version': changedVersion },

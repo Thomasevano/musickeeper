@@ -6,9 +6,9 @@ import { SearchType } from '#domain/music_item.js'
 
 const searchQueryValidator = vine.compile(
   vine.object({
-    q: vine.string().trim().minLength(3).optional(),
+    q: vine.string().trim().minLength(1).optional(),
     type: vine.enum(['album', 'track']).optional(),
-    artist: vine.string().trim().minLength(3).optional(),
+    artist: vine.string().trim().minLength(1).optional(),
   })
 )
 

@@ -20,8 +20,7 @@ router.get('/app-version', ({ inertia, response }) => {
   return response.header('Cache-Control', 'no-store').json({ version: inertia.getVersion() })
 })
 
-router.post('/api/link/metadata', [LinkController, 'metadata'])
-
+router.post('/api/platform-metadata', [LinkController, 'platformMetadata'])
 router.get('/api/links', [LinksController, 'index'])
 
 router
