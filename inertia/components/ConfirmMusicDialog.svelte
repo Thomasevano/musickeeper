@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte'
+  import { SvelteSet } from 'svelte/reactivity'
   import * as Dialog from '$lib/components/ui/dialog/index.js'
   import { Select } from '$lib/components/ui/select/index.js'
   import Button from '~/lib/components/ui/button/button.svelte'
@@ -41,7 +42,7 @@
   let matchButton = $state<HTMLButtonElement | null>(null)
   let existingItemToView: ListenLaterItem | null = null
   let dialogElement = $state<HTMLDivElement | null>(null)
-  let acknowledgedDuplicateId = $state<string | null>(null)
+  const acknowledgedDuplicateIds = new SvelteSet<string>()
 
   function focusDialog() {
     dialogElement?.scrollTo({ top: 0 })
@@ -52,7 +53,7 @@
     if (!duplicate || isSaving) return
     // Move focus before removing the button so the focus trap doesn't select a text field.
     focusDialog()
-    acknowledgedDuplicateId = duplicate.id
+    acknowledgedDuplicateIds.add(duplicate.id)
   }
 
   async function cancelMatchingAndFocus() {
@@ -77,7 +78,7 @@
     untrack(() => {
       cancelMatching()
       musicBrainzId = undefined
-      acknowledgedDuplicateId = null
+      acknowledgedDuplicateIds.clear()
       appliedDraftBaseline = initial
       editableTitle = initial?.title ?? ''
       editableArtists = initial?.artists.length ? [...initial.artists] : ['']
@@ -94,10 +95,16 @@
     albumName: editableAlbumName.trim(), itemType: selectedType,
   }) : null)
   const duplicate = $derived(draft ? findDuplicate(listenLaterItems, draft.title, draft.artists) : null)
-  const showDuplicateWarning = $derived(!!duplicate && duplicate.id !== acknowledgedDuplicateId)
+  const showDuplicateWarning = $derived(!!duplicate && !acknowledgedDuplicateIds.has(duplicate.id))
 
-  $effect(() => {
-    if (open && showDuplicateWarning) void tick().then(focusDialog)
+  $effect.pre(() => {
+    if (!open || !showDuplicateWarning) return
+    const focused = document.activeElement
+    if (focused && dialogElement?.contains(focused)) {
+      void tick().then(() => {
+        if (!focused.isConnected && open) focusDialog()
+      })
+    }
   })
   const proposed = $derived(draft && selectedCandidate ? new MusicItem({
     ...draft,
