@@ -358,6 +358,11 @@ test('editing into a different Duplicate requires a fresh warning without losing
   await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue('Second saved title')
   await expect(dialog.getByLabel('Album', { exact: true })).toHaveValue('My incoming album edit')
+  const title = dialog.getByLabel('Title', { exact: true })
+  await title.fill('')
+  await title.pressSequentially(`${platformItem.title} (live)`)
+  await expect(title).toHaveValue(`${platformItem.title} (live)`)
+  await expect(title).toBeFocused()
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await savedItems(page)).toEqual(before)
 })
@@ -639,6 +644,30 @@ test('current edits drive search; Apply rechecks Duplicate against reviewed meta
   await expect(existingCard).toBeFocused()
   await expect(existingCard).toBeInViewport()
   await expect(existingCard).toHaveClass(/bg-warning\/20/)
+})
+
+test('Cancel keeps keyboard focus when pending metadata reveals a duplicate', async ({ page }) => {
+  await paste(page)
+  const dialog = page.getByRole('dialog')
+  const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true })
+  await cancel.click()
+  await seedListenLaterItems(page, [
+    listenLaterSeed({ id: 'existing', title: platformItem.title, artists: platformItem.artists }),
+  ])
+  const { promise: held, resolve: release } = Promise.withResolvers<void>()
+  await page.route('**/api/platform-metadata', async (route) => {
+    await held
+    await route.fallback()
+  })
+  await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(dialog.getByText('Loading metadata...')).toBeVisible()
+  await cancel.focus()
+  release()
+  await expect(dialog.getByRole('region', { name: 'Existing saved item' })).toBeVisible()
+  await expect(cancel).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(dialog).not.toBeVisible()
 })
 
 test('keyboard View Existing focuses the desktop row without changing Cancel focus restoration', async ({
