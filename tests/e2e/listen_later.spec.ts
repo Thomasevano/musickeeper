@@ -5,6 +5,7 @@ import {
   heldRoute,
   listenLaterSeed,
   mockMetadataResponse,
+  mockMetadataRoute,
   resultOptions,
   searchResultsRoute,
   seedListenLaterItems,
@@ -773,6 +774,89 @@ test.describe('table filters', () => {
     await expect(page.locator('#item-album-listened')).not.toBeVisible()
     await expect(page.locator('#item-track-not-listened')).not.toBeVisible()
   })
+
+  test('the revealed row stays in view after page transitions without scroll anchoring', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await mockMetadataRoute(page)
+    await page.goto('/library/listen-later')
+    await seedListenLaterItems(page, [
+      listenLaterSeed({ ...mockMetadataResponse.musicItem, id: 'original', itemType: 'track' }),
+      ...Array.from({ length: 40 }, (_, i) =>
+        listenLaterSeed({ id: `album-${i}`, title: `${i < 20 ? 'A' : 'Z'} album ${i}` })
+      ),
+    ])
+    await page.addStyleTag({ content: '* { overflow-anchor: none }' })
+    await page.getByRole('button', { name: 'Title, not sorted' }).click()
+    await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption('album')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await expect(page.getByText('Page 2 of 2')).toBeVisible()
+    await settleAnimations(page)
+
+    await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+    await addLinkButton(page).click()
+    await page.getByRole('button', { name: 'Keep existing only' }).press('Enter')
+
+    const target = page.getByRole('row').filter({ hasText: mockMetadataResponse.musicItem.title })
+    await expect(target).toBeFocused()
+    await expect(page.getByText('Page 2 of 3')).toBeVisible()
+    await settleAnimations(page)
+    await expect(target).toBeInViewport({ ratio: 1 })
+  })
+
+  for (const mobile of [false, true]) {
+    const action = mobile ? 'View Existing' : 'Keep existing only'
+    test(`${action} reveals and focuses a filtered duplicate on its sorted page`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: mobile ? 375 : 1280, height: 800 })
+      await mockMetadataRoute(page)
+      await page.goto('/library/listen-later')
+      await seedListenLaterItems(page, [
+        listenLaterSeed({ ...mockMetadataResponse.musicItem, id: 'original', itemType: 'track' }),
+        ...Array.from({ length: 20 }, (_, i) =>
+          listenLaterSeed({ id: `other-${i}`, title: `Other ${i}`, itemType: 'track' })
+        ),
+      ])
+      const status = page.getByRole('combobox', { name: 'Status', exact: true })
+      const type = page.getByRole('combobox', { name: 'Type', exact: true })
+      const sort = page.getByRole('combobox', { name: 'Sort', exact: true })
+      if (mobile) await sort.selectOption('artists_asc')
+      else await page.getByRole('button', { name: 'Artists, not sorted' }).click()
+      await status.selectOption(mobile ? 'not_listened' : 'listened')
+      await type.selectOption(mobile ? 'album' : 'track')
+
+      const target = page.locator(mobile ? '#mobile-item-original' : '#item-original')
+      await expect(target).not.toBeVisible()
+      await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
+      await addLinkButton(page).click()
+      const dialog = page.getByRole('dialog')
+      if (mobile) {
+        // Editing and cancelling the draft must leave the list exactly as it was.
+        await dialog.getByRole('button', { name: 'Continue with new item' }).press('Enter')
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).press('Enter')
+        await expect(addLinkButton(page)).toBeFocused()
+        await expect(type).toHaveValue('album')
+        await expect(status).toHaveValue('not_listened')
+        await expect(target).not.toBeVisible()
+        await addLinkButton(page).press('Enter')
+        await dialog.getByRole('button', { name: 'Continue with new item' }).press('Enter')
+      }
+      await dialog.getByRole('button', { name: action, exact: true }).press('Enter')
+
+      await expect(target).toBeFocused()
+      await expect(target).toBeInViewport()
+      await expect(target).toHaveClass(/bg-warning\/20/)
+      await expect(page.getByText('Page 2 of 2')).toBeVisible()
+      await expect(status).toHaveValue(mobile ? 'not_listened' : 'all')
+      await expect(type).toHaveValue(mobile ? 'all' : 'track')
+      if (mobile) await expect(sort).toHaveValue('artists_asc')
+      else
+        await expect(page.getByRole('button', { name: 'Artists, sorted ascending' })).toBeVisible()
+    })
+  }
 })
 
 test.describe('desktop sorting', () => {

@@ -62,7 +62,7 @@
   let pendingSourceUrl = $state<string | undefined>()
   let isSaving = $state(false)
   let platformController: AbortController | null = null
-  let highlightedItemId = $state<string | null>(null)
+  let listTable = $state<ReturnType<typeof ListenLaterListTable>>()
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
 
@@ -178,16 +178,6 @@
     return () => searchAbortController?.abort()
   })
 
-  // Clear the temporary highlight.
-  $effect(() => {
-    if (!highlightedItemId) return
-
-    const timeout = setTimeout(() => {
-      highlightedItemId = null
-    }, 3000)
-
-    return () => clearTimeout(timeout)
-  })
 
   $effect(() => {
     void loadListenLaterItems()
@@ -375,21 +365,6 @@
     isProcessingLink = false
   }
 
-  function handleViewExisting(item: ListenLaterItem) {
-    highlightedItemId = item.id
-    // Both representations exist; CSS removes the hidden breakpoint variant from layout.
-    const mobileItem = document.getElementById(`mobile-item-${item.id}`)
-    const desktopItem = document.getElementById(`item-${item.id}`)
-    const element = mobileItem?.getClientRects().length ? mobileItem : desktopItem
-    if (!element?.getClientRects().length) return false
-
-    element.focus({ preventScroll: true })
-    element.scrollIntoView({
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-      block: 'center',
-    })
-    return document.activeElement === element
-  }
 </script>
 
 <LibraryLayout data={listenLaterItems} {title}>
@@ -582,10 +557,10 @@
       {#if listenLaterItems.length > 0}
         <h2 id="listen-later-list-heading" tabindex="-1" class="mb-4 text-xl font-semibold">Listen Later List</h2>
         <ListenLaterListTable
+          bind:this={listTable}
           items={listenLaterItems}
           onDelete={(item) => (deleteTarget = item)}
           onToggleListen={handleListen}
-          {highlightedItemId}
         />
       {:else if listReady}
         <div class="flex flex-col items-center justify-center gap-4 h-64">
@@ -612,7 +587,7 @@
   {listenLaterItems}
   onConfirm={handleConfirmDialogConfirm}
   onCancel={handleConfirmDialogCancel}
-  onViewExisting={handleViewExisting}
+  onViewExisting={async (id) => listTable?.revealItem(id)}
   onRetry={handleRetry}
 />
 

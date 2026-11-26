@@ -20,7 +20,7 @@
     listenLaterItems: ListenLaterItem[]
     onConfirm: (item: MusicItem, musicBrainzId?: string) => void
     onCancel: () => void
-    onViewExisting: (item: ListenLaterItem) => boolean
+    onViewExisting: (id: string) => Promise<HTMLElement | null | undefined>
     onRetry: () => void
   }
   let { open = $bindable(), isLoading, isSaving, error, musicItem, listenLaterItems,
@@ -40,7 +40,7 @@
   let isMatching = $state(false)
   let matchController: AbortController | null = null
   let matchButton = $state<HTMLButtonElement | null>(null)
-  let existingItemToView: ListenLaterItem | null = null
+  let existingFocusTarget: HTMLElement | null | undefined
   let dialogElement = $state<HTMLDivElement | null>(null)
   const acknowledgedDuplicateIds = new SvelteSet<string>()
 
@@ -204,15 +204,22 @@
     open = isOpen
   }
 
-  function viewExisting(item: ListenLaterItem) {
-    existingItemToView = item
+  async function viewExisting(item: ListenLaterItem) {
+    existingFocusTarget = await onViewExisting(item.id)
     onCancel()
   }
 
   function handleCloseAutoFocus(event: Event) {
-    const item = existingItemToView
-    existingItemToView = null
-    if (item && onViewExisting(item)) event.preventDefault()
+    const target = existingFocusTarget
+    existingFocusTarget = null
+    if (!target?.getClientRects().length) return
+    target.focus({ preventScroll: true })
+    if (document.activeElement !== target) return
+    event.preventDefault()
+    target.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center',
+    })
   }
 </script>
 

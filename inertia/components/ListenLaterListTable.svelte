@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import DataTableSortHeader from './data-table/data-table-sort-header.svelte'
   import {
@@ -35,12 +36,10 @@
     items,
     onDelete,
     onToggleListen,
-    highlightedItemId,
   }: {
     items: PendingListenLaterItem[]
     onDelete: (item: ListenLaterItem) => void
     onToggleListen: (item: ListenLaterItem) => void
-    highlightedItemId: string | null
   } = $props()
 
   const statusFilterOptions = [
@@ -205,6 +204,15 @@
   let sorting = $state<SortingState>([])
   let columnFilters = $state<ColumnFiltersState>([])
   let columnVisibility = $state<VisibilityState>({ releaseDate: false })
+  let highlightedItemId = $state<string | null>(null)
+
+  $effect(() => {
+    if (!highlightedItemId) return
+    const timeout = setTimeout(() => {
+      highlightedItemId = null
+    }, 3000)
+    return () => clearTimeout(timeout)
+  })
 
   const statusFilter = $derived(
     (columnFilters.find((filter) => filter.id === 'hasBeenListened')?.value as string | undefined) ??
@@ -266,6 +274,29 @@
       }
     },
   })
+
+  export async function revealItem(id: string) {
+    const position = () =>
+      table.getPrePaginationRowModel().rows.findIndex((row) => row.original.id === id)
+    let index = position()
+    if (index < 0) {
+      const row = table.getCoreRowModel().rows.find((entry) => entry.original.id === id)
+      if (!row) return null
+      table.setColumnFilters((filters) =>
+        filters.filter((filter) => row.columnFilters[filter.id] !== false)
+      )
+      index = position()
+      // Filtering queues TanStack's page reset. Let it finish before choosing the target page.
+      await tick()
+    }
+    if (index < 0) return null
+    table.setPageIndex(Math.floor(index / pagination.pageSize))
+    highlightedItemId = id
+    await tick()
+
+    const card = document.getElementById(`mobile-item-${id}`)
+    return card?.getClientRects().length ? card : document.getElementById(`item-${id}`)
+  }
 
   function handleStatusFilterChange(value: string) {
     if (value === 'all') {
@@ -443,54 +474,58 @@
           </Table.Row>
         {/each}
       </Table.Header>
-      <Table.Body>
-        {#each table.getRowModel().rows as row (row.original.id)}
-          <!-- Raw <tr> instead of <Table.Row>: Svelte transition directives (in:/out:) only work on
-               HTML elements, not components. Classes mirror table-row.svelte exactly. -->
-          <tr
-            id={`item-${row.original.id}`}
-            tabindex="-1"
-            data-slot="table-row"
-            data-state={highlightedItemId === row.original.id ? 'highlighted' : undefined}
-            class={[
-              'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-              highlightedItemId === row.original.id ? 'bg-warning/20' : '',
-            ].join(' ')}
-            in:rowIn
-            out:rowOut
-          >
-            {#each row.getVisibleCells() as cell (cell.id)}
-              {#if cell.column.id === 'title'}
-                <!-- Raw <th scope="row"> instead of <Table.Cell>: the title is what names the
-                     row, so reading down any other column announces it first. Classes mirror
-                     table-cell.svelte, plus the font-normal that undoes a <th>'s default bold. -->
-                <th
-                  scope="row"
-                  data-slot="table-cell"
-                  class="p-2 text-left align-middle font-normal whitespace-nowrap"
-                >
-                  <!-- Hidden from the reading order but reachable by id: every control in the
-                       row points at it with aria-describedby, and a description target is
-                       still read when it is aria-hidden. Left in the order it would say the
-                       row twice to anyone walking the cells. -->
-                  <span id={`row-summary-${row.original.id}`} class="sr-only" aria-hidden="true"
-                    >{rowSummary(row.original)}</span
+      <!-- A page/filter change replaces the view. Only changes within that view should
+           animate rows: outgoing rows must not displace the row we're about to focus. -->
+      {#key `${pagination.pageIndex}:${statusFilter}:${typeFilter}`}
+        <Table.Body>
+          {#each table.getRowModel().rows as row (row.original.id)}
+            <!-- Raw <tr> instead of <Table.Row>: Svelte transition directives (in:/out:) only work on
+                 HTML elements, not components. Classes mirror table-row.svelte exactly. -->
+            <tr
+              id={`item-${row.original.id}`}
+              tabindex="-1"
+              data-slot="table-row"
+              data-state={highlightedItemId === row.original.id ? 'highlighted' : undefined}
+              class={[
+                'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                highlightedItemId === row.original.id ? 'bg-warning/20' : '',
+              ].join(' ')}
+              in:rowIn
+              out:rowOut
+            >
+              {#each row.getVisibleCells() as cell (cell.id)}
+                {#if cell.column.id === 'title'}
+                  <!-- Raw <th scope="row"> instead of <Table.Cell>: the title is what names the
+                       row, so reading down any other column announces it first. Classes mirror
+                       table-cell.svelte, plus the font-normal that undoes a <th>'s default bold. -->
+                  <th
+                    scope="row"
+                    data-slot="table-cell"
+                    class="p-2 text-left align-middle font-normal whitespace-nowrap"
                   >
-                  <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
-                </th>
-              {:else}
-                <Table.Cell>
-                  <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
-                </Table.Cell>
-              {/if}
-            {/each}
-          </tr>
-        {:else}
-          <Table.Row>
-            <Table.Cell colspan={columns.length} class="h-24 text-center">No results.</Table.Cell>
-          </Table.Row>
-        {/each}
-      </Table.Body>
+                    <!-- Hidden from the reading order but reachable by id: every control in the
+                         row points at it with aria-describedby, and a description target is
+                         still read when it is aria-hidden. Left in the order it would say the
+                         row twice to anyone walking the cells. -->
+                    <span id={`row-summary-${row.original.id}`} class="sr-only" aria-hidden="true"
+                      >{rowSummary(row.original)}</span
+                    >
+                    <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                  </th>
+                {:else}
+                  <Table.Cell>
+                    <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                  </Table.Cell>
+                {/if}
+              {/each}
+            </tr>
+          {:else}
+            <Table.Row>
+              <Table.Cell colspan={columns.length} class="h-24 text-center">No results.</Table.Cell>
+            </Table.Row>
+          {/each}
+        </Table.Body>
+      {/key}
     </Table.Root>
   </div>
 
