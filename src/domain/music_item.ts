@@ -75,16 +75,10 @@ export class ListenLaterItem extends MusicItem {
   }
 }
 
-/**
- * Finds an item that is the same recording as the one described.
- *
- * Same title and the *same set* of artists. A shared title with a different
- * artist set is another version, not a duplicate.
- */
+/** Tracks and albums match only within their own type, by title and artist set. */
 export function findDuplicate(
   items: ListenLaterItem[],
-  title: string,
-  artists: string[]
+  { itemType, title, artists }: Pick<MusicItem, 'itemType' | 'title' | 'artists'>
 ): ListenLaterItem | null {
   const normalizedTitle = title.toLowerCase().trim()
   const normalizedArtists = [
@@ -93,7 +87,8 @@ export function findDuplicate(
 
   return (
     items.find((item) => {
-      if (item.title.toLowerCase().trim() !== normalizedTitle) return false
+      if (item.itemType !== itemType || item.title.toLowerCase().trim() !== normalizedTitle)
+        return false
 
       const itemArtists = [
         ...new Set(item.artists.map((artist) => artist.toLowerCase().trim())),

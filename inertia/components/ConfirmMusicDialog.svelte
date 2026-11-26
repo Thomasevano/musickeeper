@@ -94,7 +94,7 @@
     ...appliedDraftBaseline, title: editableTitle.trim(), artists,
     albumName: editableAlbumName.trim(), itemType: selectedType,
   }) : null)
-  const duplicate = $derived(draft ? findDuplicate(listenLaterItems, draft.title, draft.artists) : null)
+  const duplicate = $derived(draft ? findDuplicate(listenLaterItems, draft) : null)
   const showDuplicateWarning = $derived(!!duplicate && !acknowledgedDuplicateIds.has(duplicate.id))
 
   $effect.pre(() => {
@@ -232,7 +232,7 @@
         <Dialog.Description>Check the title and artist before saving.</Dialog.Description>
       {/if}
     </Dialog.Header>
-    <p class="sr-only" role="status">{isLoading || error ? '' : showDuplicateWarning ? 'Duplicate found. An item with the same title and the same artists is already in your list.' : draft ? 'Music information ready. Review before adding.' : ''}</p>
+    <p class="sr-only" role="status">{isLoading || error ? '' : showDuplicateWarning ? `Duplicate found. Your list already contains ${duplicate?.itemType === SearchType.album ? 'an album' : 'a track'} with the same title and artists.` : draft ? 'Music information ready. Review before adding.' : ''}</p>
     {#if isLoading}
       <p role="status" aria-busy="true">Loading metadata...</p>
     {/if}

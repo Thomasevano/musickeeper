@@ -176,13 +176,13 @@ test.group('SearchType', () => {
 })
 
 test.group('findDuplicate', () => {
-  function item(title: string, artists: string[]): ListenLaterItem {
+  function item(title: string, artists: string[], itemType = SearchType.track): ListenLaterItem {
     return {
       id: `${title}-${artists.join('-')}`,
       title,
       releaseDate: '2024-01-01',
       artists,
-      itemType: SearchType.track,
+      itemType,
       hasBeenListened: false,
       addedAt: new Date(),
     }
@@ -191,48 +191,57 @@ test.group('findDuplicate', () => {
   test('matches on identical title and artist set', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky'])]
 
-    const found = findDuplicate(items, 'Nightcall', ['Kavinsky'])
+    const found = findDuplicate(items, item('Nightcall', ['Kavinsky']))
 
     assert.equal(found!.id, 'Nightcall-Kavinsky')
+  })
+
+  test('distinguishes the Thriller album and title track in either order', ({ assert }) => {
+    const album = item('Thriller', ['Michael Jackson'], SearchType.album)
+    const track = item('Thriller', ['Michael Jackson'], SearchType.track)
+    assert.isNull(findDuplicate([album], track))
+    assert.isNull(findDuplicate([track], album))
+    assert.strictEqual(findDuplicate([album, track], track), track)
+    assert.strictEqual(findDuplicate([track, album], album), album)
   })
 
   test('ignores case and surrounding whitespace', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky'])]
 
-    assert.isNotNull(findDuplicate(items, '  NIGHTCALL ', [' kavinsky']))
+    assert.isNotNull(findDuplicate(items, item('  NIGHTCALL ', [' kavinsky'])))
   })
 
   test('ignores artist order', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky', 'Angèle'])]
 
-    assert.isNotNull(findDuplicate(items, 'Nightcall', ['Angèle', 'Kavinsky']))
+    assert.isNotNull(findDuplicate(items, item('Nightcall', ['Angèle', 'Kavinsky'])))
   })
 
   test('a repeated artist name does not make it another version', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky', 'Kavinsky'])]
 
-    assert.isNotNull(findDuplicate(items, 'Nightcall', ['Kavinsky']))
+    assert.isNotNull(findDuplicate(items, item('Nightcall', ['Kavinsky'])))
   })
 
   test('a shared title with extra artists is another version, not a duplicate', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky'])]
 
-    assert.isNull(findDuplicate(items, 'Nightcall', ['Kavinsky', 'Angèle', 'Phoenix']))
+    assert.isNull(findDuplicate(items, item('Nightcall', ['Kavinsky', 'Angèle', 'Phoenix'])))
   })
 
   test('a shared title with fewer artists is another version, not a duplicate', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky', 'Angèle', 'Phoenix'])]
 
-    assert.isNull(findDuplicate(items, 'Nightcall', ['Kavinsky']))
+    assert.isNull(findDuplicate(items, item('Nightcall', ['Kavinsky'])))
   })
 
   test('same artists but a different title is not a duplicate', ({ assert }) => {
     const items = [item('Nightcall', ['Kavinsky'])]
 
-    assert.isNull(findDuplicate(items, 'Odd Look', ['Kavinsky']))
+    assert.isNull(findDuplicate(items, item('Odd Look', ['Kavinsky'])))
   })
 
   test('returns null on an empty list', ({ assert }) => {
-    assert.isNull(findDuplicate([], 'Nightcall', ['Kavinsky']))
+    assert.isNull(findDuplicate([], item('Nightcall', ['Kavinsky'])))
   })
 })
