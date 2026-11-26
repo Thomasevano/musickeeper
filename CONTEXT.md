@@ -33,7 +33,7 @@ A way to reach a Music Item on a music platform, either to stream it or to buy i
 _Avoid_: platform link, streaming link
 
 **Duplicate**:
-A Listen Later Item that is the same recording as one being added: same title and the same set of artists.
+A Listen Later Item with the same type, title and set of artists as the one being added. A track and an album are distinct even when they share a title and artists, like Michael Jackson's track and album _Thriller_.
 _Avoid_: existing item, match, collision
 
 **Another Version**:

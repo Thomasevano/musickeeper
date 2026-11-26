@@ -127,6 +127,7 @@ test('a comma in one credit is distinct from two credits when searching, reviewi
       id: 'two-credits',
       title: platformItem.title,
       artists: ['Tyler', 'The Creator'],
+      itemType: 'track',
     }),
   ])
   await paste(page)
@@ -263,6 +264,26 @@ test('late cover events do not break cancelling a match or closing the dialog', 
   expect(errors).toEqual([])
 })
 
+test('a saved album does not block adding its title track', async ({ page }) => {
+  await page.goto('/library/listen-later')
+  await seedListenLaterItems(page, [
+    listenLaterSeed({
+      id: 'album',
+      title: platformItem.title,
+      artists: platformItem.artists,
+      itemType: 'album',
+    }),
+  ])
+  await submitPaste(page)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
+  await dialog.getByRole('button', { name: 'Add to List' }).click()
+  await expect(dialog).not.toBeVisible()
+  await page.reload()
+  const saved = await savedItems(page)
+  expect(saved.map((item) => item.itemType).sort()).toEqual(['album', 'track'])
+})
+
 for (const width of [320, 1280]) {
   test(`duplicate warning gates the incoming draft without changing the saved item (${width}px)`, async ({
     page,
@@ -340,8 +361,18 @@ test('editing into a different Duplicate requires a fresh warning without losing
   await paste(page)
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
   await seedListenLaterItems(page, [
-    listenLaterSeed({ id: 'first', title: platformItem.title, artists: platformItem.artists }),
-    listenLaterSeed({ id: 'second', title: 'Second saved title', artists: platformItem.artists }),
+    listenLaterSeed({
+      id: 'first',
+      title: platformItem.title,
+      artists: platformItem.artists,
+      itemType: 'track',
+    }),
+    listenLaterSeed({
+      id: 'second',
+      title: 'Second saved title',
+      artists: platformItem.artists,
+      itemType: 'track',
+    }),
   ])
   const before = await savedItems(page)
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
@@ -652,7 +683,12 @@ test('Cancel keeps keyboard focus when pending metadata reveals a duplicate', as
   const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true })
   await cancel.click()
   await seedListenLaterItems(page, [
-    listenLaterSeed({ id: 'existing', title: platformItem.title, artists: platformItem.artists }),
+    listenLaterSeed({
+      id: 'existing',
+      title: platformItem.title,
+      artists: platformItem.artists,
+      itemType: 'track',
+    }),
   ])
   const { promise: held, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/api/platform-metadata', async (route) => {
@@ -680,6 +716,7 @@ test('keeping the saved item focuses the desktop row without changing Cancel foc
       id: 'existing',
       title: platformItem.title,
       artists: platformItem.artists,
+      itemType: 'track',
     }),
   ])
   await submitPaste(page)
