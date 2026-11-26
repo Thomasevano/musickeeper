@@ -137,7 +137,7 @@ test('a comma in one credit is distinct from two credits when searching, reviewi
   const second = dialog.getByLabel('Artist 2', { exact: true })
   await expect(second).toBeFocused()
   await second.fill('The Creator')
-  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await dialog.getByRole('button', { name: 'Continue with new item' }).click()
   await dialog.getByRole('button', { name: 'Find MusicBrainz matches' }).click()
   await dialog.getByRole('button', { name: /Tyler, The Creator/ }).click()
   const lists = dialog.getByRole('region', { name: 'Proposed corrections' }).getByRole('list')
@@ -302,7 +302,7 @@ for (const width of [320, 1280]) {
       })
       return inputs
     })
-    await dialog.getByRole('button', { name: 'Skip and edit this new item' }).press('Enter')
+    await dialog.getByRole('button', { name: 'Continue with new item' }).press('Enter')
     await expect(dialog).toBeFocused()
     expect(await inputFocus.jsonValue()).toEqual([])
     await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
@@ -312,7 +312,7 @@ for (const width of [320, 1280]) {
     await expect(dialog).not.toBeVisible()
     expect(await savedItems(page)).toEqual(before)
     await openDuplicate()
-    await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+    await dialog.getByRole('button', { name: 'Continue with new item' }).click()
     await dialog.getByLabel('Title', { exact: true }).fill('')
     await dialog
       .getByLabel('Title', { exact: true })
@@ -347,7 +347,7 @@ test('editing into a different Duplicate requires a fresh warning without losing
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   const dialog = page.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await dialog.getByRole('button', { name: 'Continue with new item' }).click()
   await dialog.getByLabel('Album', { exact: true }).fill('My incoming album edit')
   await dialog.getByLabel('Title', { exact: true }).fill('Second saved title')
   await expect(dialog.getByRole('region', { name: 'Existing saved item' })).toContainText(
@@ -355,7 +355,7 @@ test('editing into a different Duplicate requires a fresh warning without losing
   )
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
   await expect(dialog).toBeFocused()
-  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await dialog.getByRole('button', { name: 'Continue with new item' }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue('Second saved title')
   await expect(dialog.getByLabel('Album', { exact: true })).toHaveValue('My incoming album edit')
   const title = dialog.getByLabel('Title', { exact: true })
@@ -444,7 +444,7 @@ test('save abandons pending matching; late results cannot change saved metadata 
   expect(saved[0].musicBrainzId).toBeUndefined()
   await page.getByPlaceholder('Paste a link from Spotify').fill(SPOTIFY_URL)
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await dialog.getByRole('button', { name: 'Continue with new item' }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(platformItem.title)
   release()
   await expect(dialog.getByRole('region', { name: 'Proposed corrections' })).not.toBeVisible()
@@ -631,7 +631,7 @@ test('current edits drive search; Apply rechecks Duplicate against reviewed meta
   await dialog.getByRole('button', { name: 'Apply corrections' }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveCount(0)
   await expect(dialog).toBeFocused()
-  await dialog.getByRole('button', { name: 'Skip and edit this new item' }).click()
+  await dialog.getByRole('button', { name: 'Continue with new item' }).click()
   await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue(candidates[0].title)
   await expect(dialog.getByText(/^MusicBrainz match$/i)).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Add Anyway' })).toBeVisible()
@@ -670,7 +670,7 @@ test('Cancel keeps keyboard focus when pending metadata reveals a duplicate', as
   await expect(dialog).not.toBeVisible()
 })
 
-test('keyboard View Existing focuses the desktop row without changing Cancel focus restoration', async ({
+test('keeping the saved item focuses the desktop row without changing Cancel focus restoration', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -685,7 +685,7 @@ test('keyboard View Existing focuses the desktop row without changing Cancel foc
   await submitPaste(page)
 
   const dialog = page.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'View Existing' }).press('Enter')
+  await dialog.getByRole('button', { name: 'Keep existing only' }).press('Enter')
   await expect(dialog).not.toBeVisible()
   const existingRow = page.getByRole('row').filter({ hasText: platformItem.title })
   await expect(existingRow).toBeFocused()

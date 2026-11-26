@@ -228,7 +228,9 @@
   >
     <Dialog.Header class="min-w-0 pe-12 text-start">
       <Dialog.Title>{isLoading ? 'Processing Link' : error && !draft ? 'Error' : showDuplicateWarning ? 'Already in your list' : 'Add to Listen Later'}</Dialog.Title>
-      <Dialog.Description>{showDuplicateWarning ? 'Review the saved item before continuing with the new one.' : 'Check the title and artist before saving.'}</Dialog.Description>
+      {#if !showDuplicateWarning}
+        <Dialog.Description>Check the title and artist before saving.</Dialog.Description>
+      {/if}
     </Dialog.Header>
     <p class="sr-only" role="status">{isLoading || error ? '' : showDuplicateWarning ? 'Duplicate found. An item with the same title and the same artists is already in your list.' : draft ? 'Music information ready. Review before adding.' : ''}</p>
     {#if isLoading}
@@ -255,9 +257,12 @@
               <p class="text-sm">{duplicate.hasBeenListened ? 'Listened' : 'Not listened'}</p>
             </div>
           </div>
-          <p class="text-sm text-muted-foreground">This saved item stays unchanged. Continue to edit the new item, or view the one already in your list.</p>
-          <Button class="min-h-11 w-full whitespace-normal md:h-auto" onclick={editNewItem} disabled={isSaving}>Skip and edit this new item</Button>
         </section>
+        <Dialog.Description>Keep the saved item, or review a second copy before adding it.</Dialog.Description>
+        <div class="grid gap-2 sm:grid-cols-2 [&>button]:h-auto [&>button]:min-h-11 [&>button]:whitespace-normal">
+          <Button onclick={() => viewExisting(duplicate)} disabled={isSaving}>Keep existing only</Button>
+          <Button variant="outline" onclick={editNewItem} disabled={isSaving}>Continue with new item</Button>
+        </div>
       {:else}
       <div class="flex min-w-0 items-center gap-4">
         <CoverArt src={draft?.coverArt} alt={'Cover of ' + (draft?.title ?? '')} size="sm" class="confirmation-cover shrink-0" />
@@ -401,9 +406,9 @@
       <p role="alert" class="text-sm">This tab can no longer save to your list. Copy any edits you want to keep, then close this dialog and reload.</p>
     {/if}
     <Dialog.Footer class="flex-wrap border-t pt-4 [&>button]:min-h-11 [&>button]:min-w-11">
-      <Button variant="outline" onclick={onCancel} disabled={isSaving}>Cancel</Button>
+      <Button variant={showDuplicateWarning ? 'ghost' : 'outline'} onclick={onCancel} disabled={isSaving}>Cancel</Button>
       {#if error && !draft}<Button onclick={onRetry}>Retry</Button>{/if}
-      {#if duplicate}<Button variant="secondary" onclick={() => viewExisting(duplicate)} disabled={isSaving}>View Existing</Button>{/if}
+      {#if duplicate && !showDuplicateWarning}<Button variant="secondary" onclick={() => viewExisting(duplicate)} disabled={isSaving}>View Existing</Button>{/if}
       {#if draft && !showDuplicateWarning}
         <Button variant={duplicate ? 'outline' : 'default'} onclick={save} disabled={library.access === 'outdated' || isSaving || !draft.title} aria-busy={isSaving}>{isSaving ? 'Saving…' : duplicate ? 'Add Anyway' : 'Add to List'}</Button>
       {/if}
