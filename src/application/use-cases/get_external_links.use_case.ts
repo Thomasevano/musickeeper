@@ -9,6 +9,17 @@ function destinationKey(url: string, locale: string): string {
   try {
     const parsed = new URL(normalized)
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return normalized
+    if (parsed.host === 'youtu.be') {
+      const video = /^\/([\w-]{11})\/?$/.exec(parsed.pathname)
+      if (video) return `youtube:video:${video[1]}`
+    }
+    if (
+      (parsed.host === 'youtube.com' || parsed.host.endsWith('.youtube.com')) &&
+      parsed.pathname === '/watch'
+    ) {
+      const video = parsed.searchParams.get('v')
+      if (video && /^[\w-]{11}$/.test(video)) return `youtube:video:${video}`
+    }
     if (parsed.hostname === 'open.spotify.com') {
       const resource = /^\/(track|album)\/([A-Za-z0-9]+)\/?$/.exec(parsed.pathname)
       if (resource) return `spotify:${resource[1]}:${resource[2]}`
@@ -34,6 +45,22 @@ function destinationKey(url: string, locale: string): string {
   return normalized
 }
 
+function selectYouTubeCatalog(
+  links: ExternalLink[],
+  sourceKey: string | undefined,
+  locale: string
+) {
+  let fallback: ExternalLink | undefined
+  for (const link of links) {
+    if (link.platform !== 'youtube-music' || destinationKey(link.url, locale) === sourceKey)
+      continue
+    // MusicBrainz relations have already passed platform URL recognition.
+    if (new URL(link.url).host !== 'youtu.be') return link
+    fallback ??= link
+  }
+  return fallback
+}
+
 export class GetExternalLinksUseCase {
   constructor(
     private musicBrainzLinks: MusicBrainzExternalLinksPort,
@@ -54,7 +81,10 @@ export class GetExternalLinksUseCase {
       this.platformSearch.search(artists, title, itemType),
     ])
 
-    const allLinks: ExternalLink[] = [...mbLinks, ...searchLinks]
+    const sourceKey = sourcePlatform && sourceUrl ? destinationKey(sourceUrl, locale) : undefined
+    const catalog = selectYouTubeCatalog(mbLinks, sourceKey, locale)
+    const allLinks = mbLinks.filter((link) => link.platform !== 'youtube-music' || link === catalog)
+    allLinks.push(...searchLinks)
 
     if (sourceUrl) {
       const spec = sourcePlatform

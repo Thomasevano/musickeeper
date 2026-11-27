@@ -36,14 +36,16 @@ export function extractLinksFromRelations(
     const spec = detectPlatform(resource)
     if (!spec || seen.has(spec.id)) continue
 
-    seen.add(spec.id)
-    links.push({
+    const link: ExternalLink = {
       platform: spec.id,
       label: spec.label,
       url: resource,
       category: spec.category,
       source: 'musicbrainz',
-    })
+    }
+    // The use case chooses one YouTube relation after comparing it with the pasted source.
+    if (spec.id !== 'youtube-music') seen.add(spec.id)
+    links.push(link)
   }
   return links
 }
@@ -59,9 +61,7 @@ export class MusicBrainzExternalLinksAdapter extends MusicBrainzExternalLinksPor
             )
           : await withTimeout(musicbrainzApi.lookup('recording', mbid, ['url-rels']), 10000)
 
-      const relations = result.relations ?? []
-      const seen = new Set<string>()
-      const links: ExternalLink[] = extractLinksFromRelations(relations, seen)
+      let relations = result.relations ?? []
 
       if ('release-group' in result && result['release-group']?.id) {
         const releaseGroupId = result['release-group'].id
@@ -71,14 +71,13 @@ export class MusicBrainzExternalLinksAdapter extends MusicBrainzExternalLinksPor
             musicbrainzApi.lookup('release-group', releaseGroupId, ['url-rels']),
             10000
           )) as IReleaseGroup & IMayHaveRelations
-          const rgRelations = rgResult.relations ?? []
-          links.push(...extractLinksFromRelations(rgRelations, seen))
+          if (rgResult.relations?.length) relations = relations.concat(rgResult.relations)
         } catch {
           // Release-group lookup is best-effort
         }
       }
 
-      return links
+      return extractLinksFromRelations(relations, new Set())
     } catch (error) {
       console.error('Failed to fetch external links from MusicBrainz:', error)
       return []
