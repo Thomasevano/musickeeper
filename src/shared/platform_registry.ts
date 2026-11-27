@@ -59,7 +59,8 @@ export const PLATFORMS: PlatformSpec[] = [
 
 export function detectPlatform(url: string): PlatformSpec | null {
   try {
-    return PLATFORMS.find((p) => p.hostMatcher(new URL(url).host)) ?? null
+    const host = new URL(url).host
+    return PLATFORMS.find((p) => p.hostMatcher(host)) ?? null
   } catch {
     return null
   }
