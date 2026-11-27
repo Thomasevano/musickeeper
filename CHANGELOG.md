@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0](https://github.com/Thomasevano/musickeeper/compare/v0.10.0...v1.0.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **paste:** replace the old link metadata/enrichment flow with platform metadata and explicit matching. Callers must use the revised contracts; saving does not require a MusicBrainz association.
+
+### Features
+
+* **api:** add unified FetchPlatformMetadata use case ([5bf62e4](https://github.com/Thomasevano/musickeeper/commit/5bf62e4c8d0b9987717664fe8bae1982838bb3e6))
+* **links:** support items without MusicBrainz ([f45e203](https://github.com/Thomasevano/musickeeper/commit/f45e2039e404d6ce9cb8824ef14d9ff5f225fe2b)), closes [#42](https://github.com/Thomasevano/musickeeper/issues/42)
+* **paste:** clarify duplicate review choices ([cd28c16](https://github.com/Thomasevano/musickeeper/commit/cd28c16cac48bd477af720bbc8aabb0c17a92b94))
+* **paste:** clarify matching and choose covers ([3a6286b](https://github.com/Thomasevano/musickeeper/commit/3a6286b2f34225e7b71374b6922d38ae3e833721))
+* **paste:** gate new item editing behind duplicate review ([fd87628](https://github.com/Thomasevano/musickeeper/commit/fd8762862592c13cef0d0f14aaeaa58956a61f67)), closes [#74](https://github.com/Thomasevano/musickeeper/issues/74)
+* **paste:** make MusicBrainz matching explicit ([8313a88](https://github.com/Thomasevano/musickeeper/commit/8313a886cb56b50a23233a34bff3c4481823f169)), closes [#42](https://github.com/Thomasevano/musickeeper/issues/42)
+* **storage:** separate local keys from MusicBrainz ([db56e27](https://github.com/Thomasevano/musickeeper/commit/db56e27268e8c16d70cd4def31bc1e78b9170104)), closes [#42](https://github.com/Thomasevano/musickeeper/issues/42)
+
+
+### Bug Fixes
+
+* **deps:** resolve Dependabot security alerts ([69eaf9f](https://github.com/Thomasevano/musickeeper/commit/69eaf9fbc8be2434dcc0b7991d073ed4d7dd1205))
+* **docker:** reuse production dependency layers ([7d7ddee](https://github.com/Thomasevano/musickeeper/commit/7d7ddee0d05ddaf99a2adfc6e377434d21d60fbd))
+* **links:** recognize short YouTube source URLs ([cc9bfaf](https://github.com/Thomasevano/musickeeper/commit/cc9bfafa9ffb3841ea21eda469e95280b80324eb)), closes [#76](https://github.com/Thomasevano/musickeeper/issues/76)
+* **paste:** distinguish title tracks from albums ([d553be3](https://github.com/Thomasevano/musickeeper/commit/d553be343d37a403419ee56fa5f50742842b58ce))
+* **paste:** preserve duplicate review and focus ([ed58e64](https://github.com/Thomasevano/musickeeper/commit/ed58e647fc0d350253ace693484bd1d5bdae49a4))
+* reveal saved duplicates across list pages ([b661d61](https://github.com/Thomasevano/musickeeper/commit/b661d612c5c08f045f4be546bee28b3dd1bb3217))
+* **search:** support short music titles and artists ([304c003](https://github.com/Thomasevano/musickeeper/commit/304c0037f8148e9b40152be2756d86e3f306a495))
+* **storage:** guard library upgrades across tabs ([8aba53f](https://github.com/Thomasevano/musickeeper/commit/8aba53fbdad002c4e5c6211b1fb7bef1d8ac5936))
+
 ## [0.10.0](https://github.com/Thomasevano/musickeeper/compare/v0.9.0...v0.10.0) (2026-11-17)
 
 
