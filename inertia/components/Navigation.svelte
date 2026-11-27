@@ -11,7 +11,7 @@
 
   const isMobile = new IsMobile()
   const navigationLinks = [
-    { href: '/#features', label: 'Features', external: false },
+    { href: '/#how-it-works', label: 'How it works', external: false },
     {
       href: 'https://thomasevano.fr/en/tags/musickeeper/',
       label: 'Blog',
