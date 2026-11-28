@@ -6,19 +6,18 @@
   import { Separator } from '$lib/components/ui/separator/index.js'
   import { Link2, Search, TriangleAlert, WifiOff } from '@lucide/svelte'
   import { Debounced } from 'runed'
-  import { toast } from 'svelte-sonner'
   import ConfirmMusicDialog from '~/components/ConfirmMusicDialog.svelte'
   import ListenLaterListTable from '~/components/ListenLaterListTable.svelte'
   import TrackItem from '~/components/trackItem.svelte'
   import Button from '~/lib/components/ui/button/button.svelte'
   import Input from '~/lib/components/ui/input/input.svelte'
-  import { trackQualifyingActivity } from '~/lib/analytics'
+  import { createListManager } from '~/lib/list_manager.svelte'
+  import { LinkPaste } from '~/lib/use_link_paste.svelte'
   import { appFetch } from '~/lib/app_update.svelte'
-  import { registerUnsavedWork, trackWrite } from '~/lib/reload_guard'
-  import { type ExternalLink, ListenLaterItem, MusicItem, musicItemName } from '../../src/domain/music_item'
-  import { library, listenLaterStorage } from '~/lib/listen_later.svelte'
+  import { registerUnsavedWork } from '~/lib/reload_guard'
+  import { type ListenLaterItem, type MusicItem, musicItemName } from '../../src/domain/music_item'
+  import { library } from '~/lib/listen_later.svelte'
   import LibraryLayout from '../layouts/libraryLayout.svelte'
-  import { detectPlatform } from '../../src/shared/platform_registry'
 
   let {
     serializedItems = [],
@@ -27,13 +26,11 @@
   let searchTerm = $state('')
   let artistName = $state('')
   let searchType = $state('track')
-  let listenLaterItems = $state([]) as ListenLaterItem[]
-  let listStatus = $state<'loading' | 'loaded' | 'failed'>('loading')
-  const listReady = $derived(listStatus === 'loaded' && library.access === 'available')
+  const list = createListManager()
   let isSearching = $state(false)
   let isOffline = $state(typeof navigator !== 'undefined' ? !navigator.onLine : false)
   const searchReadOnly = $derived(library.access === 'outdated')
-  const searchDisabled = $derived(!searchReadOnly && (isOffline || !listReady))
+  const searchDisabled = $derived(!searchReadOnly && (isOffline || !list.ready))
 
   // Listen for online/offline events
   $effect(() => {
@@ -49,31 +46,17 @@
     }
   })
 
-  // Paste link state
-  let linkUrl = $state('')
-  let isProcessingLink = $state(false)
-  let linkError = $state('')
-
-  // Confirmation dialog state
-  let isConfirmDialogOpen = $state(false)
-  let isDialogLoading = $state(false)
-  let dialogError = $state<string | null>(null)
-  let pendingMusicItem = $state<MusicItem | null>(null)
-  let pendingSourceUrl = $state<string | undefined>()
-  let isSaving = $state(false)
-  let platformController: AbortController | null = null
+  const paste = new LinkPaste(list)
   let listTable = $state<ReturnType<typeof ListenLaterListTable>>()
   let deleteTarget = $state<ListenLaterItem | null>(null)
   const deleteTargetName = $derived(deleteTarget ? musicItemName(deleteTarget) : '')
 
-  // Result options remount between queries, even while their saves are pending.
-  const searchSavesInFlight = new Set<string>()
   let focusedResultIndex = $state<number>(-1)
   let resultsListEl = $state<HTMLUListElement | null>(null)
   let titleInputEl = $state<HTMLInputElement | null>(null)
 
   $effect(() => registerUnsavedWork(() =>
-    !!(searchTerm || artistName || linkUrl || isConfirmDialogOpen || pendingMusicItem || pendingSourceUrl)
+    !!(searchTerm || artistName || paste.hasUnsavedWork)
   ))
 
   const debouncedSearch = new Debounced(() => searchTerm, 300)
@@ -167,7 +150,7 @@
   }
 
   $effect(() => {
-    if (listReady && (hasSearchTerm || hasArtist)) {
+    if (list.ready && (hasSearchTerm || hasArtist)) {
       handleSearch()
     } else {
       searchAbortController?.abort()
@@ -178,196 +161,18 @@
     return () => searchAbortController?.abort()
   })
 
-
   $effect(() => {
-    void loadListenLaterItems()
+    void list.load()
   })
-
-  async function loadListenLaterItems() {
-    try {
-      listenLaterItems = await listenLaterStorage.getAll()
-      listStatus = 'loaded'
-    } catch (error) {
-      listStatus = 'failed'
-      console.error('Error loading listen later list:', error)
-      toast.error('Failed to load your list')
-    }
-  }
-
-  async function handleListen(item: ListenLaterItem) {
-    try {
-      const updated = await trackWrite(() => listenLaterStorage.toggleListened(item.id))
-      if (updated) {
-        trackQualifyingActivity(updated.hasBeenListened ? 'marked_listened' : 'marked_unlistened')
-        listenLaterItems = listenLaterItems.map((i) => (i.id === updated.id ? updated : i))
-        // Every other list write confirms itself. This one changed a badge on a row
-        // the reader has already moved past, so it needs saying out loud too.
-        toast.success(
-          `${musicItemName(updated)} marked as ${updated.hasBeenListened ? 'listened' : 'not listened'}`
-        )
-      }
-    } catch (error) {
-      console.error('Error updating item:', error)
-      toast.error(`Could not update ${musicItemName(item)}`)
-    }
-  }
-
-  async function handleDelete(item: ListenLaterItem) {
-    try {
-      await trackWrite(() => listenLaterStorage.remove(item.id))
-      trackQualifyingActivity('item_removed')
-      listenLaterItems = listenLaterItems.filter((i) => i.id !== item.id)
-      toast.success(`${musicItemName(item)} removed from your list`)
-    } catch (error) {
-      console.error('Error deleting item:', error)
-      toast.error(`Could not remove ${musicItemName(item)}`)
-    }
-  }
 
   const types = [
     { value: 'track', label: 'Tracks' },
     { value: 'album', label: 'Albums' },
   ]
 
-  function isValidUrl(urlString: string): boolean {
-    try {
-      const url = new URL(urlString)
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      return false
-    }
-  }
-
-  async function handlePasteLink() {
-    // A disabled button is unfocusable, so disabling this one mid-request
-    // would blur it and leave the dialog with nowhere to put focus back on
-    // close. It stays enabled and turns the second press into a no-op.
-    if (isProcessingLink || !listReady) return
-
-    linkError = ''
-
-    if (!linkUrl.trim()) {
-      linkError = 'Please enter a URL'
-      return
-    }
-
-    if (!isValidUrl(linkUrl)) {
-      linkError = 'Please enter a valid URL'
-      return
-    }
-
-    // Open dialog immediately with loading state
-    isProcessingLink = true
-    isDialogLoading = true
-    dialogError = null
-    isConfirmDialogOpen = true
-
-    await fetchLinkMetadata()
-  }
-
-  async function fetchLinkMetadata() {
-    platformController?.abort()
-    const controller = new AbortController()
-    platformController = controller
-    const sourceUrl = linkUrl.trim()
-    isDialogLoading = true
-    dialogError = null
-    isProcessingLink = true
-    try {
-      const response = await appFetch('/api/platform-metadata', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sourceUrl }), signal: controller.signal,
-      })
-      const data = await response.json()
-      if (controller.signal.aborted || platformController !== controller) return
-      if (!response.ok) {
-        dialogError = data.error || 'Failed to fetch metadata'
-        return
-      }
-      pendingMusicItem = new MusicItem(data.musicItem)
-      pendingSourceUrl = data.linkMetadata.originalUrl
-    } catch {
-      if (!controller.signal.aborted && platformController === controller) {
-        dialogError = 'Failed to connect to server. Please check your internet connection.'
-      }
-    } finally {
-      if (platformController === controller) {
-        isDialogLoading = false
-        isProcessingLink = false
-      }
-    }
-  }
-
-  function handleRetry() {
-    void fetchLinkMetadata()
-  }
-
-  async function backfillExternalLinks(item: ListenLaterItem) {
-    let links: ExternalLink[]
-    try {
-      const params = new URLSearchParams({
-        type: item.itemType, locale: navigator.language || 'fr-FR',
-        title: item.title,
-      })
-      for (const artist of item.artists) params.append('artists[]', artist)
-      if (item.musicBrainzId) params.set('mbid', item.musicBrainzId)
-      if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl)
-      const response = await appFetch(`/api/links?${params}`, { signal: AbortSignal.timeout(10_000) })
-      if (!response.ok) return
-      links = (await response.json()).externalLinks ?? []
-    } catch {
-      // Saving succeeds independently of optional external provider lookups.
-      return
-    }
-    const updated = await listenLaterStorage.updateExternalLinks(item.id, links)
-    if (updated) listenLaterItems = listenLaterItems.map((existing) => existing.id === updated.id ? updated : existing)
-  }
-
-  async function handleConfirmDialogConfirm(item: MusicItem, musicBrainzId?: string) {
-    if (isSaving || !pendingMusicItem) return
-    isSaving = true
-    dialogError = null
-    try {
-      const platform = pendingSourceUrl ? detectPlatform(pendingSourceUrl) : undefined
-      const stored = await trackWrite(() => listenLaterStorage.add({ ...item, musicBrainzId,
-        sourceUrl: pendingSourceUrl, externalLinks: platform && pendingSourceUrl ? [{ platform: platform.id, label: platform.label, category: platform.category, url: pendingSourceUrl, source: 'source-url' }] : [],
-      }))
-      trackQualifyingActivity('item_saved')
-      listenLaterItems = [...listenLaterItems, stored]
-      isConfirmDialogOpen = false
-      resetPendingState()
-      linkUrl = ''
-      toast.success(`${musicItemName(stored)} added to your list`)
-      void trackWrite(() => backfillExternalLinks(stored)).catch((error) =>
-        console.error('Error saving external links:', error)
-      )
-    } catch (error) {
-      console.error('Error saving item to listen later list:', error)
-      dialogError = 'Failed to save item. Please try again.'
-    } finally {
-      isSaving = false
-    }
-  }
-
-  function handleConfirmDialogCancel() {
-    if (isSaving) return
-    isConfirmDialogOpen = false
-    resetPendingState()
-  }
-
-  function resetPendingState() {
-    platformController?.abort()
-    platformController = null
-    pendingMusicItem = null
-    pendingSourceUrl = undefined
-    dialogError = null
-    isDialogLoading = false
-    isProcessingLink = false
-  }
-
 </script>
 
-<LibraryLayout data={listenLaterItems} {title}>
+<LibraryLayout data={list.items} {title}>
   <div class="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-12 lg:px-16">
     {#if isOffline}
       <Alert.Root variant="info" class="mb-4">
@@ -398,26 +203,26 @@
         <Input
           id="link-url"
           type="url"
-          bind:value={linkUrl}
+          bind:value={paste.url}
           placeholder="Paste a link from Spotify, YouTube, Apple Music, or SoundCloud..."
           class="flex-1"
-          readonly={isProcessingLink}
-          aria-describedby={linkError ? 'link-url-error' : undefined}
-          aria-invalid={linkError ? 'true' : undefined}
+          readonly={paste.loading}
+          aria-describedby={paste.inputError ? 'link-url-error' : undefined}
+          aria-invalid={paste.inputError ? 'true' : undefined}
         />
         <Button
           class="w-full sm:w-auto aria-disabled:opacity-50"
-          onclick={handlePasteLink}
-          disabled={!linkUrl.trim() || listStatus !== 'loaded'}
+          onclick={paste.start}
+          disabled={!paste.url.trim() || list.status !== 'loaded'}
           aria-disabled={library.access === 'outdated' || undefined}
-          aria-busy={isProcessingLink}
+          aria-busy={paste.loading}
         >
           <Link2 class="mr-2 h-4 w-4" aria-hidden="true" />
-          {isProcessingLink ? 'Processing...' : 'Add'}
+          {paste.loading ? 'Processing...' : 'Add'}
         </Button>
       </div>
-      {#if linkError}
-        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{linkError}</p>
+      {#if paste.inputError}
+        <p id="link-url-error" class="text-destructive text-sm mt-2" role="alert">{paste.inputError}</p>
       {/if}
     </div>
 
@@ -429,7 +234,7 @@
         id="search-type"
         class="w-full sm:w-[180px]"
         bind:value={searchType}
-        disabled={isOffline || !listReady}
+        disabled={isOffline || !list.ready}
       >
         {#each types as type (type.value)}
           <option value={type.value}>{type.label}</option>
@@ -450,7 +255,7 @@
             disabled={searchDisabled}
             readonly={searchReadOnly}
             role="combobox"
-            aria-expanded={listReady && !!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
+            aria-expanded={list.ready && !!(hasSearchTerm || hasArtist) && serializedItems.length > 0}
             aria-controls="search-results-list"
             aria-autocomplete="list"
             aria-describedby="search-hint"
@@ -492,7 +297,7 @@
         </p>
       </div>
 
-      {#if listReady && (isAboveThreshold || isSearching)}
+      {#if list.ready && (isAboveThreshold || isSearching)}
         <!-- Named so the a11y suite can park `scrollable-region-focusable` on
              this node alone: its options leave the tab order by design, which
              is not true of any other scroll region in the app. -->
@@ -509,7 +314,7 @@
               aria-label={searchType === 'track' ? 'Tracks' : 'Albums'}
               aria-busy="true"
             >
-              <TrackItem loading={true} type={searchType} {searchSavesInFlight} />
+              <TrackItem loading={true} type={searchType} />
             </ul>
           {:else if serializedItems && serializedItems.length > 0}
             <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
@@ -524,8 +329,6 @@
             >
               {#each serializedItems as item, i (item.id)}
                 <TrackItem
-                  bind:listenLaterItems
-                  {searchSavesInFlight}
                   {item}
                   type={searchType}
                   focused={i === focusedResultIndex}
@@ -554,24 +357,24 @@
           </Alert.Description>
         </Alert.Root>
       {/if}
-      {#if listenLaterItems.length > 0}
+      {#if list.items.length > 0}
         <h2 id="listen-later-list-heading" tabindex="-1" class="mb-4 text-xl font-semibold">Listen Later List</h2>
         <ListenLaterListTable
           bind:this={listTable}
-          items={listenLaterItems}
+          items={list.items}
           onDelete={(item) => (deleteTarget = item)}
-          onToggleListen={handleListen}
+          onToggleListen={list.toggleListened}
         />
-      {:else if listReady}
+      {:else if list.ready}
         <div class="flex flex-col items-center justify-center gap-4 h-64">
           <p class="text-muted-foreground text-sm text-pretty text-center">
             Add your first item by searching above or pasting a link from Spotify, YouTube, Apple
             Music, or SoundCloud.
           </p>
         </div>
-      {:else if listStatus === 'loading' && library.access !== 'blocked'}
+      {:else if list.status === 'loading' && library.access !== 'blocked'}
         <p class="text-muted-foreground text-sm" role="status">Loading your list…</p>
-      {:else if listStatus === 'failed'}
+      {:else if list.status === 'failed'}
         <p class="text-muted-foreground text-sm">Reload this page to try loading your list again.</p>
       {/if}
     </div>
@@ -579,16 +382,16 @@
 </LibraryLayout>
 
 <ConfirmMusicDialog
-  bind:open={isConfirmDialogOpen}
-  isLoading={isDialogLoading}
-  error={dialogError}
-  musicItem={pendingMusicItem}
-  {isSaving}
-  {listenLaterItems}
-  onConfirm={handleConfirmDialogConfirm}
-  onCancel={handleConfirmDialogCancel}
+  bind:open={paste.open}
+  isLoading={paste.loading}
+  error={paste.error}
+  musicItem={paste.item}
+  isSaving={paste.saving}
+  listenLaterItems={list.items}
+  onConfirm={paste.confirm}
+  onCancel={paste.cancel}
   onViewExisting={async (id) => listTable?.revealItem(id)}
-  onRetry={handleRetry}
+  onRetry={paste.fetchMetadata}
 />
 
 <Dialog.Root
@@ -613,11 +416,11 @@
       >
       <Button
         variant="destructive"
-        disabled={!listReady}
+        disabled={!list.ready}
         class="cursor-pointer"
         onclick={() => {
           if (deleteTarget) {
-            handleDelete(deleteTarget)
+            void list.remove(deleteTarget)
             deleteTarget = null
           }
         }}

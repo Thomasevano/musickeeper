@@ -1,117 +1,21 @@
 <script lang="ts">
   import { Check, Plus } from '@lucide/svelte'
-  import { nanoid } from 'nanoid'
-  import { ListenLaterItem, MusicItem, SearchType, musicItemName } from '../../src/domain/music_item'
-  import type { ExternalLink } from '../../src/domain/music_item'
+  import type { MusicItem } from '../../src/domain/music_item.js'
   import CoverArt from '~/components/CoverArt.svelte'
   import Skeleton from 'boneyard-js/svelte'
-  import { toast } from 'svelte-sonner'
-  import { listenLaterStorage } from '~/lib/listen_later.svelte'
-  import { trackQualifyingActivity } from '~/lib/analytics'
-  import { appFetch } from '~/lib/app_update.svelte'
-  import { trackWrite } from '~/lib/reload_guard'
-  type PendingListenLaterItem = ListenLaterItem & { externalLinksPending?: boolean }
+  import { getListManager } from '~/lib/list_manager.svelte.js'
 
-  let {
-    listenLaterItems = $bindable(),
-    searchSavesInFlight,
-    item = undefined,
-    type,
-    loading = false,
-    focused = false,
-  } = $props()
-
-  async function fetchExternalLinks(item: MusicItem): Promise<ExternalLink[]> {
-    try {
-      const params = new URLSearchParams({
-        mbid: item.id,
-        type: item.itemType === SearchType.album ? 'album' : 'track',
-        locale: navigator.language || 'fr-FR',
-      })
-      for (const artist of item.artists) params.append('artists[]', artist)
-      if (item.title) params.set('title', item.title)
-      const response = await appFetch(`/api/links?${params.toString()}`)
-      if (!response.ok) return []
-      const data = await response.json()
-      return data.externalLinks ?? []
-    } catch {
-      return []
-    }
+  interface Props {
+    item?: MusicItem
+    type: string
+    loading?: boolean
+    focused?: boolean
   }
 
-  async function addToListenLater(item: MusicItem) {
-    if (searchSavesInFlight.has(item.id)) return
-    searchSavesInFlight.add(item.id)
+  let { item = undefined, type, loading = false, focused = false }: Props = $props()
 
-    let stored: ListenLaterItem
-    try {
-      stored = await trackWrite(() => listenLaterStorage.add({
-        id: nanoid(),
-        musicBrainzId: item.id,
-        title: item.title,
-        releaseDate: item.releaseDate,
-        length: item.length,
-        artists: item.artists,
-        albumName: item.albumName,
-        itemType: item.itemType,
-        coverArt: item.coverArt,
-        externalLinks: [],
-      }))
-      // ponytail: appending assumes the store's oldest-first order, which puts a
-      // new item last. If that default order ever changes, replace this with a
-      // getAll().
-      listenLaterItems = [...listenLaterItems, { ...stored, externalLinksPending: true }]
-    } catch (error) {
-      console.error('Error adding item to listen later list:', error)
-      toast.error(`Could not add ${musicItemName(item)}`)
-      return
-    } finally {
-      searchSavesInFlight.delete(item.id)
-    }
-
-    trackQualifyingActivity('item_saved')
-    toast.success(`${musicItemName(item)} added to your list`)
-    void backfillExternalLinks(item, stored.id)
-  }
-
-  // Link resolution hits third-party APIs and can take seconds. The item is
-  // already saved and on screen by then, so patch it in place when the links
-  // land — and skip the write if the user removed it while we waited.
-  async function backfillExternalLinks(item: MusicItem, localId: string) {
-    let resolvedExternalLinks: ExternalLink[] = []
-    try {
-      resolvedExternalLinks = await trackWrite(async () => {
-        const links = await fetchExternalLinks(item)
-        if (links.length) {
-          const updated = await listenLaterStorage.updateExternalLinks(localId, links)
-          return updated ? links : []
-        }
-        return links
-      })
-    } catch (error) {
-      console.error('Error backfilling external links:', error)
-    }
-
-    listenLaterItems = listenLaterItems.map((existing: PendingListenLaterItem) =>
-      existing.id === localId
-        ? { ...existing, externalLinks: resolvedExternalLinks, externalLinksPending: false }
-        : existing
-    )
-  }
-
-  async function removeFromListenLater(stored: ListenLaterItem) {
-    try {
-      await trackWrite(() => listenLaterStorage.remove(stored.id))
-      trackQualifyingActivity('item_removed')
-      listenLaterItems = listenLaterItems.filter((i: ListenLaterItem) => i.id !== stored.id)
-      toast.success(`${musicItemName(stored)} removed from your list`)
-    } catch (error) {
-      console.error('Error removing item from listen later list:', error)
-      toast.error(`Could not remove ${musicItemName(stored)}`)
-    }
-  }
-
-  const savedCopies = $derived(item ? listenLaterItems.filter((saved: ListenLaterItem) =>
+  const list = getListManager()
+  const savedCopies = $derived(item ? list.items.filter((saved) =>
     (saved.musicBrainzId ?? saved.id) === item.id
   ) : [])
 
@@ -119,9 +23,9 @@
     if (savedCopies.length > 1) {
       document.getElementById('listen-later-list-heading')?.focus()
     } else if (savedCopies.length === 1) {
-      void removeFromListenLater(savedCopies[0])
+      void list.remove(savedCopies[0])
     } else {
-      void addToListenLater(item)
+      void list.addFromSearch(item)
     }
   }
 </script>

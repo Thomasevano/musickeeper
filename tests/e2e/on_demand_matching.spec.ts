@@ -54,6 +54,38 @@ async function paste(page: Page) {
   )
 }
 
+test('a first keyboard save closes without reporting its own row as a duplicate', async ({
+  page,
+}) => {
+  await paste(page)
+  const dialog = page.getByRole('dialog')
+  const save = dialog.getByRole('button', { name: 'Add to List' })
+  await save.focus()
+  const trace = await dialog.evaluateHandle((element) => {
+    const observed = { duplicate: false, refocusedDialog: false }
+    element.addEventListener('focusin', ({ target }) => {
+      if (target === element && element.dataset.state === 'open') observed.refocusedDialog = true
+    })
+    const observer = new MutationObserver(() => {
+      if (element.dataset.state !== 'open') return observer.disconnect()
+      if (element.querySelector('[role="status"]')?.textContent?.includes('Duplicate found')) {
+        observed.duplicate = true
+      }
+    })
+    observer.observe(element, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    })
+    return observed
+  })
+  await save.press('Enter')
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: platformItem.title })).toHaveCount(1)
+  expect(await trace.jsonValue()).toEqual({ duplicate: false, refocusedDialog: false })
+})
+
 test('an update reported by explicit matching keeps the draft and returns candidates', async ({
   page,
 }) => {
